@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Lista de Contatos e Ranking Dinâmico</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+:root { font-family: 'Bebas Neue', cursive; }
+body { background-color:#f7f9fb; }
+
+.details-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.25,0.8,0.25,1);
+}
+.details-panel.open {
+    max-height: 1000px;
+    transition: max-height 0.6s cubic-bezier(0.25,0.8,0.25,1);
+}
+
+.contact-card:hover,
+.ranking-card:hover,
+.sta-card:hover {
+    transform: scale(1.002);
+}
+
+.hidden-filter-btn { visibility:hidden; opacity:0; }
+.visible-filter-btn { visibility:visible; opacity:1; }
+
+.ran-card {
+    background:#ffffff;
+    padding:4px 6px; 
+    margin:1px 0; 
+    border-radius:6px;
+    border:1px solid #f0f0f0;
+}
+.ran-flag { width:28px; height:20px; cursor:pointer; object-fit:cover; border-radius:3px; box-shadow:0 0 0 1px rgba(0,0,0,0.1); } 
+
+.contact-card, .ranking-card, .sta-card {
+    padding: 6px 8px;
+    margin: 4px 0;
+    border-radius: 8px;
+}
+.ranking-card { 
+    padding: 4px 6px;
+    margin: 1px 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #374151; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
+
+/* Estilos específicos para a aba Paí - Ajustado para otimização de espaço */
+.country-grid {
+    display: grid;
+    grid-template-columns: 25px 35px 110px 32px 32px 32px 1fr;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+.bar-container {
+    display: flex;
+    height: 12px;
+    background: #eee;
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 150px;
+}
+.bar-3 { background-color: #6dbe99; }
+.bar-2 { background-color: #f8c039; }
+.bar-1 { background-color: #e97b78; }
+</style>
+</head>
+<body class="min-h-screen p-1 sm:p-2"> 
+<div class="max-w-4xl mx-auto">
+<div class="bg-white p-1 sm:p-2 rounded-2xl shadow-xl border border-gray-100"> 
+
+    <div id="sheet-nav" class="mb-3 flex flex-wrap gap-2 justify-center"></div>
+
+    <div id="search-controls-container">
+        <div class="mb-3">
+            <div class="relative flex items-center">
+                <input type="text" id="search-input" placeholder="Pesquisar por artista, álbum, ano..."
+                       class="w-full p-3 border border-gray-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-lg transition duration-150 shadow-inner pr-12">
+                <button id="clear-filter-btn" onclick="clearActiveFilter()"
+                        class="absolute right-0 mr-2 p-1.5 h-9 w-9 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-600 transition duration-150 disabled:bg-gray-300 hidden-filter-btn"
+                        title="Limpar Filtro Ativo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="sort-controls" class="mb-3 p-3 bg-gray-50 rounded-xl flex items-center justify-between space-x-2 border border-gray-200"></div>
+    </div>
+
+    <div id="results-count" class="text-sm text-gray-500 mb-3 px-1"></div>
+
+    <div id="status-message" class="text-center text-lg text-gray-600 p-4 rounded-xl bg-yellow-50 shadow-inner">
+        Carregando dados...
+    </div>
+
+    <div id="contact-list" class="space-y-1"></div>
+
+    <div id="no-results" class="hidden text-center text-xl text-gray-400 p-10 bg-white rounded-xl shadow-lg mt-8">
+        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p>Nenhum resultado encontrado.</p>
+    </div>
+
+</div>
+</div>
+
+<div id="cover-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm" onclick="closeCoverModal()">
+    <div class="relative max-w-full max-h-full p-4" onclick="event.stopPropagation()">
+        <button onclick="closeCoverModal()" title="Fechar (Esc)" class="absolute top-2 right-2 text-white text-3xl font-bold opacity-75 hover:opacity-100 transition focus:outline-none z-10 p-2 bg-black bg-opacity-50 rounded-full">
+            &times;
+        </button>
+        <img id="modal-cover-image" src="" alt="Capa Ampliada" class="max-w-[90vw] max-h-[90vh] rounded-xl shadow-2xl object-contain transition duration-300 transform scale-100">
+    </div>
+</div>
+
+<div id="album-tooltip-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm" onclick="closeAlbumTooltip()">
+    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl relative w-full max-w-sm max-h-[90vh] mx-4" onclick="event.stopPropagation()">
+        <button onclick="closeAlbumTooltip()" title="Fechar" class="absolute top-2 right-2 text-white text-3xl font-bold opacity-75 hover:opacity-100 transition focus:outline-none z-10 p-1">
+            &times;
+        </button>
+        <div id="album-tooltip-content">
+            </div>
+    </div>
+</div>
+
+<script>
+const SHEET_ID = '1QCyU_zShDAWzsZm1G-8cMUamrMdUOvyc3AIXtnhfiUw'; 
+
+const SHEETS_CONFIG = [
+    { name: 'Álbuns', gid: '1120041506' },
+    { name: 'Bandas', gid: '46372522' },
+    { name: 'Estatísticas', gid: '45947330' },
+    { name: 'Países', gid: '1789152441' } 
+];
+
+let currentSheet = SHEETS_CONFIG[0];
+let allData = [];
+let ALBUM_DATA = []; 
+let activeFilter = { key: null, value: null, columnName: null };
+let sortState = { columnKey: null, direction: 'asc' }; 
+let activeCountryFilter = null;
+let artSortState = { columnKey: null, direction: 'desc' }; 
+let paiSortState = { columnKey: null, direction: 'desc' };
+
+const contactList = document.getElementById('contact-list');
+const statusMessage = document.getElementById('status-message');
+const searchInput = document.getElementById('search-input');
+const noResultsMessage = document.getElementById('no-results');
+const sheetNav = document.getElementById('sheet-nav');
+const sortControlsContainer = document.getElementById('sort-controls');
+const resultsCountElement = document.getElementById('results-count');
+const clearFilterBtn = document.getElementById('clear-filter-btn');
+const searchControlsContainer = document.getElementById('search-controls-container');
+
+const SORTABLE_INDICES = [0,1,2,3,4,5,9,52];
+const COLUMN_TITLES = {
+    0: 'album_id', 1: 'date', 2: 'artist', 3: 'artist_rating', 4: 'year', 5: 'album', 
+    9: 'country', 52: 'BA (Col 53)'
+};
+
+const getSheetUrl = gid => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function parseDDMMAADate(dateString){
+    if(!dateString) return 0;
+    const parts = dateString.split('/');
+    if(parts.length !== 3) return 0;
+    let [day,month,year] = parts.map(p=>parseInt(p.trim(),10));
+    if(year >=0 && year < 100) year = year >=70 ? year+1900 : year+2000;
+    return new Date(year, month-1, day).getTime();
+}
+
+function getColumnKeyByIndex(index){
+    if(allData.length === 0 || !allData[0]) return null;
+    const allKeys = Object.keys(allData[0]);
+    return allKeys[index] || null;
+}
+
+function openCoverModal(imageUrl) {
+    const modal = document.getElementById('cover-modal');
+    const image = document.getElementById('modal-cover-image');
+    image.src = imageUrl;
+    modal.classList.remove('hidden');
+    document.addEventListener('keydown', handleEscKey);
+}
+
+function closeCoverModal() {
+    const modal = document.getElementById('cover-modal');
+    modal.classList.add('hidden');
+    document.removeEventListener('keydown', handleEscKey);
+}
+
+function handleEscKey(event) {
+    if (event.key === 'Escape') {
+        closeCoverModal();
+        closeAlbumTooltip();
+    }
+}
+
+function sortAlbumsByYear(albums, keyYear) {
+    if (!keyYear) return albums;
+    return albums.sort((a, b) => {
+        const yearA = parseInt(a[keyYear]) || 0;
+        const yearB = parseInt(b[keyYear]) || 0;
+        return yearA - yearB;
+    });
+}
+
+function showArtistAlbums(artistName) {
+    if (ALBUM_DATA.length === 0) {
+        alert("Ainda carregando dados do álbum. Por favor, espere até que a aba 'Álbuns' seja carregada.");
+        return;
+    }
+    
+    const allKeys = Object.keys(ALBUM_DATA[0]);
+    const keyAlbum = allKeys[5];
+    const keyYear = allKeys[4];
+    const keyArtistName = allKeys[2];
+
+    const filteredAlbums = ALBUM_DATA.filter(album => 
+        String(album[keyArtistName]).toUpperCase() === String(artistName).toUpperCase()
+    );
+
+    const sortedAlbums = sortAlbumsByYear(filteredAlbums, keyYear);
+    
+    let listHtml = sortedAlbums.map(album => {
+        const year = album[keyYear] || 'Ano?';
+        const albumName = album[keyAlbum] || 'Álbum Desconhecido';
+        return `<li class="p-1 border-b border-gray-700 last:border-b-0 flex justify-between items-center">
+            <span class="text-gray-200 font-bold mr-3 text-lg">${year}</span>
+            <span class="text-white font-medium text-right text-base">${albumName}</span>
+        </li>`;
+    }).join('');
+
+    const modalTitle = `ÁLBUNS DE: <span class="text-indigo-400">${artistName.toUpperCase()}</span> (${sortedAlbums.length})`;
+
+    const modalContent = document.getElementById('album-tooltip-content');
+    modalContent.innerHTML = `
+        <h3 class="text-xl font-bold mb-3 text-white border-b border-indigo-400 pb-2">${modalTitle}</h3>
+        <ul class="max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">${listHtml}</ul>
+    `;
+
+    document.getElementById('album-tooltip-modal').classList.remove('hidden');
+    document.addEventListener('keydown', handleEscKey);
+}
+
+function closeAlbumTooltip() {
+    document.getElementById('album-tooltip-modal').classList.add('hidden');
+    document.removeEventListener('keydown', handleEscKey);
+}
+
+function isFullFeatureSheet(){ return currentSheet.name === 'Álbuns'; }
+
+function createSortControls(){
+    if(!isFullFeatureSheet()){
+        sortControlsContainer.innerHTML = '';
+        if(currentSheet.name !== 'Bandas' && currentSheet.name !== 'Países') {
+            searchControlsContainer.classList.add('hidden');
+        } else {
+            searchControlsContainer.classList.remove('hidden');
+        }
+        return;
+    }
+    
+    searchControlsContainer.classList.remove('hidden');
+
+    if(allData.length === 0){ sortControlsContainer.innerHTML = ''; return; }
+
+    const allKeys = Object.keys(allData[0]);
+    const availableSortOptions = SORTABLE_INDICES
+        .filter(index => allKeys[index])
+        .map(index => ({
+            key: allKeys[index],
+            label: (COLUMN_TITLES[index] === 'album_id' ? 'Album ID' :
+                   (COLUMN_TITLES[index] === 'artist_rating' ? 'Rating' :
+                   (COLUMN_TITLES[index] === 'date' ? 'Data' : (COLUMN_TITLES[index] || allKeys[index]))))
+        }));
+
+    const currentIcon = sortState.direction === 'asc' ? '?' : '?';
+    const currentTitle = sortState.direction === 'asc' ? 'Direção Ascendente' : 'Direção Decrescente';
+    const isDirectionBtnDisabled = !sortState.columnKey;
+
+    const selectHtml = availableSortOptions.length > 0 ? `
+        <label for="sort-column" class="text-gray-700 font-medium whitespace-nowrap mr-2 text-sm">Ordenar por:</label>
+        <select id="sort-column" class="p-2 border border-gray-300 rounded-lg flex-grow cursor-pointer bg-white transition duration-150">
+            <option value="" disabled>${sortState.columnKey ? 'Título Selecionado' : '-- Selecione o Título --'}</option>
+            ${availableSortOptions.map(opt=>`<option value="${opt.key}">${opt.label}</option>`).join('')}
+        </select>
+    ` : `<p class="text-sm text-red-500">Sem colunas ordenáveis disponíveis.</p>`;
+
+    const directionButtonHtml = `
+        <button id="sort-direction-btn" class="p-2 bg-indigo-500 text-white rounded-lg shadow-md hover:bg-indigo-600 transition disabled:bg-gray-300 disabled:text-gray-500" ${isDirectionBtnDisabled ? 'disabled' : ''}>
+            <span id="sort-icon" title="${currentTitle}">${currentIcon}</span>
+        </button>
+    `;
+
+    sortControlsContainer.innerHTML = `
+        <div class="flex items-center flex-grow space-x-2">
+            ${selectHtml}
+        </div>
+        ${directionButtonHtml}
+    `;
+
+    const sortSelect = document.getElementById('sort-column');
+    const sortDirectionBtn = document.getElementById('sort-direction-btn');
+    const sortIcon = document.getElementById('sort-icon');
+
+    if(sortSelect){
+        if(sortState.columnKey) sortSelect.value = sortState.columnKey;
+        sortSelect.addEventListener('change', (e)=>{
+            sortState.columnKey = e.target.value;
+            sortState.direction = 'asc';
+            if(sortDirectionBtn) sortDirectionBtn.disabled = false;
+            if(sortIcon){ sortIcon.textContent = '?'; sortIcon.title = 'Direção Ascendente'; }
+            applySortAndFilter();
+        });
+    }
+
+    if(sortDirectionBtn){
+        sortDirectionBtn.addEventListener('click', ()=>{
+            sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+            if(sortIcon) sortIcon.textContent = sortState.direction === 'asc' ? '?' : '?';
+            applySortAndFilter();
+        });
+    }
+}
+
+function sortData(){
+    if(!isFullFeatureSheet()) return;
+    const { columnKey, direction } = sortState;
+    if(!columnKey || allData.length === 0) return;
+
+    allData.sort((a,b)=>{
+        const valA = a[columnKey];
+        const valB = b[columnKey];
+        let comparison = 0;
+        if(columnKey === getColumnKeyByIndex(1)){
+            const timeA = parseDDMMAADate(valA);
+            const timeB = parseDDMMAADate(valB);
+            comparison = timeA - timeB;
+        } else {
+            const isNumericKey = [0,3,4].includes(Object.keys(allData[0]).indexOf(columnKey));
+            if(isNumericKey){
+                const numA = parseFloat(valA) || 0;
+                const numB = parseFloat(valB) || 0;
+                comparison = numA - numB;
+            } else {
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+                if(strA === '' && strB !== '') comparison = 1;
+                else if(strA !== '' && strB === '') comparison = -1;
+                else if(strA > strB) comparison = 1;
+                else if(strA < strB) comparison = -1;
+            }
+        }
+        return direction === 'asc' ? comparison : comparison * -1;
+    });
+}
+
+function applySortAndFilter(){
+    if(currentSheet.name === 'Álbuns'){
+        sortData();
+    }
+    applyFilterAndSearch();
+    updateClearFilterButton();
+}
+
+function parseSheetData(jsonText) {
+    try {
+        const startIndex = jsonText.indexOf('(');
+        const endIndex = jsonText.lastIndexOf(')');
+        if(startIndex === -1 || endIndex === -1) throw new Error("Resposta do Sheets com formato inesperado.");
+        const jsonString = jsonText.substring(startIndex+1, endIndex);
+        const json = JSON.parse(jsonString);
+        if(!json.table || !json.table.rows) throw new Error("Estrutura da planilha inválida ou vazia.");
+        const columns = json.table.cols.map(col => col.label || col.id);
+        const rows = json.table.rows;
+        const contacts = [];
+        rows.forEach(row=>{
+            const contact = {};
+            row.c.forEach((cell,index)=>{
+                const key = columns[index];
+                contact[key] = cell && (cell.f || cell.v) || '';
+            });
+            contacts.push(contact);
+        });
+        return contacts;
+    } catch (error) {
+        console.error("Erro ao processar dados da planilha:", error);
+        statusMessage.textContent = "ERRO: Falha ao processar os dados da planilha. Verifique a estrutura da aba.";
+        statusMessage.classList.add('text-red-600');
+        return [];
+    }
+}
+
+function getNumericValue(value) {
+    if (!value) return 0;
+    const str = String(value).trim();
+    if (str === '') return 0;
+    const num = parseFloat(str.replace(/\./g, '').replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+}
+
+function processRankingData(rawData){
+    if(rawData.length === 0) return [];
+    
+    if(currentSheet.name === 'Bandas'){
+        if(artSortState.columnKey){
+            const { columnKey, direction } = artSortState;
+            const directionMultiplier = direction === 'desc' ? 1 : -1;
+            rawData.sort((a, b) => {
+                const valA = getNumericValue(a[columnKey]);
+                const valB = getNumericValue(b[columnKey]);
+                const rawComparison = valB - valA; 
+                return rawComparison * directionMultiplier;
+            });
+        }
+        return rawData;
+    }
+
+    if(currentSheet.name === 'Países'){
+        const allKeys = Object.keys(rawData[0] || {});
+        const keyName = allKeys[0];
+        const keyArtistas = allKeys[2];
+        const { columnKey, direction } = paiSortState;
+
+        const sortKey = columnKey || keyArtistas;
+
+        rawData.sort((a, b) => {
+            let comparison = 0;
+            if (sortKey === keyName) {
+                // Ordenação Alfabética
+                const valA = String(a[sortKey] || '').toLowerCase();
+                const valB = String(b[sortKey] || '').toLowerCase();
+                comparison = valA.localeCompare(valB);
+            } else {
+                // Ordenação Numérica
+                const valA = getNumericValue(a[sortKey]);
+                const valB = getNumericValue(b[sortKey]);
+                comparison = valB - valA;
+            }
+            return direction === 'desc' ? comparison : comparison * -1;
+        });
+        return rawData;
+    }
+
+    return rawData;
+}
+
+function sortRankingData(columnKey, columnName) {
+    if (currentSheet.name === 'Bandas') {
+        const isNewSort = artSortState.columnKey !== columnKey;
+        if (isNewSort) {
+            artSortState.columnKey = columnKey;
+            artSortState.direction = 'desc'; 
+        } else {
+            artSortState.direction = artSortState.direction === 'desc' ? 'asc' : 'desc';
+        }
+        activeCountryFilter = null; 
+        allData = processRankingData(allData);
+        applySortAndFilter();
+    } else if (currentSheet.name === 'Países') {
+        const isNewSort = paiSortState.columnKey !== columnKey;
+        if (isNewSort) {
+            paiSortState.columnKey = columnKey;
+            paiSortState.direction = 'desc'; 
+        } else {
+            paiSortState.direction = paiSortState.direction === 'desc' ? 'asc' : 'desc';
+        }
+        allData = processRankingData(allData);
+        applySortAndFilter();
+    }
+}
+
+function slugify(text) {
+    return String(text).toLowerCase()
+        .replace(/\s+/g, '-') 
+        .replace(/[^\w-]+/g, ''); 
+}
+
+function createContactCard(contact, index){
+    const allKeys = Object.keys(contact);
+    
+    // Mapeamento de índices (Baseado na aba mais recente)
+    const indexArtist = 2;
+    const indexArtistRating = 3;
+    const indexYear = 4;
+    const indexAlbum = 5;
+    const indexCountryCode = 9;
+    const indexDeezerAlbumId = 10; // Coluna K
+    const indexDeezerCoverId = 11; // Coluna L
+    const indexTotalAlbums = 12;   // Coluna M (albuns)
+    
+    const keyAlbum = allKeys[indexAlbum] || null;
+    const keyArtist = allKeys[indexArtist] || null;
+    const keyCountryCode = allKeys[indexCountryCode] || null;
+    const keyDeezerAlbumId = allKeys[indexDeezerAlbumId] || null;
+    const keyDeezerCoverId = allKeys[indexDeezerCoverId] || null;
+    const keyTotalAlbums = allKeys[indexTotalAlbums] || null;
+
+    const valueYear = allKeys[indexYear] ? contact[allKeys[indexYear]] : '';
+    const valueAlbum = keyAlbum ? contact[keyAlbum] : 'N/A';
+    const valueArtist = keyArtist ? contact[keyArtist] : 'N/A';
+    const valueArtistRating = allKeys[indexArtistRating] ? String(contact[allKeys[indexArtistRating]]).trim() : '';
+    const valueCountryCode = keyCountryCode ? String(contact[keyCountryCode]).toLowerCase() : '';
+    const valueTotalAlbums = keyTotalAlbums ? contact[keyTotalAlbums] : '';
+    
+    const dzCovId = keyDeezerCoverId ? String(contact[keyDeezerCoverId]).trim() : '';
+
+    let coverImageHtml = '';
+    if (dzCovId && dzCovId !== '' && dzCovId !== 'undefined') {
+        const thumbUrl = `https://cdn-images.dzcdn.net/images/cover/${dzCovId}/56x56-000000-80-0-0.jpg`;
+        const fullResUrl = `https://cdn-images.dzcdn.net/images/cover/${dzCovId}/1000x1000-000000-80-0-0.jpg`;
+
+        coverImageHtml = `
+            <img src="${thumbUrl}" alt="Capa"
+                 class="h-[50px] w-auto object-cover rounded-md shadow-md ml-4 flex-shrink-0 cursor-pointer hover:shadow-lg transition duration-150"
+                 onclick="event.stopPropagation(); openCoverModal('${fullResUrl}')"
+                 onerror="this.style.display='none';" loading="lazy">
+        `;
+    }
+
+    const ratingColors = { '3': '#6dbe99', '2': '#f8c039', '1': '#e97b78' };
+    const artistColor = ratingColors[valueArtistRating] || '#4f46e5';
+    const artistStyle = `color: ${artistColor};`;
+    const displayArtist = String(valueArtist).toUpperCase();
+    const albumTitle = valueAlbum;
+    const yearSuffix = valueYear ? ` (${valueYear})` : '';
+    
+    // Label cinza [3] para o card resumido
+    const albumsCountLabel = valueTotalAlbums ? ` <span class="text-gray-400 font-normal text-sm lowercase">[${valueTotalAlbums}]</span>` : '';
+
+    const filterArtistAction = `event.stopPropagation(); filterByArtist('${displayArtist.replace(/'/g,"\\'")}', '${keyArtist}')`;
+    const filterCountryAction = `event.stopPropagation(); filterByCountry('${valueCountryCode.replace(/'/g,"\\'")}', '${keyCountryCode}')`;
+
+    let flagImageHtml = '';
+    const codeUpper = valueCountryCode.toUpperCase();
+    if (valueCountryCode && valueCountryCode.length >= 2 ) {
+        const flagUrl = `https://flagcdn.com/40x30/${valueCountryCode}.png`;
+        flagImageHtml = `
+            <div onclick="${filterCountryAction}"
+                 class="cursor-pointer hover:opacity-80 transition duration-150 relative mr-3 flex-shrink-0">
+                <img src="${flagUrl}" alt="Bandeira"
+                     class="w-8 h-auto rounded-md shadow-sm"
+                     onerror="this.style.opacity='0'; this.nextElementSibling.classList.remove('hidden');">
+                <span class="text-gray-400 text-xs hidden flex-shrink-0 absolute left-0 top-0 mt-1">${codeUpper}</span>
+            </div>
+        `;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'contact-card bg-white p-2 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.002] transition duration-300 cursor-pointer border-t border-gray-100';
+    card.setAttribute('data-index', index);
+    card.onclick = () => toggleDetails(card);
+
+    let primaryContent = `
+        <div class="flex justify-between items-start relative">
+            <div class="flex items-start mb-0 min-w-0 flex-grow">
+                ${flagImageHtml}
+                <div class="min-w-0">
+                    <h2 class="text-lg font-semibold text-gray-800 leading-snug break-words">
+                        ${albumTitle}
+                        <span class="text-gray-400 font-normal ml-1">${yearSuffix}</span>
+                    </h2>
+                    <p class="text-base font-bold cursor-pointer hover:text-indigo-600 transition break-words"
+                       style="${artistStyle}"
+                       onclick="${filterArtistAction}">
+                        ${displayArtist}${albumsCountLabel}
+                    </p>
+                </div>
+            </div>
+            ${coverImageHtml} 
+        </div>
+    `;
+
+    let detailsContent = '<div class="mt-2 pt-2 border-t border-gray-100">';
+    allKeys.forEach((key, keyIndex) => {
+        const value = contact[key];
+        if (!value && keyIndex !== indexTotalAlbums) return;
+
+        let friendlyTitle = COLUMN_TITLES[keyIndex] || key;
+        let displayValue = value;
+
+        if (keyIndex === indexDeezerAlbumId) {
+            friendlyTitle = 'Deezer Album';
+            displayValue = `<a href="https://www.deezer.com/album/${value}" target="_blank" class="text-indigo-600 font-bold hover:underline" onclick="event.stopPropagation();">${value} ?</a>`;
+        } 
+        else if (keyIndex === indexTotalAlbums) {
+            friendlyTitle = 'Álbuns';
+        }
+        else if (keyIndex === indexDeezerCoverId) friendlyTitle = 'Deezer Cover ID';
+        else if (friendlyTitle === 'album_id') friendlyTitle = 'Album ID';
+        else if (friendlyTitle === 'artist_rating') friendlyTitle = 'Rating do Artista';
+
+        detailsContent += `
+            <p class="text-sm mb-1 flex justify-between items-start">
+                <span class="font-normal text-gray-500">${friendlyTitle}:</span>
+                <span class="text-gray-700 font-medium ml-4 text-right">${displayValue}</span>
+            </p>
+        `;
+    });
+    detailsContent += '</div>';
+
+    const detailsPanel = document.createElement('div');
+    detailsPanel.className = 'details-panel';
+    detailsPanel.innerHTML = detailsContent;
+
+    card.innerHTML = primaryContent;
+    card.appendChild(detailsPanel);
+
+    return card;
+}
+
+function createExplicitRankingCard(row, dynamicPos){
+    const allKeys = Object.keys(row);
+    const keyPos = allKeys[0];      
+    const keyName = allKeys[1];     
+    const keyCtry = allKeys[2];     
+    const keyScore = allKeys[3];    
+    const keyAlbuns = allKeys[4];   
+    const keySongs = allKeys[5];    
+    const keyRating = allKeys[6];   
+    const keyScrobbles = allKeys[10]; 
+
+    const name = row[keyName] || 'ARTISTA';
+    const ctr = String(row[keyCtry]||'').toLowerCase();
+    const ratingColors = { '3': '#6dbe99', '2': '#f8c039', '1': '#e97b78' };
+    const rate = parseInt(row[keyRating]) || 0; 
+    const artistColorHex = ratingColors[rate.toString()] || '#4f46e5';
+    const artistStyle = `color: ${artistColorHex};`;
+    const scoreValueRaw = getNumericValue(row[keyScore]);
+    const ptsDisplay = scoreValueRaw.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const isPosSort = artSortState.columnKey === keyPos;
+    const posSortIcon = isPosSort ? (artSortState.direction === 'desc' ? ' ?' : ' ?') : ''; 
+    
+    const card = document.createElement("div");
+    card.className = "ranking-card ran-card flex items-center gap-2 shadow-sm border hover:shadow-md transition duration-200";
+
+    const posHtml = `
+        <div class="flex-shrink-0 text-sm font-extrabold text-gray-700 leading-none cursor-pointer hover:text-gray-900 w-5 text-right" 
+             onclick="event.stopPropagation(); sortRankingData('${keyPos}', 'POSIÇÃO')"
+             title="Ordenar por Posição">
+            ${dynamicPos}${posSortIcon}
+        </div>
+    `;
+
+    let flagHtml = "";
+    if (ctr.length >= 2) {
+        flagHtml = `
+            <div class="flex-shrink-0 h-8 flex items-center">
+                <img class="ran-flag w-7 h-5"
+                     onclick="applyCountryFilter('${ctr}')"
+                     src="https://flagcdn.com/32x24/${ctr}.png"
+                     onerror="this.style.opacity='0';">
+            </div>
+        `;
+    }
+
+    const nameHtml = `
+        <div class="font-bold truncate leading-snug text-base cursor-pointer hover:underline flex-grow min-w-[50px] mr-2"
+             style="${artistStyle}"
+             onclick="event.stopPropagation(); showArtistAlbums('${name.replace(/'/g,"\\'")}')" 
+             title="Ver Álbuns de ${name.toUpperCase()}">
+            ${name.toUpperCase()}
+        </div>
+    `;
+
+    let metricsValues = [];
+    const metricsMap = { [keyAlbuns]: { label: 'Albuns' }, [keySongs]: { label: 'Songs' }, [keyScrobbles]: { label: 'Scrobbles' }, [keyScore]: { label: 'Pontos' } };
+
+    Object.keys(metricsMap).filter(key => key).forEach(key => {
+        const isPoints = key === keyScore;
+        const rawValue = row[key] || '0';
+        const numValue = getNumericValue(rawValue);
+        const displayValue = isPoints ? ptsDisplay : numValue.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+        const isCurrentSort = artSortState.columnKey === key;
+        const sortIcon = isCurrentSort ? (artSortState.direction === 'desc' ? ' ?' : ' ?') : '';
+        const valueClass = isPoints ? 'text-indigo-600 font-extrabold' : 'text-gray-400 font-medium';
+        metricsValues.push(`<span class="text-sm ${valueClass} cursor-pointer hover:font-semibold" onclick="event.stopPropagation(); sortRankingData('${key}', '${metricsMap[key].label}')" title="Ordenar por ${metricsMap[key].label}">${displayValue}${sortIcon}</span>`);
+    });
+
+    const metricsLineHtml = metricsValues.join('<span class="mx-1 text-gray-300 text-sm">|</span>'); 
+    const metricsContainerHtml = `<div class="flex-shrink-0 min-w-0 flex items-center justify-end whitespace-nowrap overflow-hidden">${metricsLineHtml}</div>`;
+    card.innerHTML = posHtml + flagHtml + nameHtml + metricsContainerHtml;
+    return card;
+}
+
+function createCountryCard(row, dynamicPos){
+    const allKeys = Object.keys(row);
+    const keyName = allKeys[0];     // Col 1: Nome do País
+    const keyCC = allKeys[1];       // Col 2: Código CC
+    const keyArtistas = allKeys[2]; // Col 3: Qtd Artistas
+    const keyRating3 = allKeys[3];  // Col 4: Rating 3
+    const keyRating2 = allKeys[4];  // Col 5: Rating 2
+    const keyRating1 = allKeys[5];  // Col 6: Rating 1
+    const keyMusicas = allKeys[6];  // Col 7: Qtd Músicas (Planilha Col G)
+    const keyAlbuns = allKeys[7];   // Col 8: Qtd Álbuns (Planilha Col H)
+
+    const rawName = (row[keyName] || 'PAÍS').toUpperCase();
+    // Limita a 14 caracteres e adiciona reticências se necessário
+    const displayName = rawName.length > 14 ? rawName.substring(0, 14) + '...' : rawName;
+    
+    const cc = String(row[keyCC] || '').toLowerCase();
+    const totalArtistas = getNumericValue(row[keyArtistas]);
+    const q3 = getNumericValue(row[keyRating3]);
+    const q2 = getNumericValue(row[keyRating2]);
+    const q1 = getNumericValue(row[keyRating1]);
+    const qAlb = getNumericValue(row[keyAlbuns]);
+    const qMus = getNumericValue(row[keyMusicas]);
+
+    const p3 = totalArtistas > 0 ? (q3 / totalArtistas * 100) : 0;
+    const p2 = totalArtistas > 0 ? (q2 / totalArtistas * 100) : 0;
+    const p1 = totalArtistas > 0 ? (q1 / totalArtistas * 100) : 0;
+
+    const card = document.createElement("div");
+    card.className = "ranking-card ran-card flex flex-col shadow-sm border hover:shadow-md transition duration-200";
+
+    card.innerHTML = `
+        <div class="country-grid">
+            <div class="text-right font-extrabold text-gray-400">${dynamicPos}</div>
+            <div class="flex justify-center">
+                <img class="ran-flag" src="https://flagcdn.com/32x24/${cc}.png" onerror="this.style.opacity='0';">
+            </div>
+            <div class="font-bold truncate text-gray-800 cursor-pointer hover:text-indigo-600" 
+                 onclick="event.stopPropagation(); sortRankingData('${keyName}', 'PAÍS')" 
+                 title="${rawName}">${displayName}</div>
+            
+            <div class="text-center font-bold text-gray-700 cursor-pointer hover:text-indigo-600" 
+                 onclick="event.stopPropagation(); sortRankingData('${keyArtistas}', 'ART')" 
+                 title="Ordenar por Artistas">${totalArtistas}</div>
+            
+            <div class="text-center text-gray-500 cursor-pointer hover:text-indigo-600" 
+                 onclick="event.stopPropagation(); sortRankingData('${keyAlbuns}', 'ALB')" 
+                 title="Ordenar por Álbuns">${qAlb}</div>
+            
+            <div class="text-center text-gray-500 cursor-pointer hover:text-indigo-600" 
+                 onclick="event.stopPropagation(); sortRankingData('${keyMusicas}', 'MÚS')" 
+                 title="Ordenar por Músicas">${qMus}</div>
+            
+            <div class="flex items-center gap-1">
+                <div class="bar-container">
+                    <div class="bar-3" style="width: ${p3}%" title="Rating 3: ${q3}"></div>
+                    <div class="bar-2" style="width: ${p2}%" title="Rating 2: ${q2}"></div>
+                    <div class="bar-1" style="width: ${p1}%" title="Rating 1: ${q1}"></div>
+                </div>
+                <div class="flex gap-0.5 text-[9px] font-bold min-w-[30px] justify-end">
+                    <span style="color:#6dbe99">${q3}</span>
+                    <span style="color:#f8c039">${q2}</span>
+                    <span style="color:#e97b78">${q1}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+function createStaCard(contact, index){
+    const keyColA = getColumnKeyByIndex(0); 
+    let contentA2 = '';
+    if (keyColA && contact[keyColA] !== undefined) contentA2 = String(contact[keyColA] || '').trim();
+    let contentToDisplay = contentA2;
+    let referenceCell = 'A2';
+    if (!contentToDisplay && keyColA) { contentToDisplay = String(keyColA).trim(); referenceCell = 'A1'; }
+    if (!contentToDisplay) { contentToDisplay = 'Conteúdo principal não definido na célula A1 ou A2.'; referenceCell = 'A1/A2'; }
+    const card = document.createElement('div');
+    card.className = 'sta-card bg-white p-4 rounded-xl shadow-lg cursor-default border border-gray-200';
+    card.innerHTML = `<div class="text-base text-gray-800 leading-relaxed whitespace-pre-wrap break-words font-sans">${contentToDisplay}</div><p class="text-xs text-gray-400 mt-3 pt-2 border-t border-gray-100">Conteúdo da célula ${referenceCell} (Linha de status principal).</p>`;
+    return card;
+}
+
+function updateClearFilterButton(){
+    const isSearchable = currentSheet.name === 'Álbuns' || currentSheet.name === 'Bandas' || currentSheet.name === 'Países';
+    if(!isSearchable){ clearFilterBtn.classList.remove('visible-filter-btn'); clearFilterBtn.classList.add('hidden-filter-btn'); return; }
+    const hasQuickFilter = currentSheet.name === 'Álbuns' && activeFilter.key !== null;
+    const hasSearchQuery = searchInput.value.trim() !== '';
+    if(hasQuickFilter || hasSearchQuery){
+        clearFilterBtn.classList.remove('hidden-filter-btn'); clearFilterBtn.classList.add('visible-filter-btn');
+        if(currentSheet.name === 'Álbuns' && hasQuickFilter) searchInput.placeholder = `Filtro Rápido Ativo: ${activeFilter.columnName} = ${activeFilter.value}`;
+        else if ((currentSheet.name === 'Art' || currentSheet.name === 'Países') && hasSearchQuery) searchInput.placeholder = `Pesquisando por: ${searchInput.value.trim()}`;
+        else searchInput.placeholder = "Pesquisar...";
+    } else {
+        clearFilterBtn.classList.remove('visible-filter-btn'); clearFilterBtn.classList.add('hidden-filter-btn');
+        searchInput.placeholder = "Pesquisar...";
+    }
+}
+
+function filterByArtist(artistName, columnKey){
+    if(currentSheet.name !== 'Álbuns') return;
+    activeFilter.key = columnKey; activeFilter.value = artistName; activeFilter.columnName = 'Artista';
+    searchInput.value = artistName; applySortAndFilter();
+}
+
+function filterByCountry(countryCode, columnKey){
+    if(currentSheet.name !== 'Álbuns') return;
+    activeFilter.key = columnKey; activeFilter.value = countryCode; activeFilter.columnName = 'País';
+    searchInput.value = countryCode; applySortAndFilter();
+}
+
+function clearActiveFilter(){
+    activeFilter.key = null; activeFilter.value = null; activeFilter.columnName = null;
+    searchInput.value = ''; applySortAndFilter();
+}
+
+function applyFilterAndSearch(){
+    const dataToFilter = allData;
+    const query = searchInput.value.toLowerCase().trim();
+    let filteredData = dataToFilter;
+    if(currentSheet.name === 'Álbuns' && activeFilter.key){
+        filteredData = filteredData.filter(contact=>{
+            const targetValue = String(contact[activeFilter.key]).toUpperCase();
+            return targetValue === String(activeFilter.value).toUpperCase();
+        });
+    }
+    if(query !== ''){
+        if(currentSheet.name === 'Álbuns'){
+            filteredData = filteredData.filter(contact=>{
+                const contactString = Object.values(contact).map(String).join(' ').toLowerCase();
+                return contactString.includes(query);
+            });
+        } else if (currentSheet.name === 'Bandas' || currentSheet.name === 'Países') {
+            const keyName = getColumnKeyByIndex(0); // Para Países, o nome está no índice 0
+            if(keyName) {
+                filteredData = filteredData.filter(contact=>{
+                    const name = String(contact[keyName]).toLowerCase();
+                    return name.includes(query);
+                });
+            }
+        }
+    }
+    renderData(filteredData);
+}
+
+searchInput.addEventListener('input', ()=>{
+    const currentQuery = searchInput.value.toLowerCase().trim();
+    if(currentSheet.name === 'Álbuns' && activeFilter.key && currentQuery !== activeFilter.value.toLowerCase().trim()){
+        activeFilter.key = null; activeFilter.value = null; activeFilter.columnName = null;
+    }
+    applySortAndFilter();
+});
+
+function toggleDetails(card){
+    const detailsPanel = card.querySelector('.details-panel');
+    const isOpen = detailsPanel.classList.toggle('open');
+    card.classList.toggle('bg-gray-50', isOpen);
+    card.classList.toggle('shadow-lg', isOpen);
+    card.classList.toggle('border-indigo-400', isOpen);
+}
+
+function renderData(data){
+    contactList.innerHTML = '';
+    let dataToRender = data;
+    if(currentSheet.name === 'Estatísticas'){
+        dataToRender = data.filter((_,index)=> index === 0);
+        if(dataToRender.length === 0 && getColumnKeyByIndex(0)) dataToRender = [{}];
+    }
+    if(currentSheet.name === 'Bandas' && activeCountryFilter){
+        const keyCountry = getColumnKeyByIndex(2);
+        dataToRender = dataToRender.filter(row => String(row[keyCountry]||'').toLowerCase() === activeCountryFilter);
+        const clearBtn = document.createElement('button');
+        clearBtn.textContent = `Limpar Filtro de País (${activeCountryFilter.toUpperCase()})`;
+        clearBtn.className = "mb-2 px-3 py-1 rounded text-xs bg-gray-200 hover:bg-gray-300";
+        clearBtn.onclick = clearCountryFilter;
+        contactList.appendChild(clearBtn);
+    }
+
+    if(currentSheet.name === 'Países' && dataToRender.length > 0) {
+        const header = document.createElement('div');
+        header.className = "country-grid px-2 py-1 mb-1 text-[10px] font-bold text-gray-400 uppercase border-b";
+        header.innerHTML = `<div>#</div><div></div><div>PAÍS</div><div class="text-center">ART</div><div class="text-center">ALB</div><div class="text-center">MÚS</div><div>RATINGS</div>`;
+        contactList.appendChild(header);
+    }
+
+    const count = dataToRender.length;
+    updateClearFilterButton();
+    if(count === 0){
+        resultsCountElement.textContent = '0 resultados encontrados.';
+        noResultsMessage.classList.remove('hidden'); statusMessage.classList.add('hidden'); 
+        return;
+    } else {
+        resultsCountElement.textContent = currentSheet.name === 'Estatísticas' ? 'Status Principal' : `${count} resultado${count>1?'s':''} encontrado${count>1?'s':''}.`;
+        noResultsMessage.classList.add('hidden'); statusMessage.classList.add('hidden');
+        dataToRender.forEach((contact, index)=>{
+            if(currentSheet.name === 'Bandas'){
+                const dynamicPos = artSortState.direction === 'desc' ? (index + 1) : (count - index);
+                contactList.appendChild(createExplicitRankingCard(contact, dynamicPos));
+            } else if(currentSheet.name === 'Países'){
+                // Posição dinâmica baseada na ordem de exibição
+                const dynamicPos = index + 1;
+                contactList.appendChild(createCountryCard(contact, dynamicPos));
+            } else if(currentSheet.name === 'Estatísticas'){
+                if(index === 0) {
+                    // Card de estatísticas existente
+                    contactList.appendChild(createStaCard(contact, index));
+                    
+                    // Container para o Mapa e Link
+                    const mapDiv = document.createElement('div');
+                    mapDiv.className = "mt-6 flex flex-col items-center";
+                    mapDiv.innerHTML = `
+                        <div class="w-full overflow-hidden rounded-xl shadow-inner bg-white p-2 border border-gray-100 mb-3">
+                            <iframe title="" aria-label="Choropleth map" id="datawrapper-chart-ALkeJ" src="https://datawrapper.dwcdn.net/ALkeJ/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="172" data-external="1"></iframe>
+                        </div>
+                        <a href="https://datawrapper.dwcdn.net/ALkeJ/1/" target="_blank" 
+                           class="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100 transition duration-150 border border-indigo-100 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            ABRIR MAPA EM OUTRA TELA
+                        </a>
+                    `;
+                    contactList.appendChild(mapDiv);
+
+                    // Script para redimensionamento automático
+                    if (!window.dwListenerAdded) {
+                        window.addEventListener("message", function(a) {
+                            if (void 0 !== a.data["datawrapper-height"]) {
+                                var e = document.querySelectorAll("iframe");
+                                for (var t in a.data["datawrapper-height"])
+                                    for (var r, i = 0; r = e[i]; i++)
+                                        if (r.contentWindow === a.source) {
+                                            var d = a.data["datawrapper-height"][t] + "px";
+                                            r.style.height = d;
+                                        }
+                            }
+                        });
+                        window.dwListenerAdded = true;
+                    }
+                }
+            } else {
+                contactList.appendChild(createContactCard(contact, index));
+            }
+        });
+    }
+}
+
+function applyCountryFilter(country){ activeCountryFilter = String(country).toLowerCase(); applySortAndFilter(); }
+function clearCountryFilter(){ activeCountryFilter = null; applySortAndFilter(); }
+
+function renderSheetNavigation(){
+    sheetNav.innerHTML = '';
+    SHEETS_CONFIG.forEach(sheet=>{
+        const button = document.createElement('button');
+        button.textContent = sheet.name;
+        button.className = `px-3 py-1.5 rounded-lg font-medium transition duration-200 shadow-sm text-sm ${sheet.gid === currentSheet.gid ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700' : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'}`;
+        button.onclick = () => switchSheet(sheet.gid);
+        sheetNav.appendChild(button);
+    });
+}
+
+function switchSheet(gid){
+    if(currentSheet.gid === gid) return;
+    const newSheet = SHEETS_CONFIG.find(s=>s.gid === gid);
+    if(newSheet){
+        currentSheet = newSheet; contactList.innerHTML = ''; noResultsMessage.classList.add('hidden'); resultsCountElement.textContent = ''; renderSheetNavigation(); searchInput.value = '';
+        sortState.columnKey = null; sortState.direction = 'asc'; artSortState.columnKey = null; artSortState.direction = 'desc'; 
+        paiSortState.columnKey = null; paiSortState.direction = 'desc';
+        activeFilter.key = null; activeCountryFilter = null; 
+        createSortControls(); fetchData(currentSheet);
+    }
+}
+
+async function fetchData(sheetConfig){
+    const MAX_RETRIES = 3;
+    let lastError = null;
+    const currentGid = sheetConfig.gid;
+    if(sheetConfig.gid === currentSheet.gid){
+        resultsCountElement.textContent = ''; statusMessage.classList.remove('hidden','text-red-600','bg-red-100','text-orange-600','font-bold','bg-yellow-100'); statusMessage.classList.add('text-gray-600','bg-gray-50');
+        statusMessage.textContent = `Carregando dados...`;
+    }
+    if(SHEET_ID === 'COLOQUE_SEU_GOOGLE_SHEET_ID_AQUI'){
+        if(sheetConfig.gid === currentSheet.gid){ statusMessage.textContent = "ERRO: O ID da planilha está ausente ou incorreto."; statusMessage.classList.remove('hidden'); statusMessage.classList.add('text-red-600','bg-red-100'); resultsCountElement.textContent = '0 resultados encontrados.'; }
+        return;
+    }
+    for(let attempt=0; attempt<MAX_RETRIES; attempt++){
+        try {
+            const response = await fetch(getSheetUrl(currentGid));
+            if(!response.ok) throw new Error(`Erro de rede: ${response.status}.`);
+            const text = await response.text();
+            let data = parseSheetData(text);
+            if (sheetConfig.name === 'Álbuns') ALBUM_DATA = data;
+            if(sheetConfig.gid === currentSheet.gid){
+                if(data.length === 0 && currentSheet.name !== 'Sta'){ 
+                    statusMessage.textContent = `A aba "${currentSheet.name}" está vazia ou falha na leitura dos dados.`;
+                    statusMessage.classList.remove('hidden'); statusMessage.classList.add('text-red-600','bg-red-100'); resultsCountElement.textContent = '0 resultados encontrados.';
+                    return;
+                }
+                
+                if(currentSheet.name === 'Bandas') {
+                    if (!artSortState.columnKey) {
+                        const allKeys = Object.keys(data[0] || {});
+                        artSortState.columnKey = allKeys[10]; // Scrobbles
+                        artSortState.direction = 'desc';
+                    }
+                    data = processRankingData(data);
+                }
+
+                if(currentSheet.name === 'Países') {
+                    data = processRankingData(data);
+                }
+                
+                allData = data;
+                if(isFullFeatureSheet()){ const albumIdKey = getColumnKeyByIndex(0); if(albumIdKey){ sortState.columnKey = albumIdKey; sortState.direction = 'desc'; } }
+                createSortControls(); applySortAndFilter(); statusMessage.classList.add('hidden');
+            }
+            return;
+        } catch(error){ lastError = error; const delay = Math.pow(2, attempt) * 1000; await sleep(delay); }
+    }
+    if(sheetConfig.gid === currentSheet.gid){
+        statusMessage.textContent = `ERRO FINAL: Não foi possível carregar os dados. Detalhe: ${lastError?.message || 'error desconhecido'}`;
+        statusMessage.classList.remove('hidden','text-gray-600','bg-gray-50'); statusMessage.classList.add('text-red-600','bg-red-100');
+    }
+}
+
+async function initLoad() {
+    const albConfig = SHEETS_CONFIG.find(s => s.name === 'Álbuns');
+    if (albConfig) await fetchData(albConfig); 
+    await fetchData(currentSheet);
+}
+
+renderSheetNavigation();
+initLoad();
+</script>
+</body>
+</html>

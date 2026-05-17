@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LPG - Life Programs Game V22</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg: #121212; --card-bg: #1e1e1e; --text: #ffffff;
+            --score-red: #ff4d4d; --score-yellow: #ffff4d; --score-green: #4dff88;
+        }
+
+        body { font-family: 'Segoe UI', system-ui; background: var(--bg); color: var(--text); margin: 0; padding: 10px; touch-action: pan-y; overflow-x: hidden; }
+        
+        /* Cabeçalho e Navegação */
+        .header-row { display: flex; justify-content: center; align-items: center; position: relative; margin: 10px 0; }
+        .date-display { font-size: 1.1rem; font-weight: bold; color: #4a90e2; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Gráfico */
+        .chart-card { background: var(--card-bg); padding: 15px; border-radius: 15px; height: 260px; margin-bottom: 15px; }
+
+        /* Controles (Toolbar) */
+        .toolbar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+        .toolbar select { background: #2d2d2d; border: 1px solid #444; color: white; padding: 8px; border-radius: 8px; font-size: 0.8rem; }
+
+        /* Grade de Programas */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+
+        /* Estilo do Cartão de Programa */
+        .prog-btn {
+            aspect-ratio: 1/1; border-radius: 15px; border: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; transition: transform 0.1s; cursor: pointer; color: white;
+            overflow: hidden;
+        }
+
+        .prog-btn:active { transform: scale(0.95); }
+
+        /* Elementos Visuais do Cartão */
+        .prog-icon-bg { position: absolute; font-size: 3rem; opacity: 0.15; z-index: 1; }
+        .btn-content { z-index: 2; display: flex; flex-direction: column; align-items: center; width: 100%; }
+        
+        /* Estados de Atividade */
+        .st-none { opacity: 0.5; }
+        .st-active { opacity: 1; box-shadow: 0 0 10px rgba(255,255,255,0.2); }
+
+        /* Labels internas */
+        .top-left { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; font-weight: bold; }
+        .top-right { position: absolute; top: 5px; right: 8px; font-size: 0.7rem; }
+        .top-center { position: absolute; top: 12%; font-size: 0.55rem; font-weight: bold; background: rgba(0,0,0,0.2); padding: 1px 4px; border-radius: 3px; }
+        .sigla { font-size: 1.2rem; font-weight: 900; }
+        .metas-label { font-size: 0.55rem; font-weight: bold; opacity: 0.8; }
+        .xp-label { position: absolute; bottom: 18%; font-size: 0.6rem; font-weight: bold; }
+        .days-counter { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; font-weight: bold; opacity: 0.8; }
+        .bottom-left { position: absolute; bottom: 5px; left: 8px; font-size: 0.6rem; font-weight: bold; }
+        .bottom-right { position: absolute; bottom: 5px; right: 8px; font-size: 0.65rem; color: #ffd700; }
+
+        /* Modal e Overlay */
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; max-width: 350px; background: #252525; border-radius: 15px; padding: 20px; z-index: 1000; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+    </style>
+</head>
+<body id="swipeArea">
+
+    <div class="header-row">
+        <div id="dateDisplay" class="date-display"></div>
+    </div>
+
+    <div class="chart-card">
+        <canvas id="perfChart"></canvas>
+    </div>
+
+    <div class="toolbar">
+        <select id="sortFilter" onchange="renderGrid()">
+            <option value="prio">Ordem: Prioridade</option>
+            <option value="streak">Ordem: Streaks (🔥)</option>
+            <option value="days">Ordem: Dias p/ Lvl Up</option>
+            <option value="mk">Ordem: Meta Check</option>
+            <option value="lvl">Ordem: Nível</option>
+            <option value="score">Ordem: Performance</option>
+        </select>
+        <select id="periodFilter" onchange="initDashboard()">
+            <option value="7">Período: 7 Dias</option>
+            <option value="15">Período: 15 Dias</option>
+            <option value="30" selected>Período: 30 Dias</option>
+        </select>
+    </div>
+
+    <div class="grid" id="mainGrid"></div>
+
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div id="modal" class="modal">
+        <h3 id="mTitle" style="margin-top:0"></h3>
+        <input type="number" id="valInput" style="width:100%; background:#333; color:white; padding:10px; border:none; border-radius:8px; margin-bottom:15px; text-align:center; font-size:1.2rem;" placeholder="Inserir Valor">
+    </div>
+
+<script>
+    /* SECTION 3: CONFIGURAÇÕES E CONSTANTES */
+    const COLORS = ["#F87171", "#FB923C", "#FBBF24", "#FACC15", "#EAB308", "#D9F99D", "#BEF264", "#84CC16", "#4ADE80", "#22C55E"];
+    const CATS = { SAUDE: "#40c057", ESTUDOS: "#228be6", PROF: "#fab005", MENTAL: "#be4bdb", SOCIAL: "#fd7e14", FINAN: "#12b886", LEISURE: "#495057" };
+
+    /* SECTION 4: DEFINIÇÃO DOS PROGRAMAS */
+    const programs = [
+        { s: "LIS", n: "Listening", c: "ESTUDOS", mk: 5, md: 10, prio: 1, icon: "fa-headphones", type: "VOLUME", startDate: "2024-01-01" },
+        { s: "GYM", n: "Gym", c: "SAUDE", mk: 1, md: 1, prio: 1, icon: "fa-dumbbell", type: "CONSISTENCY", startDate: "2024-01-01" },
+        { s: "COD", n: "Coding", c: "PROF", mk: 30, md: 60, prio: 2, icon: "fa-code", type: "VOLUME", startDate: "2024-01-10" },
+        { s: "H2O", n: "Water", c: "SAUDE", mk: 4, md: 8, prio: 1, icon: "fa-faucet-drip", type: "CONSISTENCY", startDate: "2024-01-01" },
+        { s: "MED", n: "Meditation", c: "MENTAL", mk: 5, md: 15, prio: 3, icon: "fa-brain", type: "VOLUME", startDate: "2024-01-01" }
+    ];
+
+    /* SECTION 5: ESTADO GLOBAL E BANCO DE DADOS */
+    let db = JSON.parse(localStorage.getItem('life_v12_db')) || { logs: [] };
+    let activeDate = new Date().toISOString().split('T')[0];
+    let chartInstance = null;
+    let currentSigla = null;
+
+    // Gerador de Dados Iniciais (Apenas se vazio)
+    if(db.logs.length < 50) {
+        for(let i=45; i>=0; i--) {
+            let d = new Date(); d.setDate(d.getDate() - i);
+            let ds = d.toISOString().split('T')[0];
+            programs.forEach(p => {
+                if(ds >= p.startDate && Math.random() > 0.25) {
+                    db.logs.push({ id: Date.now()+Math.random(), s: p.s, d: ds, v: Math.round(p.mk * (0.8 + Math.random()*0.5)) });
+                }
+            });
+        }
+        localStorage.setItem('life_v12_db', JSON.stringify(db));
+    }
+
+    /* SECTION 6: LÓGICA DE NEGÓCIO (CÁLCULOS) */
+    const getDayTotal = (s, d) => db.logs.filter(l => l.s === s && l.d === d).reduce((a, b) => a + b.v, 0);
+    const getXP = (s) => db.logs.filter(l => l.s === s).reduce((a, b) => a + b.v, 0);
+    const getLevel = (s) => Math.floor(getXP(s) / 1000) + 1;
+    const getDaysToLvl = (p) => Math.max(1, Math.ceil((1000 - (getXP(p.s) % 1000)) / (p.mk || 1)));
+    
+    function getStreak(sigla) {
+        let count = 0; let d = new Date(activeDate + "T12:00:00");
+        while(true) {
+            let ds = d.toISOString().split('T')[0];
+            let p = programs.find(x => x.s === sigla);
+            if(!p || ds < p.startDate || getDayTotal(sigla, ds) < p.mk) break;
+            count++; d.setDate(d.getDate()-1);
+        }
+        return count;
+    }
+
+    function getScore(sigla, days) {
+        let totalPct = 0; let validDays = 0; let d = new Date(activeDate + "T12:00:00");
+        for(let i=0; i<days; i++) {
+            let ds = d.toISOString().split('T')[0];
+            let p = programs.find(x => x.s === sigla);
+            if(p && ds >= p.startDate) { totalPct += Math.min(1, getDayTotal(sigla, ds) / p.md); validDays++; }
+            d.setDate(d.getDate()-1);
+        }
+        return validDays ? Math.round((totalPct / validDays) * 100) : 0;
+    }
+
+    /* SECTION 7: RENDERIZAÇÃO DA INTERFACE */
+    function initDashboard() {
+        const opt = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('dateDisplay').innerText = new Date(activeDate + "T12:00:00").toLocaleDateString('pt-BR', opt);
+        renderGrid(); renderChart();
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('mainGrid');
+        const sort = document.getElementById('sortFilter').value;
+        const period = parseInt(document.getElementById('periodFilter').value);
+        let list = programs.filter(p => activeDate >= p.startDate);
+
+        list.sort((a,b) => {
+            if(sort === 'streak') return getStreak(b.s) - getStreak(a.s);
+            if(sort === 'days') return getDaysToLvl(a) - getDaysToLvl(b);
+            if(sort === 'mk') return b.mk - a.mk;
+            if(sort === 'lvl') return getLevel(b.s) - getLevel(a.s);
+            if(sort === 'score') return getScore(b.s, period) - getScore(a.s, period);
+            return a.prio - b.prio;
+        });
+
+        grid.innerHTML = '';
+        list.forEach(p => {
+            const val = getDayTotal(p.s, activeDate);
+            const score = getScore(p.s, period);
+            const xpTotal = getXP(p.s);
+            grid.innerHTML += `
+                <div class="prog-btn ${val >= p.mk ? "st-active" : "st-none"}" style="background-color: ${CATS[p.c]}" onclick="openManageModal('${p.s}')">
+                    <i class="fa-solid ${p.icon} prog-icon-bg"></i>
+                    <div class="btn-content">
+                        <span class="top-left">${val || ''}</span>
+                        <span class="top-right"><i class="fa-solid ${p.type === 'VOLUME' ? 'fa-bars-staggered' : 'fa-anchor'}"></i></span>
+                        <span class="top-center">${score}%</span>
+                        <span class="sigla" style="color: ${score < 50 ? 'var(--score-red)' : (score < 80 ? 'var(--score-yellow)' : 'var(--score-green)')}">${p.s}</span>
+                        <span class="metas-label">${p.mk}/${p.md}</span>
+                        <span class="xp-label">${xpTotal} XP</span>
+                        <span class="days-counter">${getDaysToLvl(p)}</span>
+                        <span class="bottom-left">L${getLevel(p.s)}</span>
+                        <span class="bottom-right">${getStreak(p.s) || ''}🔥</span>
+                    </div>
+                </div>`;
+        });
+    }
+
+    /* SECTION 8: LÓGICA DO GRÁFICO (CHART.JS) */
+    function renderChart() {
+        const ctx = document.getElementById('perfChart').getContext('2d');
+        const period = parseInt(document.getElementById('periodFilter').value);
+        const labels = [], scores = [], barColors = [], xColors = [];
+
+        for(let i = period - 1; i >= 0; i--) {
+            let d = new Date(activeDate + "T12:00:00"); d.setDate(d.getDate() - i);
+            let ds = d.toISOString().split('T')[0];
+            labels.push(d.getDate());
+
+            let dailyPrograms = programs.filter(p => ds >= p.startDate);
+            let dayPct = 0;
+            dailyPrograms.forEach(p => dayPct += Math.min(1, getDayTotal(p.s, ds) / p.md));
+            
+            let final = dailyPrograms.length ? Math.round((dayPct / dailyPrograms.length) * 100) : 0;
+            scores.push(final);
+            barColors.push(COLORS[Math.min(9, Math.floor(final/10))]);
+            xColors.push(ds === activeDate ? '#4a90e2' : '#888');
+        }
+
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [{ data: scores, backgroundColor: barColors, borderRadius: 4 }] },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { display: false, max: 120 }, 
+                    x: { grid: { display: false }, ticks: { color: xColors, font: { size: 9 } } } 
+                }
+            }
+        });
+    }
+
+    /* SECTION 9: MODAIS E INTERAÇÕES */
+    function openManageModal(sigla) {
+        currentSigla = sigla;
+        document.getElementById('mTitle').innerText = programs.find(x => x.s === sigla).n;
+        document.querySelectorAll('#modal, #overlay').forEach(el => el.style.display = 'block');
+        document.getElementById('valInput').value = '';
+    }
+    
+    function closeModal() { document.querySelectorAll('#modal, #overlay').forEach(el => el.style.display = 'none'); }
+    
+    function addXP(v) { 
+        if(!isNaN(v)) { 
+            db.logs.push({ id: Date.now(), s: currentSigla, d: activeDate, v: v }); 
+            save(); 
+            closeModal(); 
+        } 
+    }
+    
+    function save() { 
+        localStorage.setItem('life_v12_db', JSON.stringify(db)); 
+        initDashboard(); 
+    }
+
+    document.getElementById('valInput').onkeypress = (e) => { 
+        if(e.key === 'Enter') addXP(parseFloat(e.target.value)); 
+    };
+    
+    /* SECTION 10: NAVEGAÇÃO TOUCH (SWIPE) */
+    let tsX = 0;
+    document.getElementById('swipeArea').addEventListener('touchstart', e => tsX = e.changedTouches[0].screenX);
+    document.getElementById('swipeArea').addEventListener('touchend', e => {
+        let teX = e.changedTouches[0].screenX;
+        let d = new Date(activeDate + "T12:00:00");
+        if (teX < tsX - 80) d.setDate(d.getDate() + 1);
+        if (teX > tsX + 80) d.setDate(d.getDate() - 1);
+        activeDate = d.toISOString().split('T')[0];
+        initDashboard();
+    });
+
+    // Inicialização
+    initDashboard();
+</script>
+</body>
+</html>

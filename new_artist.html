@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cadastro de Artista</title>
+    <style>
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        .hidden { display: none; }
+        label { font-weight: bold; margin-bottom: 5px; }
+        input, select { padding: 8px; width: 300px; }
+        button { padding: 10px 20px; background-color: #2dd4bf; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>Cadastrar Novo Artista</h2>
+
+    <form id="artistForm">
+        <div class="form-group">
+            <label for="name">Nome do Artista*</label>
+            <input type="text" id="name" required>
+        </div>
+
+        <div class="form-group">
+            <label for="id_country">País*</label>
+            <select id="id_country" required>
+                <option value="">Selecione um país...</option>
+            </select>
+        </div>
+
+        <div id="stateGroup" class="form-group hidden">
+            <label for="id_state">Estado</label>
+            <select id="id_state">
+                <option value="">Selecione um estado...</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="id_city">Cidade*</label>
+            <select id="id_city" required>
+                <option value="">Selecione primeiro o país...</option>
+                <option value="NEW">-- Cadastrar nova cidade --</option>
+            </select>
+        </div>
+
+        <div id="newCityGroup" class="form-group hidden">
+            <label for="new_city_name">Nome da Nova Cidade</label>
+            <input type="text" id="new_city_name" placeholder="Digite o nome da cidade">
+        </div>
+
+        <div class="form-group">
+            <label for="rating">Rating (1-3)</label>
+            <input type="number" id="rating" min="1" max="3">
+        </div>
+
+        <div class="form-group">
+            <label for="language">Idioma (Padrão: país_cidade_idioma)</label>
+            <input type="text" id="language" placeholder="Ex: Brasil_PortoAlegre_portugues">
+        </div>
+
+        <button type="submit">Salvar Artista</button>
+    </form>
+
+    <script>
+        // Configurações do Supabase (Substitua pelas suas chaves)
+        const SB_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+        const SB_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+
+        const headers = {
+            'apikey': SB_KEY,
+            'Authorization': `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Elementos do DOM
+        const form = document.getElementById('artistForm');
+        const countrySelect = document.getElementById('id_country');
+        const stateSelect = document.getElementById('id_state');
+        const citySelect = document.getElementById('id_city');
+        const stateGroup = document.getElementById('stateGroup');
+        const newCityGroup = document.getElementById('newCityGroup');
+
+        // 1. Carregar Países ao iniciar
+        async function loadCountries() {
+            const response = await fetch(`${SB_URL}/rest/v1/tbl_countries?select=id_country,portuguese_name&order=portuguese_name`, { headers });
+            const countries = await response.json();
+            countries.forEach(c => {
+                const opt = new Option(c.portuguese_name, c.id_country);
+                countrySelect.add(opt);
+            });
+        }
+
+        // 2. Lógica ao mudar o País
+        countrySelect.addEventListener('change', async (e) => {
+            const countryId = e.target.value;
+            const isSpecial = ['25', '64'].includes(countryId); // BR e US
+
+            // Reset campos
+            stateGroup.classList.toggle('hidden', !isSpecial);
+            stateSelect.value = "";
+            citySelect.innerHTML = '<option value="">Carregando cidades...</option><option value="NEW">-- Cadastrar nova cidade --</option>';
+
+            if (isSpecial) {
+                // Carregar Estados
+                const resp = await fetch(`${SB_URL}/rest/v1/tbl_states?id_country=eq.${countryId}&order=name`, { headers });
+                const states = await resp.json();
+                stateSelect.innerHTML = '<option value="">Selecione um estado...</option>';
+                states.forEach(s => stateSelect.add(new Option(s.name, s.id_state)));
+            } else {
+                // Carregar Cidades Direto (Países comuns)
+                loadCities(countryId, null);
+            }
+        });
+
+        // 3. Lógica ao mudar o Estado
+        stateSelect.addEventListener('change', (e) => {
+            loadCities(countrySelect.value, e.target.value);
+        });
+
+        async function loadCities(countryId, stateId) {
+            let url = `${SB_URL}/rest/v1/tbl_cities?id_country=eq.${countryId}&order=name`;
+            if (stateId) url += `&id_state=eq.${stateId}`;
+            else url += `&id_state=is.null`;
+
+            const resp = await fetch(url, { headers });
+            const cities = await resp.json();
+            
+            citySelect.innerHTML = '<option value="">Selecione uma cidade...</option>';
+            cities.forEach(c => citySelect.add(new Option(c.name, c.id_city)));
+            citySelect.add(new Option("-- Cadastrar nova cidade --", "NEW"));
+        }
+
+        // 4. Mostrar input de nova cidade
+        citySelect.addEventListener('change', (e) => {
+            newCityGroup.classList.toggle('hidden', e.target.value !== "NEW");
+        });
+
+        // 5. Salvar (Chamando a RPC que criamos antes)
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const payload = {
+                p_name: document.getElementById('name').value,
+                p_id_city: citySelect.value === "NEW" ? null : parseInt(citySelect.value),
+                p_new_city_name: document.getElementById('new_city_name').value || null,
+                p_id_state: stateSelect.value ? parseInt(stateSelect.value) : null,
+                p_id_country: parseInt(countrySelect.value),
+                p_language: document.getElementById('language').value,
+                p_rating: parseInt(document.getElementById('rating').value) || null
+            };
+
+            const response = await fetch(`${SB_URL}/rest/v1/rpc/fn_save_artist_full`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                alert("Artista cadastrado com sucesso!");
+                form.reset();
+            } else {
+                const err = await response.json();
+                alert("Erro: " + err.message);
+            }
+        });
+
+        loadCountries();
+    </script>
+</body>
+</html>

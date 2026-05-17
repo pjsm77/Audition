@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Financeiro V5 - Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fff; -webkit-font-smoothing: antialiased; }
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #1e40af; font-weight: 800; }
+        .edit-field { border-bottom: 1px dashed #3b82f6; background-color: rgba(59, 130, 246, 0.05); }
+        input { background: transparent; border: none; outline: none; width: 100%; }
+        .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const FinanceApp = () => {
+            const [activeTab, setActiveTab] = useState('despesas'); // despesas, receitas, graficos
+            const [editMode, setEditMode] = useState(false);
+            const [currentMonthIdx, setCurrentMonthIdx] = useState(2);
+            const [expandedCat, setExpandedCat] = useState(null);
+            
+            const months = ["Janeiro 2026", "Fevereiro 2026", "Março 2026"];
+            const currentMonth = months[currentMonthIdx];
+
+            // --- ESTADO INICIAL COMPLETO ---
+            const [allData, setAllData] = useState({
+                "Março 2026": {
+                    receitas: [
+                        { dia: '05', desc: 'Salário Mensal', valor: 10000 },
+                        { dia: '15', desc: 'Freelance Data Analysis', valor: 2000 }
+                    ],
+                    categorias: [
+                        { id: 'CASA', budget: 3000, sub: [
+                            { label: 'Luz', budget: 800, gastos: [{ dia: '10', desc: 'CEEE Equatorial', valor: 245.15, parc: '1/1' }] },
+                            { label: 'Internet', budget: 150, gastos: [{ dia: '05', desc: 'Vivo Fibra', valor: 150, parc: '1/1' }] },
+                            { label: 'Manutenção', budget: 400, gastos: [{ dia: '12', desc: 'Reparo Torneira', valor: 450, parc: '1/1' }] }
+                        ]},
+                        { id: 'CARRO', budget: 2000, sub: [
+                            { label: 'Combustível', budget: 400, gastos: [{ dia: '02', desc: 'Posto Ipiranga', valor: 220, parc: '1/1' }] },
+                            { label: 'Seguro', budget: 300, gastos: [{ dia: '10', desc: 'Porto Seguro', valor: 300, parc: '3/10' }] }
+                        ]},
+                        { id: 'COLÉGIO', budget: 1500, sub: [{ label: 'Mensalidade', budget: 1500, gastos: [{ dia: '05', desc: 'Escola XYZ', valor: 1500, parc: '3/12' }] }] },
+                        { id: 'PESSOAL', budget: 1000, sub: [{ label: 'Lazer', budget: 500, gastos: [{ dia: '20', desc: 'Cinema', valor: 120, parc: '1/1' }] }] }
+                    ]
+                }
+            });
+
+            const data = allData[currentMonth] || { receitas: [], categorias: [] };
+            const totalReceita = data.receitas.reduce((acc, r) => acc + r.valor, 0);
+            const totalGasto = data.categorias.reduce((acc, c) => acc + c.sub.reduce((sAcc, s) => sAcc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0), 0);
+
+            // --- FUNÇÕES DE EDIÇÃO E ADIÇÃO ---
+            const updateData = (newData) => setAllData({ ...allData, [currentMonth]: newData });
+
+            const addItem = (type, cIdx = null, sIdx = null) => {
+                const newData = { ...data };
+                if (type === 'receita') newData.receitas.push({ dia: '01', desc: 'Nova Receita', valor: 0 });
+                if (type === 'categoria') newData.categorias.push({ id: 'NOVA', budget: 0, sub: [] });
+                if (type === 'subcategoria') newData.categorias[cIdx].sub.push({ label: 'Nova Sub', budget: 0, gastos: [] });
+                if (type === 'gasto') newData.categorias[cIdx].sub[sIdx].gastos.push({ dia: '01', desc: 'Novo Gasto', valor: 0, parc: '1/1' });
+                updateData(newData);
+            };
+
+            const handleEdit = (path, value) => {
+                const newData = { ...data };
+                if (path[0] === 'rec') newData.receitas[path[1]][path[2]] = path[2] === 'valor' ? parseFloat(value) || 0 : value;
+                else if (path.length === 2) newData.categorias[path[0]][path[1]] = path[1] === 'budget' ? parseFloat(value) || 0 : value;
+                else if (path.length === 3) newData.categorias[path[0]].sub[path[1]].label = value;
+                else if (path.length === 4) newData.categorias[path[0]].sub[path[1]].budget = parseFloat(value) || 0;
+                else if (path.length === 5) newData.categorias[path[0]].sub[path[1]].gastos[path[2]][path[3]] = path[3] === 'valor' ? parseFloat(value) || 0 : value;
+                updateData(newData);
+            };
+
+            // --- GRÁFICO TREEMAP ---
+            useEffect(() => {
+                if (activeTab === 'graficos' && data.categorias.length > 0) {
+                    const seriesData = data.categorias.flatMap(c => c.sub.map(s => ({
+                        x: `${c.id} - ${s.label}`,
+                        y: s.gastos.reduce((a, g) => a + g.valor, 0)
+                    }))).filter(item => item.y > 0);
+
+                    const options = {
+                        series: [{ data: seriesData }],
+                        chart: { type: 'treemap', height: 400, toolbar: { show: false } },
+                        title: { text: 'Gastos por Subcategoria', align: 'center', style: { fontSize: '12px', fontWeight: '900' } },
+                        colors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+                    };
+                    const chart = new ApexCharts(document.querySelector("#chart"), options);
+                    chart.render();
+                    return () => chart.destroy();
+                }
+            }, [activeTab, currentMonthIdx, allData]);
+
+            // --- COMPONENTES AUXILIARES ---
+            const Editable = ({ value, onSave, type="text", className="" }) => {
+                if (!editMode) return <span className={className}>{type === "number" ? `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : value}</span>;
+                return <input type={type} value={value} onChange={e => onSave(e.target.value)} className={`${className} edit-field px-1`} />;
+            };
+
+            const ProgressBar = ({ label, spent, budget }) => {
+                const perc = budget > 0 ? (spent/budget)*100 : 0;
+                return (
+                    <div className="w-full mb-3">
+                        <div className="flex justify-between text-[10px] font-black uppercase mb-1 text-gray-500">
+                            <span>{label}</span>
+                            <span className={perc > 100 ? 'text-red-500' : ''}>{perc.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden border border-gray-50">
+                            <div className={`h-full transition-all duration-700 ${perc > 100 ? 'bg-red-500' : perc >= 100 ? 'bg-yellow-400' : 'bg-green-500'}`} style={{ width: `${Math.min(perc, 110)}%` }} />
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen bg-white pb-24 shadow-2xl relative border-x border-gray-50">
+                    {/* Header Navegação */}
+                    <div className="glass-header sticky top-0 z-40 border-b border-gray-100">
+                        <div className="flex items-center justify-between p-4">
+                            <button onClick={() => setCurrentMonthIdx(p => Math.max(0, p-1))} className="p-2 font-bold text-gray-300">&lt;</button>
+                            <h1 className="text-xs font-black tracking-widest uppercase">{currentMonth}</h1>
+                            <button onClick={() => setCurrentMonthIdx(p => Math.min(months.length-1, p+1))} className="p-2 font-bold text-gray-300">&gt;</button>
+                        </div>
+                        {/* Abas */}
+                        <div className="flex justify-around text-[10px] font-black uppercase tracking-tighter pb-2">
+                            <button onClick={() => setActiveTab('despesas')} className={`px-4 py-2 ${activeTab === 'despesas' ? 'tab-active' : 'text-gray-400'}`}>Despesas</button>
+                            <button onClick={() => setActiveTab('receitas')} className={`px-4 py-2 ${activeTab === 'receitas' ? 'tab-active' : 'text-gray-400'}`}>Receitas</button>
+                            <button onClick={() => setActiveTab('graficos')} className={`px-4 py-2 ${activeTab === 'graficos' ? 'tab-active' : 'text-gray-400'}`}>Gráficos</button>
+                        </div>
+                    </div>
+
+                    {/* Resumo Geral (Sempre visível) */}
+                    <div className="bg-gray-50 p-6 border-b border-gray-100">
+                        <ProgressBar label="Gasto vs Receita" spent={totalGasto} budget={totalReceita} />
+                        <div className="flex justify-between text-[9px] font-black text-gray-400 uppercase mt-1">
+                            <div>Rec: <span className="text-green-600">R$ {totalReceita.toLocaleString('pt-BR')}</span></div>
+                            <div>Saldo: <span className={totalReceita-totalGasto < 0 ? 'text-red-500' : 'text-blue-600'}>R$ {(totalReceita-totalGasto).toLocaleString('pt-BR')}</span></div>
+                        </div>
+                    </div>
+
+                    {/* CONTEÚDO DAS ABAS */}
+                    <div className="p-6">
+                        {activeTab === 'despesas' && (
+                            <div className="space-y-6">
+                                {data.categorias.map((cat, cIdx) => {
+                                    const catSpent = cat.sub.reduce((acc, s) => acc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0);
+                                    return (
+                                        <div key={cIdx} className="border-b border-gray-50 pb-4">
+                                            <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => !editMode && setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
+                                                <Editable value={cat.id} onSave={v => handleEdit([cIdx, 'id'], v)} className="text-xs font-black text-gray-800 uppercase" />
+                                                <span className="text-[10px] font-bold text-gray-400 tracking-tighter italic">Sub: ({cat.sub.length}) | R$ {catSpent.toLocaleString('pt-BR')}</span>
+                                            </div>
+                                            <ProgressBar label="" spent={catSpent} budget={cat.budget} />
+                                            
+                                            {(expandedCat === cat.id || editMode) && (
+                                                <div className="ml-4 mt-4 space-y-4 border-l-2 border-gray-50 pl-4">
+                                                    {cat.sub.map((sub, sIdx) => {
+                                                        const subSpent = sub.gastos.reduce((acc, g) => acc + g.valor, 0);
+                                                        return (
+                                                            <div key={sIdx}>
+                                                                <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase mb-1">
+                                                                    <Editable value={sub.label} onSave={v => handleEdit([cIdx, sIdx], v)} />
+                                                                    <span>R$ {subSpent.toLocaleString('pt-BR')} / <Editable value={sub.budget} onSave={v => handleEdit([cIdx, sIdx, 4], v)} type="number" className="text-blue-500" /></span>
+                                                                </div>
+                                                                <div className="space-y-1 bg-gray-50/50 p-2 rounded-lg">
+                                                                    {sub.gastos.map((g, gIdx) => (
+                                                                        <div key={gIdx} className="flex gap-2 text-[10px] items-center border-b border-white pb-1">
+                                                                            <Editable value={g.dia} onSave={v => handleEdit([cIdx, sIdx, gIdx, 'dia'], v)} className="w-5 text-gray-400" />
+                                                                            <Editable value={g.desc} onSave={v => handleEdit([cIdx, sIdx, gIdx, 'desc'], v)} className="flex-1 italic" />
+                                                                            <Editable value={g.valor} onSave={v => handleEdit([cIdx, sIdx, gIdx, 'valor'], v)} type="number" className="font-black text-right w-16" />
+                                                                            <Editable value={g.parc} onSave={v => handleEdit([cIdx, sIdx, gIdx, 'parc'], v)} className="w-8 text-blue-300 text-right" />
+                                                                        </div>
+                                                                    ))}
+                                                                    {editMode && <button onClick={() => addItem('gasto', cIdx, sIdx)} className="text-[9px] font-black text-blue-400 uppercase mt-2">+ Gasto</button>}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    {editMode && <button onClick={() => addItem('subcategoria', cIdx)} className="text-[9px] font-black text-blue-500 uppercase">+ Subcategoria</button>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                                {editMode && <button onClick={() => addItem('categoria')} className="w-full py-4 border-2 border-dashed border-gray-100 text-gray-300 font-black uppercase text-[10px] rounded-xl hover:bg-gray-50">+ Nova Categoria Principal</button>}
+                            </div>
+                        )}
+
+                        {activeTab === 'receitas' && (
+                            <div className="space-y-4">
+                                <h3 className="text-[10px] font-black uppercase text-gray-400 mb-4 tracking-widest">Detalhamento de Entradas</h3>
+                                {data.receitas.map((r, rIdx) => (
+                                    <div key={rIdx} className="flex justify-between items-center p-3 bg-green-50/30 rounded-xl border border-green-100 text-[11px]">
+                                        <Editable value={r.dia} onSave={v => handleEdit(['rec', rIdx, 'dia'], v)} className="font-bold text-green-700 w-6" />
+                                        <Editable value={r.desc} onSave={v => handleEdit(['rec', rIdx, 'desc'], v)} className="flex-1 px-4 italic font-medium" />
+                                        <Editable value={r.valor} onSave={v => handleEdit(['rec', rIdx, 'valor'], v)} type="number" className="font-black text-right" />
+                                    </div>
+                                ))}
+                                {editMode && <button onClick={() => addItem('receita')} className="w-full py-3 border-2 border-dashed border-green-100 text-green-200 font-black uppercase text-[10px] rounded-xl">+ Adicionar Receita</button>}
+                            </div>
+                        )}
+
+                        {activeTab === 'graficos' && (
+                            <div id="chart" className="mt-4"></div>
+                        )}
+                    </div>
+
+                    {/* Botão Flutuante Edição */}
+                    <button 
+                        onClick={() => setEditMode(!editMode)}
+                        className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all z-50 active:scale-90 ${editMode ? 'bg-green-500' : 'bg-blue-600'}`}
+                    >
+                        {editMode ? <span className="text-white text-[10px] font-black uppercase">OK</span> : <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>}
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<FinanceApp />);
+    </script>
+</body>
+</html>

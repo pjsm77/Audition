@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Life Tracker V4</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #121212; /* Dark mode para economizar bateria e conforto visual */
+            --card-bg: #1e1e1e;
+            --text: #e0e0e0;
+            --c-none: rgba(255, 255, 255, 0.1);
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui; background: var(--bg); 
+            color: var(--text); margin: 0; padding: 10px; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Chart Mobile Friendly */
+        .chart-container { 
+            background: var(--card-bg); padding: 15px; border-radius: 20px; 
+            margin-bottom: 15px; height: 220px;
+        }
+
+        /* Grid Otimizado para Dedos */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+            gap: 10px; padding-bottom: 20px;
+        }
+
+        .prog-btn {
+            aspect-ratio: 1/1; border-radius: 16px; border: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; transition: all 0.2s;
+            font-weight: bold; font-size: 0.85rem;
+        }
+
+        /* Estados de Realização */
+        .st-none { opacity: 0.25; filter: grayscale(0.5); }
+        .st-check { opacity: 0.9; transform: scale(0.98); }
+        .st-done { opacity: 1; box-shadow: 0 0 15px currentColor; }
+
+        /* Ícones de Canto */
+        .badge { position: absolute; top: 5px; right: 5px; font-size: 0.7rem; color: white; }
+
+        /* Modal Mobile Bottom Sheet */
+        .modal {
+            display: none; position: fixed; bottom: 0; left: 0; width: 100%;
+            background: var(--card-bg); border-radius: 25px 25px 0 0;
+            padding: 25px; box-sizing: border-box; z-index: 1000;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 999; }
+
+        input {
+            width: 100%; background: #2d2d2d; border: 2px solid #444; color: white;
+            padding: 15px; border-radius: 12px; font-size: 1.1rem; outline: none;
+            margin: 10px 0;
+        }
+        input:focus { border-color: #4a90e2; }
+
+        .hist-chip {
+            display: inline-block; background: #333; padding: 5px 12px;
+            border-radius: 15px; font-size: 0.8rem; margin: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chart-container">
+        <canvas id="performanceChart"></canvas>
+    </div>
+
+    <div class="grid" id="mainGrid"></div>
+
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div class="modal" id="modal">
+        <div style="text-align:center; margin-bottom: 15px;">
+            <div id="mIcon" style="font-size: 2.5rem; margin-bottom: 5px;"></div>
+            <h2 id="mTitle" style="margin:0; font-size: 1.2rem;"></h2>
+        </div>
+        
+        <div id="mInputWrapper"></div>
+        <p style="font-size: 0.8rem; color: #888; text-align: center;">Pressione [ENTER] para salvar</p>
+
+        <div id="mHistory" style="margin-top:15px; max-height: 100px; overflow-y: auto;"></div>
+    </div>
+
+<script>
+    const COLORS = { 
+        SAUDE: "#40c057", ESTUDOS: "#228be6", PROF: "#fab005", 
+        MENTAL: "#be4bdb", SOCIAL: "#fd7e14", FINAN: "#12b886", FAMIL: "#fa5252" 
+    };
+    
+    // Escala de cores da Figura 1 (Escala 1 a 10)
+    const SCALE = ["#ff6b6b","#ff8787","#ffa8a8","#ffc9c9","#ffe3e3","#d3f9d8","#b2f2bb","#8ce99a","#69db7c","#40c057"];
+
+    let db = JSON.parse(localStorage.getItem('life_db_v4')) || { logs: [] };
+    let currentDate = new Date().toISOString().split('T')[0];
+    let selectedIdx = null;
+
+    // Definição de 50 programas
+    const programs = [];
+    const cats = Object.keys(COLORS);
+    for(let i=0; i<50; i++) {
+        const c = cats[i % cats.length];
+        programs.push({
+            id: i,
+            s: ["LIS","GYM","HYD","COD","REA","MED","STP","SAV","RUN","SLP"][i%10] + i,
+            n: "Programa " + (i+1),
+            c: c,
+            u: i%5 === 0 ? 'min' : 'un',
+            mk: 10, md: 30
+        });
+    }
+
+    // Função de Seed (Preenchimento aleatório dos últimos 7 dias)
+    if(db.logs.length === 0) {
+        for(let d=0; d<7; d++) {
+            let target = new Date();
+            target.setDate(target.getDate() - d);
+            let dStr = target.toISOString().split('T')[0];
+            programs.forEach(p => {
+                if(Math.random() > 0.5) {
+                    db.logs.push({ s: p.s, d: dStr, v: Math.floor(Math.random() * 35) });
+                }
+            });
+        }
+        localStorage.setItem('life_db_v4', JSON.stringify(db));
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = '';
+        programs.forEach((p, idx) => {
+            const total = db.logs.filter(l => l.s === p.s && l.d === currentDate).reduce((a,b) => a + b.v, 0);
+            let status = "st-none";
+            let icon = "";
+            
+            if(total >= p.md) { status = "st-done"; icon = '<i class="fa-solid fa-star badge"></i>'; }
+            else if(total >= p.mk) { status = "st-check"; icon = '<i class="fa-solid fa-check badge"></i>'; }
+
+            grid.innerHTML += `
+                <div class="prog-btn ${status}" style="background-color: ${COLORS[p.c]}" onclick="openModal(${idx})">
+                    ${icon}
+                    <span class="sigla">${p.s}</span>
+                    <span style="font-size:0.6rem; opacity:0.8">${total}/${p.md}</span>
+                </div>`;
+        });
+    }
+
+    function openModal(idx) {
+        selectedIdx = idx;
+        const p = programs[idx];
+        document.getElementById('mTitle').innerText = p.n;
+        document.getElementById('mIcon').innerHTML = `<i class="fa-solid fa-circle" style="color:${COLORS[p.c]}"></i>`;
+        
+        const wrapper = document.getElementById('mInputWrapper');
+        wrapper.innerHTML = `<input type="${p.u==='min'?'time':'number'}" id="mInput" placeholder="Valor (${p.u})">`;
+        
+        const input = document.getElementById('mInput');
+        input.addEventListener("keypress", (e) => { if(e.key === "Enter") saveValue(); });
+        
+        renderHistory();
+        document.getElementById('modal').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+        input.focus();
+    }
+
+    function saveValue() {
+        const p = programs[selectedIdx];
+        const input = document.getElementById('mInput');
+        let val = 0;
+        
+        if(p.u === 'min') {
+            const time = input.value.split(':');
+            val = parseInt(time[0])*60 + parseInt(time[1] || 0);
+        } else {
+            val = parseInt(input.value) || 0;
+        }
+
+        if(val > 0) {
+            db.logs.push({ s: p.s, d: currentDate, v: val });
+            localStorage.setItem('life_db_v4', JSON.stringify(db));
+            renderGrid();
+            renderChart();
+            closeModal();
+        }
+    }
+
+    function renderHistory() {
+        const logs = db.logs.filter(l => l.s === programs[selectedIdx].s && l.d === currentDate);
+        document.getElementById('mHistory').innerHTML = logs.map(l => `<span class="hist-chip">${l.v}</span>`).join('');
+    }
+
+    function closeModal() {
+        document.getElementById('modal').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        const labels = [];
+        const scores = [];
+        const counts = [];
+        const bgColors = [];
+
+        for(let i=6; i>=0; i--) {
+            let d = new Date();
+            d.setDate(d.getDate() - i);
+            let dStr = d.toISOString().split('T')[0];
+            labels.push(dStr.split('-')[2]); // Apenas o dia
+
+            const dailyLogs = db.logs.filter(l => l.d === dStr);
+            const distinctTasks = [...new Set(dailyLogs.map(l => l.s))].length;
+            counts.push(distinctTasks);
+
+            let dayPct = 0;
+            programs.forEach(p => {
+                const total = dailyLogs.filter(l => l.s === p.s).reduce((a,b) => a+b.v, 0);
+                dayPct += Math.min(1, total / p.md);
+            });
+            const finalScore = Math.round((dayPct / 50) * 100);
+            scores.push(finalScore);
+            bgColors.push(SCALE[Math.min(9, Math.floor(finalScore/10))]);
+        }
+
+        if(window.myChart) window.myChart.destroy();
+        window.myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{ 
+                    data: scores, 
+                    backgroundColor: bgColors, 
+                    borderRadius: 10,
+                    label: 'Score'
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: { enabled: true }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: '#888' } },
+                    y: { display: false, max: 100 }
+                },
+                animation: {
+                    onComplete: function() {
+                        const chart = this;
+                        const ctx = chart.ctx;
+                        ctx.textAlign = 'center';
+                        ctx.font = 'bold 10px sans-serif';
+                        ctx.fillStyle = '#fff';
+                        
+                        chart.data.datasets[0].data.forEach((val, i) => {
+                            const meta = chart.getDatasetMeta(0).data[i];
+                            ctx.fillText(val + "%", meta.x, meta.y + 15);
+                            ctx.fillStyle = '#888';
+                            ctx.fillText(counts[i] + " p", meta.x, chart.chartArea.bottom + 12);
+                            ctx.fillStyle = '#fff';
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    renderGrid();
+    renderChart();
+</script>
+</body>
+</html>

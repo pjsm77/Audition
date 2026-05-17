@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Analytics Drill-down</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; }
+        .controls { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+        select, input, button { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2a2a2a; color: white; }
+        button { background: var(--primary); color: black; font-weight: bold; cursor: pointer; border: none; }
+        .breadcrumb { margin-bottom: 10px; color: var(--primary); cursor: pointer; font-weight: bold; }
+        .chart-container { background: var(--surface); padding: 20px; border-radius: 8px; height: 70vh; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <select id="entityType">
+        <option value="track">Músicas</option>
+        <option value="artist">Artistas</option>
+        <option value="album">Álbuns</option>
+    </select>
+    <input type="text" id="entityName" placeholder="Busca (vazio = Tudo)...">
+    <button onclick="resetToYear()">Gerar Gráfico</button>
+</div>
+
+<div id="breadcrumb" class="breadcrumb" onclick="resetToYear()">🏠 Voltar para Anos</div>
+
+<div class="chart-container">
+    <canvas id="drillChart"></canvas>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let myChart, currentLevel = 'year', selectedYear = null;
+
+    async function loadData(period, start, end) {
+        const type = document.getElementById('entityType').value;
+        const name = document.getElementById('entityName').value.trim() || '%';
+
+        const { data, error } = await _supabase.rpc('get_scrobble_chart_stats', {
+            entidade_tipo: type,
+            entidade_nome: name,
+            periodo_tipo: period,
+            data_inicio: start,
+            data_fim: end
+        });
+
+        if (error) { alert("Erro: " + error.message); return; }
+        render(data);
+    }
+
+    function render(data) {
+        const ctx = document.getElementById('drillChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.data_label),
+                datasets: [{
+                    label: 'Scrobbles',
+                    data: data.map(d => d.quantidade),
+                    backgroundColor: '#1DB954',
+                    indexAxis: 'y'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                maintainAspectRatio: false,
+                scales: { x: { grid: { color: '#333' } }, y: { grid: { display: false } } },
+                onClick: (e, el) => {
+                    if (el.length > 0) {
+                        const label = myChart.data.labels[el[0].index];
+                        if (currentLevel === 'year') {
+                            currentLevel = 'month'; selectedYear = label;
+                            document.getElementById('breadcrumb').innerText = `🏠 Anos > 📅 ${label}`;
+                            loadData('month', `${label}-01-01`, `${label}-12-31`);
+                        } else if (currentLevel === 'month') {
+                            currentLevel = 'day';
+                            const [m, y] = label.split('/');
+                            document.getElementById('breadcrumb').innerText = `🏠 Anos > ${y} > 🗓️ Mês ${m}`;
+                            loadData('day', `${y}-${m}-01`, `${y}-${m}-${new Date(y, m, 0).getDate()}`);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function resetToYear() {
+        currentLevel = 'year';
+        document.getElementById('breadcrumb').innerText = "🏠 Voltar para Anos";
+        loadData('year', '2014-01-01', '2026-12-31');
+    }
+
+    resetToYear();
+</script>
+</body>
+</html>

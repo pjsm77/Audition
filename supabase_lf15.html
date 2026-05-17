@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Music Drilldown</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #000; --surface: #121212; --text: #fff; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 5px; overflow: hidden; }
+        
+        /* Layout Compacto */
+        .container { height: 100vh; display: flex; flex-direction: column; }
+        
+        .radio-group { 
+            display: flex; justify-content: space-around; background: var(--surface); 
+            padding: 8px; border-radius: 20px; margin-bottom: 5px; border: 1px solid #333;
+        }
+        .radio-group label { font-size: 12px; font-weight: bold; cursor: pointer; color: #888; }
+        .radio-group input { display: none; }
+        .radio-group input:checked + span { color: var(--primary); }
+
+        .breadcrumb { font-size: 11px; padding: 5px; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
+        
+        .chart-wrapper { flex: 1; position: relative; width: 100%; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="radio-group" id="selectors">
+        <label><input type="radio" name="entity" value="track" checked> <span>SONGS</span></label>
+        <label><input type="radio" name="entity" value="album"> <span>ALBUMS</span></label>
+        <label><input type="radio" name="entity" value="artist"> <span>ARTISTS</span></label>
+    </div>
+
+    <div id="breadcrumb" class="breadcrumb" onclick="resetToYear()">🏠 TOTAL (YEARLY)</div>
+
+    <div class="chart-wrapper">
+        <canvas id="drillChart"></canvas>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    Chart.register(ChartDataLabels);
+
+    let myChart, currentLevel = 'year', selectedYear = null;
+
+    async function fetchData() {
+        const type = document.querySelector('input[name="entity"]:checked').value;
+        let start = '2014-01-01', end = '2026-12-31';
+
+        // Ajusta intervalo se estiver em drill-down
+        if(currentLevel === 'month') { start = `${selectedYear}-01-01`; end = `${selectedYear}-12-31`; }
+        
+        const { data, error } = await _supabase.rpc('get_scrobble_chart_stats', {
+            entidade_tipo: type,
+            periodo_tipo: currentLevel,
+            data_inicio: start,
+            data_fim: end
+        });
+
+        if (!error && data) render(data);
+    }
+
+    function render(data) {
+        const ctx = document.getElementById('drillChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.data_label),
+                datasets: [{
+                    data: data.map(d => d.quantidade),
+                    backgroundColor: 'rgba(29, 185, 84, 0.8)',
+                    borderRadius: 4,
+                    indexAxis: 'y'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                maintainAspectRatio: false,
+                scales: { 
+                    x: { display: false }, 
+                    y: { grid: { display: false }, ticks: { color: '#fff', font: { size: 10 } } } 
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#fff',
+                        anchor: 'end',
+                        align: 'left',
+                        offset: 5,
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (val) => val > 0 ? val.toLocaleString() : ''
+                    }
+                },
+                onClick: (e, el) => {
+                    if (el.length > 0) {
+                        const label = myChart.data.labels[el[0].index];
+                        if (currentLevel === 'year') {
+                            currentLevel = 'month'; selectedYear = label;
+                            document.getElementById('breadcrumb').innerText = `⬅ VOLTAR (${label})`;
+                            fetchData();
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function resetToYear() {
+        currentLevel = 'year';
+        document.getElementById('breadcrumb').innerText = "🏠 TOTAL (YEARLY)";
+        fetchData();
+    }
+
+    // Eventos automáticos
+    document.getElementById('selectors').onchange = () => fetchData();
+    fetchData();
+</script>
+</body>
+</html>

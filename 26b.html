@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Life Tracker V14 - Global Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #121212; --card-bg: #1e1e1e; --text: #ffffff;
+            --c-weekend: #f87171; --c-weekday: #888;
+        }
+
+        body { font-family: 'Segoe UI', system-ui; background: var(--bg); color: var(--text); margin: 0; padding: 10px; touch-action: pan-y; overflow-x: hidden; }
+        .date-display { font-size: 1.1rem; font-weight: bold; color: #4a90e2; text-align: center; margin: 10px 0; text-transform: uppercase; letter-spacing: 1px; }
+        .chart-card { background: var(--card-bg); padding: 15px; border-radius: 15px; height: 260px; margin-bottom: 15px; }
+
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        .toolbar select { background: #2d2d2d; border: 1px solid #444; color: white; padding: 10px; border-radius: 8px; flex: 1; font-size: 0.85rem; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 12px; }
+
+        .prog-btn {
+            aspect-ratio: 1/1; border-radius: 18px; border: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; transition: all 0.2s; cursor: pointer; color: white; padding: 5px;
+            overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+
+        .prog-icon-bg { position: absolute; font-size: 3.2rem; opacity: 0.12; z-index: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .btn-content { z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative; }
+
+        .st-none { opacity: 0.45; filter: grayscale(0.3); }
+        .st-active { opacity: 1; filter: none; }
+
+        .top-left { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; font-weight: bold; }
+        
+        .status-slot { 
+            position: absolute; top: 5px; right: 8px; 
+            display: flex; flex-direction: column; align-items: center; 
+            min-height: 28px; justify-content: flex-start;
+        }
+        .behavior-icon { font-size: 0.55rem; opacity: 0.7; margin-top: 2px; }
+        
+        .top-center { position: absolute; top: 12%; font-size: 0.55rem; font-weight: bold; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 3px; }
+        .mid-left { position: absolute; top: 50%; left: 6px; transform: translateY(-50%); font-size: 0.6rem; font-weight: 800; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 3px; }
+        .mid-right { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); font-size: 0.7rem; font-weight: 800; }
+        
+        .sigla { font-size: 1.25rem; font-weight: 950; text-shadow: 1px 1px 3px rgba(0,0,0,0.6); }
+        .metas-label { font-size: 0.55rem; font-weight: bold; opacity: 0.9; margin-top: 1px; }
+        .xp-label { position: absolute; bottom: 18%; font-size: 0.6rem; font-weight: 800; }
+        
+        /* Level Counter Style updated for V14 */
+        .days-counter { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; font-weight: bold; color: white; opacity: 0.9; }
+
+        .bottom-left { position: absolute; bottom: 5px; left: 8px; font-size: 0.6rem; font-weight: bold; }
+        .bottom-right { position: absolute; bottom: 5px; right: 8px; font-size: 0.65rem; color: #ffd700; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 380px; background: #252525; border-radius: 20px; padding: 20px; z-index: 1000; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .close-x { background: none; border: none; color: #ff6b6b; font-size: 1.8rem; cursor: pointer; }
+        .modal-input { width: 100%; background: #333; border: 2px solid #555; color: white; padding: 12px; border-radius: 10px; font-size: 1.5rem; text-align: center; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(4px); }
+
+        .chart-card {
+    transition: height 0.3s ease;
+    overflow: hidden;
+}
+    </style>
+</head>
+<body>
+    <div class="header-nav" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; background: #1a1a1a; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 10000;">
+        <div id="dateDisplay" class="date-display" style="margin: 0; font-size: 0.9rem; color: #4a90e2; font-weight: bold;"></div>
+        
+        <div class="tabs" style="display: flex; gap: 20px;">
+            <i class="fa-solid fa-table-cells-large" id="btnDash" onclick="switchView('dash')" 
+               style="cursor:pointer; font-size: 1.3rem; color: #4a90e2; opacity: 1; transition: 0.2s;"></i>
+            
+            <i class="fa-solid fa-list-ul" id="btnTable" onclick="switchView('table')" 
+               style="cursor:pointer; font-size: 1.3rem; color: #fff; opacity: 0.4; transition: 0.2s;"></i>
+        </div>
+    </div>
+
+<div id="swipeArea">
+    <div class="chart-card" id="chartContainer" style="position: relative;">
+    <i id="toggleChartIcon" class="fa-solid fa-eye" 
+       onclick="toggleChart()" 
+       style="position: absolute; top: 10px; right: 15px; z-index: 10; cursor: pointer; opacity: 0.6;">
+    </i>
+    <canvas id="perfChart"></canvas>
+</div>
+
+<div class="toolbar">
+    <div style="display: flex; flex: 1; gap: 4px;">
+        <select id="sortFilter" onchange="renderGrid(false, true)">
+            <option value="prio">Sort: Priority</option>
+            <option value="name">Sort: Name</option>
+            <option value="category">Sort: Category</option>
+            <option value="frequency">Sort: Frequency</option>
+            <option value="type">Sort: Type</option>
+            <option value="streak">Sort: Streaks</option>
+            <option value="level">Sort: Level</option>
+            <option value="levelup">Sort: Level Up Days</option>
+            <option value="xp_check">Sort: XP to Check</option> 
+            <option value="xp_star">Sort: XP to Star</option>
+            <option value="score">Sort: Performance</option>
+            <option value="slump">Sort: Slump (Ice)</option>
+        </select>
+        <button onclick="toggleSortDir()" style="background: #2d2d2d; border: 1px solid #444; color: white; padding: 10px; border-radius: 8px; width: 45px;">
+            <i id="sortDirIcon" class="fa-solid fa-sort-down"></i>
+        </button>
+    </div>
+    
+    <select id="statusFilter" onchange="renderGrid(true)">
+        <option value="active">Show: Active</option>
+        <option value="all">Show: All</option>
+        <option value="inactive">Show: Inactive</option>
+    </select>
+
+    <select id="periodFilter" onchange="initDashboard()">
+        <option value="7">View: 7 Days</option>
+        <option value="15">View: 15 Days</option>
+        <option value="30">View: 30 Days</option>
+        <option value="60">View: 60 Days</option>
+    </select>
+</div>
+
+    <div class="grid" id="mainGrid"></div>
+
+    <div id="tableView" style="display: none; padding: 0 5px 80px 5px; overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; color: white; font-size: 0.8rem; background: #1e1e1e; border-radius: 10px; overflow: hidden;">
+        <thead>
+            <tr style="background: #2d2d2d; text-align: left;">
+                <th onclick="sortTable('n')" style="padding: 12px 8px; cursor:pointer; border-bottom: 2px solid #444;">Name</th>
+                <th onclick="sortTable('s')" style="padding: 12px 8px; cursor:pointer; border-bottom: 2px solid #444;">ID</th>
+                <th onclick="sortTable('prio')" style="padding: 12px 8px; cursor:pointer; border-bottom: 2px solid #444;"><i class="fa-solid fa-arrow-up-1-9"></i></th>
+                <th onclick="sortTable('score')" style="padding: 12px 8px; cursor:pointer; border-bottom: 2px solid #444;"><i class="fa-solid fa-percent"></i></th>
+                <th onclick="sortTable('xp')" style="padding: 12px 8px; cursor:pointer; border-bottom: 2px solid #444;">XP</th>
+                <th onclick="sortTable('streak')" style="padding: 12px 8px; cursor:pointer; border-bottom: 2px solid #444;"><i class="fa-solid fa-fire"></i></th>
+                <th onclick="sortTable('meta')" style="padding: 12px 8px; cursor:pointer; border-bottom: 2px solid #444;"><i class="fa-solid fa-bullseye"></i></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div id="modal" class="modal">
+        <div class="modal-header"><h3 id="mTitle" style="margin:0"></h3><button class="close-x" onclick="closeModal()">&times;</button></div>
+        <input type="number" id="valInput" class="modal-input" placeholder="Enter XP">
+        <div id="logList" style="margin-top:15px; max-height:120px; overflow-y:auto;"></div>
+    </div>
+
+<script>
+
+const PERF_COLORS = {
+    LOW: "#ff4d4d",    // Vermelho vibrante
+    MID: "#ffa500",    // Laranja intenso
+    HIGH: "#2ecc71"    // Verde esmeralda
+};
+
+    let lastSort = "";
+    let sortAsc = true;
+
+    const COLORS = ["#F87171", "#FB923C", "#FBBF24", "#FACC15", "#EAB308", "#D9F99D", "#BEF264", "#84CC16", "#4ADE80", "#22C55E"];
+    const CATS = { SAUDE: "#40c057", ESTUDOS: "#228be6", PROF: "#fab005", MENTAL: "#be4bdb", SOCIAL: "#fd7e14", FINAN: "#12b886" };
+
+    const programs = [
+        { s: "LIS", n: "Listening", c: "ESTUDOS", mk: 5, md: 10, prio: 1, freq: "D", icon: "fa-headphones", type: "VOLUME", active: true },
+        { s: "GYM", n: "Gym", c: "SAUDE", mk: 1, md: 1, prio: 1, freq: "U", icon: "fa-dumbbell", type: "CONSISTENCY", active: true },
+        { s: "COD", n: "Coding", c: "PROF", mk: 30, md: 60, prio: 2, freq: "U", icon: "fa-code", type: "VOLUME", active: true },
+        { s: "H2O", n: "Water", c: "SAUDE", mk: 4, md: 8, prio: 1, freq: "D", icon: "fa-faucet-drip", type: "CONSISTENCY", active: true },
+        { s: "REA", n: "Reading", c: "MENTAL", mk: 10, md: 20, prio: 2, freq: "D", icon: "fa-book-open", type: "VOLUME", active: true },
+        { s: "MED", n: "Meditation", c: "MENTAL", mk: 5, md: 15, prio: 3, freq: "F", icon: "fa-spa", type: "CONSISTENCY", active: true },
+        { s: "SLP", n: "Sleep", c: "SAUDE", mk: 7, md: 8, prio: 1, freq: "D", icon: "fa-bed", type: "CONSISTENCY", active: false },
+        { s: "FRD", n: "FRD Listening", c: "ESTUDOS", mk: 5, md: 10, prio: 1, freq: "D", icon: "fa-headphones", type: "VOLUME", active: true },
+        { s: "ACD", n: "ACD Gym", c: "SAUDE", mk: 1, md: 1, prio: 1, freq: "U", icon: "fa-dumbbell", type: "CONSISTENCY", active: true },
+        { s: "VRS", n: "VRS Coding", c: "PROF", mk: 30, md: 60, prio: 2, freq: "U", icon: "fa-code", type: "VOLUME", active: true },
+        { s: "UIY", n: "UIY Water", c: "SAUDE", mk: 4, md: 8, prio: 1, freq: "D", icon: "fa-faucet-drip", type: "CONSISTENCY", active: true },
+        { s: "CED", n: "CED Reading", c: "MENTAL", mk: 10, md: 20, prio: 2, freq: "D", icon: "fa-book-open", type: "VOLUME", active: true },
+        { s: "TED", n: "TED Meditation", c: "MENTAL", mk: 5, md: 15, prio: 3, freq: "F", icon: "fa-spa", type: "CONSISTENCY", active: true },
+        { s: "BDF", n: "BDF Sleep", c: "SAUDE", mk: 7, md: 8, prio: 1, freq: "D", icon: "fa-bed", type: "CONSISTENCY", active: false },
+        { s: "SIL", n: "SIL Listening", c: "ESTUDOS", mk: 5, md: 10, prio: 1, freq: "D", icon: "fa-headphones", type: "VOLUME", active: true },
+        { s: "MYG", n: "MYG Gym", c: "SAUDE", mk: 1, md: 1, prio: 1, freq: "U", icon: "fa-dumbbell", type: "CONSISTENCY", active: true },
+        { s: "DOC", n: "DOC Coding", c: "PROF", mk: 30, md: 60, prio: 2, freq: "U", icon: "fa-code", type: "VOLUME", active: true },
+        { s: "02H", n: "02H Water", c: "SAUDE", mk: 4, md: 8, prio: 1, freq: "D", icon: "fa-faucet-drip", type: "CONSISTENCY", active: true },
+        { s: "AER", n: "AER Reading", c: "MENTAL", mk: 10, md: 20, prio: 2, freq: "D", icon: "fa-book-open", type: "VOLUME", active: true },
+        { s: "DEM", n: "DEM Meditation", c: "MENTAL", mk: 5, md: 15, prio: 3, freq: "F", icon: "fa-spa", type: "CONSISTENCY", active: true },
+        { s: "PLS", n: "PLS Sleep", c: "SAUDE", mk: 7, md: 8, prio: 1, freq: "D", icon: "fa-bed", type: "CONSISTENCY", active: false },
+        { s: "DRF", n: "DRF FRD Listening", c: "ESTUDOS", mk: 5, md: 10, prio: 1, freq: "D", icon: "fa-headphones", type: "VOLUME", active: true },
+        { s: "DCA", n: "DCA ACD Gym", c: "SAUDE", mk: 1, md: 1, prio: 1, freq: "U", icon: "fa-dumbbell", type: "CONSISTENCY", active: true },
+        { s: "SRV", n: "SRV VRS Coding", c: "PROF", mk: 30, md: 60, prio: 2, freq: "U", icon: "fa-code", type: "VOLUME", active: true },
+        { s: "YIU", n: "YIU UIY Water", c: "SAUDE", mk: 4, md: 8, prio: 1, freq: "D", icon: "fa-faucet-drip", type: "CONSISTENCY", active: true },
+        { s: "DEC", n: "DEC CED Reading", c: "MENTAL", mk: 10, md: 20, prio: 2, freq: "D", icon: "fa-book-open", type: "VOLUME", active: true },
+        { s: "DET", n: "DET TED Meditation", c: "MENTAL", mk: 5, md: 15, prio: 3, freq: "F", icon: "fa-spa", type: "CONSISTENCY", active: true },
+        { s: "FDB", n: "FDB BDF Sleep", c: "SAUDE", mk: 7, md: 8, prio: 1, freq: "D", icon: "fa-bed", type: "CONSISTENCY", active: false }
+    ];
+
+    let db = JSON.parse(localStorage.getItem('life_v12_db')) || { logs: [] };
+    let activeDate = new Date().toISOString().split('T')[0];
+    let chartInstance = null;
+    let currentSigla = null;
+
+    if(db.logs.length === 0) {
+        for(let i=60; i>=0; i--) {
+            let d = new Date(); d.setDate(d.getDate() - i);
+            let ds = d.toISOString().split('T')[0];
+            programs.forEach(p => {
+                if(Math.random() > 0.4) db.logs.push({ id: Date.now()+Math.random(), s: p.s, d: ds, v: Math.round(p.md * (0.5 + Math.random()*0.6)) });
+            });
+        }
+        localStorage.setItem('life_v21_db', JSON.stringify(db));
+    }
+
+    let tsX = 0;
+    document.getElementById('swipeArea').addEventListener('touchstart', e => tsX = e.changedTouches[0].screenX);
+    document.getElementById('swipeArea').addEventListener('touchend', e => {
+        let teX = e.changedTouches[0].screenX;
+        let d = new Date(activeDate + "T12:00:00");
+        if (teX < tsX - 80) d.setDate(d.getDate() + 1);
+        if (teX > tsX + 80) d.setDate(d.getDate() - 1);
+        activeDate = d.toISOString().split('T')[0];
+        initDashboard();
+    });
+
+    function getStreak(sigla) {
+        let count = 0; let d = new Date(activeDate + "T12:00:00");
+        while(true) {
+            let ds = d.toISOString().split('T')[0];
+            let p = programs.find(x => x.s === sigla);
+            if(!p || getDayTotal(sigla, ds) < p.mk) break;
+            count++; d.setDate(d.getDate()-1);
+        }
+        return count;
+    }
+
+    function getScore(sigla, days) {
+        let totalPct = 0; let d = new Date(activeDate + "T12:00:00");
+        for(let i=0; i<days; i++) {
+            let ds = d.toISOString().split('T')[0];
+            let p = programs.find(x => x.s === sigla);
+            totalPct += Math.min(1, getDayTotal(sigla, ds) / p.md);
+            d.setDate(d.getDate()-1);
+        }
+        return Math.round((totalPct / days) * 100);
+    }
+
+function getPerfColor(score) {
+    if (score < 50) return PERF_COLORS.LOW;
+    if (score < 80) return PERF_COLORS.MID;
+    return PERF_COLORS.HIGH;
+}
+
+function initDashboard() {
+    // Formato: Thu, Feb 26
+    const opt = { weekday: 'short', month: 'short', day: 'numeric' };
+    const dateObj = new Date(activeDate + "T12:00:00");
+    document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('en-US', opt);
+    
+    // Renderiza a visão que estiver visível no momento
+    const isTableActive = document.getElementById('tableView').style.display === 'block';
+    if (isTableActive) {
+        renderTable();
+    } else {
+        renderGrid(true);
+    }
+    renderChart();
+}
+
+function toggleChart() {
+    const chartCanvas = document.getElementById('perfChart');
+    const chartContainer = document.getElementById('chartContainer');
+    const icon = document.getElementById('toggleChartIcon');
+
+    if (chartCanvas.style.display !== 'none') {
+        // Ocultar
+        chartCanvas.style.display = 'none';
+        chartContainer.style.height = '40px'; // Altura mínima para manter o botão visível
+        icon.className = 'fa-solid fa-eye-slash';
+    } else {
+        // Exibir
+        chartCanvas.style.display = 'block';
+        chartContainer.style.height = '260px'; // Altura original do seu CSS
+        icon.className = 'fa-solid fa-eye';
+        renderChart(); // Redesenha para garantir que o tamanho se ajuste
+    }
+}
+
+function toggleSortDir() {
+    sortAsc = !sortAsc;
+    const icon = document.getElementById('sortDirIcon');
+    icon.className = sortAsc ? "fa-solid fa-sort-up" : "fa-solid fa-sort-down";
+    renderGrid(true); 
+}
+
+function getSlump(sigla) {
+    let count = 0; 
+    let d = new Date(activeDate + "T12:00:00");
+    // Começamos a contar a partir de ontem para o "Slump", 
+    // ou de hoje se hoje ainda não teve check.
+    const p = programs.find(x => x.s === sigla);
+    
+    while(true) {
+        let ds = d.toISOString().split('T')[0];
+        if(!p || getDayTotal(sigla, ds) >= p.mk) break; // Parar se deu check
+        count++; 
+        d.setDate(d.getDate() - 1);
+        if(count > 365) break; // Segurança
+    }
+    return count;
+}
+
+
+function renderGrid(isAuto = false, isChange = false) {
+    const grid = document.getElementById('mainGrid');
+    const period = parseInt(document.getElementById('periodFilter').value);
+    const sort = document.getElementById('sortFilter').value;
+    
+    // Captura o valor do novo filtro de status (V17)
+    const statusFilt = document.getElementById('statusFilter').value;
+    
+    if (isChange) {
+        sortAsc = true;
+        lastSort = sort;
+        document.getElementById('sortDirIcon').className = "fa-solid fa-sort-up";
+    }
+
+    // --- FILTRAGEM DE ATIVOS/INATIVOS (V17) ---
+    let list = programs.filter(p => {
+        if (statusFilt === 'active') return p.active !== false;
+        if (statusFilt === 'inactive') return p.active === false;
+        return true; // Exibe todos se for 'all'
+    });
+
+const getVal = (p) => {
+        const val = getDayTotal(p.s, activeDate);
+        switch(sort) {
+            case 'score': return getScore(p.s, period);
+            case 'name': return p.n;
+            case 'category': return p.c;
+            case 'frequency': return p.freq;
+            case 'type': return p.type;
+            case 'streak': return getStreak(p.s);
+            case 'slump': return getSlump(p.s); // NOVA ORDENAÇÃO V20
+            case 'level': return getXP(p.s);
+            case 'levelup': return Math.max(1, Math.floor((1000 - (getXP(p.s) % 1000)) / (p.mk || 1)));
+            case 'xp_check': return Math.max(0, p.mk - val); 
+            case 'xp_star': return Math.max(0, p.md - val);  
+            default: return p.prio;
+        }
+    };
+
+    list.sort((a, b) => {
+        let vA = getVal(a);
+        let vB = getVal(b);
+        if (typeof vA === 'string') {
+            return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        }
+        return sortAsc ? vA - vB : vB - vA;
+    });
+
+    grid.innerHTML = '';
+list.forEach(p => {
+        const val = getDayTotal(p.s, activeDate);
+        const status = val >= p.mk ? "st-active" : "st-none";
+        const streak = getStreak(p.s);
+        const xpTotal = getXP(p.s);
+        const daysToLevel = Math.max(1, Math.floor((1000 - (xpTotal % 1000)) / (p.mk || 1)));
+        const score = getScore(p.s, period);
+        const siglaColor = getPerfColor(score);
+
+        // --- ESTILO VISUAL PARA INATIVOS (V17) ---
+        const inactiveStyle = p.active === false ? "opacity: 0.5; filter: grayscale(1);" : "";
+
+        // --- LÓGICA DE INDICADOR ALTERNADO (V18) ---
+        const slump = getSlump(p.s);
+        let indicator = '';
+        if (streak > 0) {
+            indicator = `${streak}🔥`;
+        } else if (slump > 0) {
+            indicator = `${slump}<i class="fa-solid fa-snowflake" style="font-size:0.6rem; color:#60a5fa"></i>`;
+        }
+
+        grid.innerHTML += `
+            <div class="prog-btn ${status}" style="background-color: ${CATS[p.c]}; ${inactiveStyle}" onclick="openManageModal('${p.s}')">
+                <i class="fa-solid ${p.icon} prog-icon-bg"></i>
+                <div class="btn-content">
+                    <span class="top-left">${val || ''}</span>
+                    <div class="status-slot">
+                        ${val >= p.md ? '<i class="fa-solid fa-star" style="color:#ffd700"></i>' : (val >= p.mk ? '<i class="fa-solid fa-circle-check" style="color:#fff"></i>' : '<div style="height:14px"></div>')}
+                        ${p.type === "CONSISTENCY" ? '<i class="fa-solid fa-anchor behavior-icon"></i>' : '<i class="fa-solid fa-bars-staggered behavior-icon"></i>'}
+                    </div>
+                    <span class="top-center">${score}%</span>
+                    <span class="mid-left">P${p.prio}</span>
+                    
+                    <span class="sigla" style="color: ${siglaColor}; text-shadow: 2px 2px 3px rgba(0,0,0,0.9);">${p.s}</span>
+                    
+                    <span class="mid-right">${p.freq}</span>
+                    <span class="metas-label">${p.mk}/${p.md}</span>
+                    <span class="xp-label">${xpTotal} XP</span>
+                    <span class="days-counter">${daysToLevel}</span>
+                    <span class="bottom-left">L${Math.floor(xpTotal / 1000) + 1}</span>
+                    <span class="bottom-right">${indicator}</span>
+                </div>
+            </div>`;
+    });
+}
+    function renderChart() {
+        const ctx = document.getElementById('perfChart').getContext('2d');
+        const period = parseInt(document.getElementById('periodFilter').value);
+        const labels = [], scores = [], barColors = [], trendData = [], counts = [], xColors = [];
+
+        for(let i = period - 1; i >= 0; i--) {
+            let d = new Date(activeDate + "T12:00:00"); d.setDate(d.getDate() - i);
+            let ds = d.toISOString().split('T')[0];
+            
+            // Format: "24 Tue"
+            const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+            labels.push([d.getDate(), dayName]);
+            xColors.push((d.getDay() === 0 || d.getDay() === 6) ? '#f87171' : '#888');
+
+            let dayPct = 0, dayCount = 0;
+            programs.forEach(p => {
+                const v = getDayTotal(p.s, ds);
+                dayPct += Math.min(1, v / p.md);
+                if(v >= p.mk) dayCount++;
+            });
+            let final = Math.round((dayPct / programs.length) * 100);
+            scores.push(final);
+            counts.push(dayCount);
+            barColors.push(COLORS[Math.min(9, Math.floor(final/10))]);
+
+            let sumPrev = 0, countPrev = 0;
+            for(let j=i+1; j<i+6; j++) {
+                let dp = new Date(ds + "T12:00:00"); dp.setDate(dp.getDate() - (j-i));
+                let dsp = dp.toISOString().split('T')[0];
+                let pPct = 0;
+                programs.forEach(p => pPct += Math.min(1, getDayTotal(p.s, dsp) / p.md));
+                sumPrev += (pPct / programs.length) * 100; countPrev++;
+            }
+            trendData.push(sumPrev / countPrev);
+        }
+
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            data: {
+                labels: labels,
+                datasets: [
+                    { type: 'bar', data: scores, backgroundColor: barColors, borderRadius: 4 },
+                    { type: 'line', data: trendData, borderColor: 'rgba(255,255,255,0.7)', borderWidth: 2, pointRadius: 0, tension: 0.4 }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false },
+                    tooltip: { enabled: true }
+                },
+                scales: { 
+                    y: { display: false, max: 125 }, 
+                    x: { grid: { display: false }, ticks: { color: xColors, font: { size: 10 } } } 
+                },
+                animation: {
+                    onComplete: function() {
+                        const chart = this;
+                        const ctx = chart.ctx;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.font = 'bold 9px Arial';
+                        chart.data.datasets[0].data.forEach((val, i) => {
+                            const meta = chart.getDatasetMeta(0).data[i];
+                            ctx.fillStyle = '#fff';
+                            ctx.fillText(val + '%', meta.x, meta.y - 12);
+                            ctx.fillStyle = '#aaa';
+                            ctx.fillText(counts[i], meta.x, meta.y - 2);
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    function openManageModal(sigla) {
+        currentSigla = sigla;
+        document.getElementById('mTitle').innerText = programs.find(x => x.s === sigla).n;
+        updateLogs();
+        document.querySelectorAll('#modal, #overlay').forEach(el => el.style.display = 'block');
+        const input = document.getElementById('valInput');
+        input.value = ''; setTimeout(() => input.focus(), 100);
+    }
+
+    function addXP(v) { if(!isNaN(v)) { db.logs.push({ id: Date.now(), s: currentSigla, d: activeDate, v: v }); save(); closeModal(); } }
+    function delLog(id) { if(confirm("Delete record?")) { db.logs = db.logs.filter(l => l.id !== id); save(); updateLogs(); } }
+    function updateLogs() {
+        const list = document.getElementById('logList');
+        const dayLogs = db.logs.filter(l => l.s === currentSigla && l.d === activeDate);
+        list.innerHTML = dayLogs.length ? '<strong>Today\'s Logs:</strong>' : 'No logs yet.';
+        dayLogs.forEach(l => {
+            list.innerHTML += `<div style="display:flex; justify-content:space-between; background:#333; padding:8px; border-radius:5px; margin-top:5px;"><span>${l.v} XP</span><i class="fa-solid fa-trash" style="color:#ff6b6b;cursor:pointer" onclick="delLog(${l.id})"></i></div>`;
+        });
+    }
+    function save() { 
+    localStorage.setItem('life_v21_db', JSON.stringify(db)); 
+    initDashboard(); // initDashboard já passará o 'true' para o renderGrid
+}
+    function closeModal() { document.querySelectorAll('#modal, #overlay').forEach(el => el.style.display = 'none'); }
+    function getDayTotal(s, d) { return db.logs.filter(l => l.s === s && l.d === d).reduce((a, b) => a + b.v, 0); }
+    function getXP(s) { return db.logs.filter(l => l.s === s).reduce((a, b) => a + b.v, 0); }
+
+    document.getElementById('valInput').onkeypress = (e) => { if(e.key === 'Enter') addXP(parseFloat(e.target.value)); };
+
+
+
+
+let tableSortCol = 'prio';
+let tableSortAsc = true;
+
+function switchView(view) {
+    const isDash = view === 'dash';
+    
+    // IDs dos containers
+    const chart = document.getElementById('chartContainer');
+    const toolbar = document.querySelector('.toolbar');
+    const grid = document.getElementById('mainGrid');
+    const table = document.getElementById('tableView');
+
+    // Troca de Visibilidade
+    chart.style.display = isDash ? 'block' : 'none';
+    toolbar.style.display = isDash ? 'flex' : 'none';
+    grid.style.display = isDash ? 'grid' : 'none';
+    table.style.display = isDash ? 'none' : 'block';
+
+    // Estilo dos Ícones das Abas
+    document.getElementById('btnDash').style.color = isDash ? "#4a90e2" : "#fff";
+    document.getElementById('btnDash').style.opacity = isDash ? "1" : "0.4";
+    
+    document.getElementById('btnTable').style.color = isDash ? "#fff" : "#4a90e2";
+    document.getElementById('btnTable').style.opacity = isDash ? "0.4" : "1";
+
+    if (isDash) {
+        renderGrid(true);
+        renderChart();
+    } else {
+        renderTable();
+    }
+}
+
+function sortTable(col) {
+    if (tableSortCol === col) { tableSortAsc = !tableSortAsc; } 
+    else { tableSortCol = col; tableSortAsc = true; }
+    renderTable();
+}
+
+function renderTable() {
+    const body = document.getElementById('tableBody');
+    const period = parseInt(document.getElementById('periodFilter').value);
+    let list = [...programs];
+    list.sort((a, b) => {
+        let vA, vB;
+        switch(tableSortCol) {
+            case 'n': vA = a.n; vB = b.n; break;
+            case 's': vA = a.s; vB = b.s; break;
+            case 'score': vA = getScore(a.s, period); vB = getScore(b.s, period); break;
+            case 'xp': vA = getXP(a.s); vB = getXP(b.s); break;
+            case 'streak': vA = getStreak(a.s) - getSlump(a.s); vB = getStreak(b.s) - getSlump(b.s); break;
+            case 'meta': vA = a.mk; vB = b.mk; break;
+            default: vA = a[tableSortCol]; vB = b[tableSortCol];
+        }
+        if (typeof vA === 'string') return tableSortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        return tableSortAsc ? vA - vB : vB - vA;
+    });
+    body.innerHTML = '';
+    list.forEach(p => {
+        const score = getScore(p.s, period);
+        const streak = getStreak(p.s);
+        const slump = getSlump(p.s);
+        const indicator = streak > 0 ? `${streak}🔥` : (slump > 0 ? `${slump}❄️` : '-');
+        body.innerHTML += `
+            <tr onclick="openManageModal('${p.s}')" style="border-bottom: 1px solid #333;">
+                <td style="padding: 12px 8px; color: ${CATS[p.c]}"><b>${p.n}</b></td>
+                <td style="padding: 12px 8px; opacity: 0.6;">${p.s}</td>
+                <td style="padding: 12px 8px;">${p.prio}</td>
+                <td style="padding: 12px 8px; color: ${getPerfColor(score)}">${score}%</td>
+                <td style="padding: 12px 8px;">${getXP(p.s)}</td>
+                <td style="padding: 12px 8px;">${indicator}</td>
+                <td style="padding: 12px 8px; opacity: 0.6;">${p.mk}/${p.md}</td>
+            </tr>`;
+    });
+}
+
+    initDashboard();
+</script>
+</body>
+</html>

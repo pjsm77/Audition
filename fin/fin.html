@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meu Finanças</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fff; }
+        .transition-width { transition: width 0.7s ease-in-out; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const FinanceApp = () => {
+            const [currentMonthIdx, setCurrentMonthIdx] = useState(2); // Março
+            const [expandedCategory, setExpandedCategory] = useState(null);
+
+            const months = ["Janeiro 2026", "Fevereiro 2026", "Março 2026"];
+
+            const monthlyData = {
+                "Janeiro 2026": [
+                    { id: 'CASA', spent: 2100, budget: 2200, sub: [] },
+                    { id: 'CARRO', spent: 1550, budget: 1400, sub: [] }
+                ],
+                "Fevereiro 2026": [
+                    { id: 'CASA', spent: 2250, budget: 2200, sub: [] },
+                    { id: 'PESSOAL', spent: 980, budget: 1000, sub: [] }
+                ],
+                "Março 2026": [
+                    { 
+                        id: 'CASA', label: 'CASA', spent: 1980.50, budget: 2200, 
+                        sub: [
+                            { label: 'Luz', spent: 715.14, budget: 800 },
+                            { label: 'Internet', spent: 150, budget: 150 },
+                            { label: 'Manutenção', spent: 450, budget: 400 }
+                        ]
+                    },
+                    { 
+                        id: 'CARRO', label: 'CARRO', spent: 1650, budget: 1500, 
+                        sub: [
+                            { label: 'Combustível', spent: 480, budget: 400 },
+                            { label: 'Seguro', spent: 250, budget: 250 }
+                        ]
+                    },
+                    { id: 'COLÉGIO', label: 'COLÉGIO', spent: 1200, budget: 1300, sub: [] },
+                    { id: 'PESSOAL', label: 'PESSOAL', spent: 890, budget: 1000, sub: [] }
+                ]
+            };
+
+            const getBarColor = (perc) => {
+                if (perc >= 100) return 'bg-red-500';
+                if (perc >= 90) return 'bg-yellow-400';
+                return 'bg-green-500';
+            };
+
+            const ProgressBar = ({ spent, budget, label, isSub = false }) => {
+                const perc = budget > 0 ? (spent / budget) * 100 : 0;
+                const visualWidth = Math.min(perc, 110); 
+
+                return (
+                    <div className={`mb-4 ${isSub ? 'ml-6 border-l-2 border-gray-100 pl-4 py-1' : ''}`}>
+                        <div className="flex justify-between items-end mb-1 px-1">
+                            <span className={`text-xs font-bold ${isSub ? 'text-gray-400' : 'text-gray-700'}`}>{label}</span>
+                            <span className="text-[10px] font-bold text-gray-500">
+                                R$ {spent.toLocaleString('pt-BR')} / R$ {budget.toLocaleString('pt-BR')} 
+                                <span className={`ml-1 ${perc >= 100 ? 'text-red-600' : ''}`}>({perc.toFixed(1)}%)</span>
+                            </span>
+                        </div>
+                        <div className="w-full bg-gray-100 h-4 rounded-full relative overflow-hidden border border-gray-50">
+                            <div 
+                                className={`h-full rounded-full transition-width ${getBarColor(perc)}`}
+                                style={{ width: `${visualWidth}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const currentCategories = monthlyData[months[currentMonthIdx]] || [];
+
+            return (
+                <div className="max-w-md mx-auto p-4 bg-white min-h-screen">
+                    {/* Header */}
+                    <div className="flex items-center justify-between py-6 sticky top-0 bg-white z-10">
+                        <button onClick={() => setCurrentMonthIdx(Math.max(0, currentMonthIdx - 1))} className="p-2">
+                             <span className="text-2xl text-gray-300 font-bold">&lt;</span>
+                        </button>
+                        <h1 className="text-lg font-black tracking-tighter uppercase">{months[currentMonthIdx]}</h1>
+                        <button onClick={() => setCurrentMonthIdx(Math.min(months.length - 1, currentMonthIdx + 1))} className="p-2">
+                            <span className="text-2xl text-gray-300 font-bold">&gt;</span>
+                        </button>
+                    </div>
+
+                    {/* Categorias */}
+                    <div className="space-y-2">
+                        {currentCategories.map((cat) => (
+                            <div key={cat.id} className="border-b border-gray-50 pb-2">
+                                <div onClick={() => setExpandedCategory(expandedCategory === cat.id ? null : cat.id)} className="cursor-pointer">
+                                    <ProgressBar spent={cat.spent} budget={cat.budget} label={cat.id} />
+                                </div>
+                                {expandedCategory === cat.id && cat.sub && (
+                                    <div className="mt-2">
+                                        {cat.sub.map((s, i) => (
+                                            <ProgressBar key={i} spent={s.spent} budget={s.budget} label={s.label} isSub={true} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<FinanceApp />);
+    </script>
+</body>
+</html>

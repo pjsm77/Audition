@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Curadoria Musical - Cadastro</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #2dd4bf; --border: #334155; --accent: #f43f5e; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 15px; margin: 0; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; width: 100%; max-width: 450px; border: 1px solid var(--border); box-sizing: border-box; }
+        
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { font-size: 0.7rem; margin-bottom: 5px; color: #94a3b8; text-transform: uppercase; font-weight: bold; }
+        input, select { background: #0f172a; border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        
+        /* Painel de Verificação */
+        #preview { margin-top: 15px; padding: 15px; background: #0f172a; border-radius: 8px; border: 1px solid var(--primary); display: none; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; margin-top: 5px; font-weight: bold; }
+        .badge-new { background: #059669; color: white; }
+        .badge-exists { background: var(--accent); color: white; }
+
+        .track-list { font-size: 0.8rem; color: #94a3b8; margin-top: 10px; max-height: 120px; overflow-y: auto; border-top: 1px solid var(--border); padding-top: 8px; }
+        
+        .rating-container { display: flex; gap: 8px; margin-top: 5px; }
+        .rating-btn { flex: 1; padding: 10px; border: 1px solid var(--border); background: #0f172a; color: white; cursor: pointer; border-radius: 6px; }
+        .rating-btn.active { background: var(--primary); color: #0f172a; font-weight: bold; }
+
+        button#btn-save { width: 100%; padding: 15px; background: var(--primary); border: none; border-radius: 8px; color: #0f172a; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 1rem; }
+        #loader { text-align: center; font-size: 0.85rem; color: var(--primary); display: none; margin: 15px 0; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="text-align:center; margin: 0 0 20px 0; color:var(--primary);">Novo Cadastro Musical</h2>
+    
+    <div class="form-group">
+        <label>Link Compartilhado do Álbum (Deezer)</label>
+        <input type="text" id="deezer_link" placeholder="Cole o link aqui..." onpaste="handlePaste(event)">
+    </div>
+
+    <div id="loader">Resolvendo link e consultando banco de dados...</div>
+
+    <div id="preview">
+        <div style="display: flex; gap: 15px; align-items: flex-start;">
+            <img id="alb_img" src="" style="width: 80px; height: 80px; border-radius: 6px;">
+            <div style="flex: 1;">
+                <div id="alb_title" style="font-weight: bold; font-size: 1rem; line-height: 1.2;"></div>
+                <div id="alb_status"></div>
+                
+                <div id="art_name" style="color: var(--primary); font-size: 0.9rem; margin-top: 8px;"></div>
+                <div id="art_status"></div>
+            </div>
+        </div>
+        
+        <div class="track-list" id="track_list"></div>
+    </div>
+
+    <div id="manual-fields" class="hidden">
+        <div class="form-group" style="margin-top: 15px;">
+            <label>País de Origem do Artista</label>
+            <select id="id_country"></select>
+        </div>
+
+        <div id="stateGroup" class="form-group hidden">
+            <label>Estado</label>
+            <select id="id_state"></select>
+        </div>
+
+        <div class="form-group">
+            <label>Idioma Principal das Letras</label>
+            <input type="text" id="lang_input" placeholder="ex: ingles">
+        </div>
+
+        <div class="form-group">
+            <label>Sua Avaliação (Rating)</label>
+            <div class="rating-container">
+                <button class="rating-btn" onclick="setRating(1)">1</button>
+                <button class="rating-btn" onclick="setRating(2)">2</button>
+                <button class="rating-btn" onclick="setRating(3)">3</button>
+            </div>
+            <input type="hidden" id="rating_val" value="1">
+        </div>
+
+        <button id="btn-save" onclick="saveAll()">CONFIRMAR E SALVAR NO BANCO</button>
+    </div>
+</div>
+
+<script>
+    const SB_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SB_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    let fullData = null; // Guardará o objeto completo do Deezer
+
+    // 1. Captura e Processamento do Link
+    async function handlePaste(e) {
+        const url = e.clipboardData.getData('text');
+        if (!url.includes('deezer')) return;
+
+        const loader = document.getElementById('loader');
+        const preview = document.getElementById('preview');
+        const manual = document.getElementById('manual-fields');
+        
+        loader.style.display = 'block';
+        preview.style.display = 'none';
+        manual.classList.add('hidden');
+
+        try {
+            // Resolve link curto e busca dados
+            const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxy);
+            const html = await response.json();
+            
+            const albumId = html.contents.match(/album\/(\d+)/)?.[1] || html.contents.match(/\/(\d+)$/)?.[1];
+            if (!albumId) throw "Não identifiquei o ID do álbum.";
+
+            const apiRes = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://api.deezer.com/album/'+albumId)}`);
+            const data = JSON.parse((await apiRes.json()).contents);
+            fullData = data;
+
+            // 2. Verificar duplicidade no Supabase
+            const checkArt = await fetch(`${SB_URL}/rest/v1/tbl_artists?deezer_id=eq.${data.artist.id}&select=id_artist`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+            const artExists = (await checkArt.json()).length > 0;
+
+            const checkAlb = await fetch(`${SB_URL}/rest/v1/tbl_albums?deezer_id=eq.${data.id}&select=id_album`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+            const albExists = (await checkAlb.json()).length > 0;
+
+            // 3. Renderizar Interface
+            document.getElementById('alb_img').src = data.cover_medium;
+            document.getElementById('alb_title').innerText = data.title;
+            document.getElementById('art_name').innerText = data.artist.name;
+            
+            document.getElementById('art_status').innerHTML = artExists ? '<span class="badge badge-exists">ARTISTA JÁ CADASTRADO</span>' : '<span class="badge badge-new">NOVO ARTISTA</span>';
+            document.getElementById('alb_status').innerHTML = albExists ? '<span class="badge badge-exists">ÁLBUM JÁ CADASTRADO</span>' : '<span class="badge badge-new">NOVO ÁLBUM</span>';
+
+            document.getElementById('track_list').innerHTML = data.tracks.data.map(t => `<div>• ${t.title}</div>`).join('');
+
+            loader.style.display = 'none';
+            preview.style.display = 'block';
+            manual.classList.remove('hidden');
+            
+            loadCountries(); // Carrega os países após a captura
+
+        } catch (err) {
+            loader.innerText = "Erro: " + err;
+        }
+    }
+
+    // Funções de Apoio (Rating, Países, Estados)
+    function setRating(v) {
+        document.querySelectorAll('.rating-btn').forEach((b, i) => b.classList.toggle('active', i === v-1));
+        document.getElementById('rating_val').value = v;
+    }
+
+    async function loadCountries() {
+        const sel = document.getElementById('id_country');
+        const res = await fetch(`${SB_URL}/rest/v1/tbl_countries?select=id_country,portuguese_name&order=portuguese_name`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+        const data = await res.json();
+        sel.innerHTML = '<option value="">Selecione...</option>';
+        data.forEach(c => sel.add(new Option(c.portuguese_name, c.id_country)));
+        
+        sel.onchange = () => {
+            const isSpecial = ['25', '64'].includes(sel.value); // Brasil/EUA
+            document.getElementById('stateGroup').classList.toggle('hidden', !isSpecial);
+            if(isSpecial) loadStates(sel.value);
+        };
+    }
+
+    async function loadStates(cid) {
+        const sel = document.getElementById('id_state');
+        const res = await fetch(`${SB_URL}/rest/v1/tbl_states?id_country=eq.${cid}&order=name`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } });
+        const data = await res.json();
+        sel.innerHTML = '<option value="">Selecione o Estado...</option>';
+        data.forEach(s => sel.add(new Option(s.name, s.id_state)));
+    }
+
+    // Função de Disparo Final (Próxima etapa: SQL RPC)
+    function saveAll() {
+        const payload = {
+            artist: { name: fullData.artist.name, deezer_id: fullData.artist.id, country: document.getElementById('id_country').value, state: document.getElementById('id_state').value },
+            album: { title: fullData.title, deezer_id: fullData.id, cover: fullData.cover_xl, rating: document.getElementById('rating_val').value, language: document.getElementById('lang_input').value },
+            tracks: fullData.tracks.data.map(t => ({ title: t.title, deezer_id: t.id, duration: t.duration }))
+        };
+        console.log("Objeto pronto para o Supabase:", payload);
+        alert("Dados prontos! O console (F12) mostra o JSON que enviaremos para a função SQL.");
+    }
+</script>
+
+</body>
+</html>

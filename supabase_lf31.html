@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Ranking - UEFA Style</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --primary: #1DB954; 
+            --bg: #ffffff; 
+            --row-even: #f8f8f8;
+            --text: #222;
+            --header-bg: #f1f1f1;
+            --border: #e0e0e0;
+        }
+
+        body { 
+            font-family: 'Bebas Neue', cursive; 
+            background-color: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 5px;
+            letter-spacing: 0.2px;
+        }
+
+        .container { max-width: 100%; margin: auto; }
+
+        .controls { 
+            padding: 8px 0;
+            display: flex;
+            gap: 8px;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 1000;
+        }
+
+        #globalSearch { 
+            flex: 1; 
+            padding: 8px 15px; 
+            border-radius: 20px; 
+            border: 1px solid #ccc; 
+            background: #f9f9f9; 
+            font-family: sans-serif; 
+            font-size: 14px;
+            outline: none;
+        }
+
+        .btn-clear { 
+            background: #eee; border: none; padding: 0 15px; border-radius: 20px; 
+            cursor: pointer; font-family: 'Bebas Neue'; font-size: 14px; 
+        }
+
+        /* Configuração de Scroll e Fixação de Colunas no Mobile */
+        .table-wrapper { 
+            width: 100%; 
+            overflow-x: auto; 
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        
+        table { 
+            border-collapse: separate; /* Necessário para sticky funcionar bem */
+            border-spacing: 0;
+            width: 100%; 
+            font-size: 13px; 
+            min-width: 1200px; 
+        }
+
+        th, td { 
+            padding: 6px 8px; 
+            border-bottom: 1px solid var(--border); 
+            white-space: nowrap;
+            background-color: white;
+        }
+
+        th { 
+            background: var(--header-bg);
+            color: #444; 
+            font-weight: normal;
+            cursor: pointer;
+            z-index: 10;
+            position: sticky;
+            top: 0;
+        }
+
+        tbody tr:nth-child(even) td { background-color: var(--row-even); }
+
+        /* Estilo das Colunas Fixas para Celular */
+        @media (max-width: 600px) {
+            /* # */
+            th:nth-child(1), td:nth-child(1) { position: sticky; left: 0; z-index: 5; border-right: 1px solid #ddd; }
+            /* Artista */
+            th:nth-child(2), td:nth-child(2) { position: sticky; left: 35px; z-index: 5; border-right: 1px solid #ddd; }
+            /* Total */
+            th:nth-child(3), td:nth-child(3) { position: sticky; left: 165px; z-index: 5; border-right: 1px solid #ddd; background-color: #f0fff0 !important; }
+            /* País */
+            th:nth-child(5), td:nth-child(5) { position: sticky; left: 225px; z-index: 5; border-right: 2px solid #ccc; }
+            
+            th:nth-child(1), th:nth-child(2), th:nth-child(3), th:nth-child(5) { z-index: 20; }
+        }
+
+        .w-rank { width: 35px; text-align: center; font-weight: bold; cursor: pointer; color: #444; }
+        .w-rank:hover { background: var(--primary) !important; color: white !important; }
+        
+        .artist-name { color: #003399; text-decoration: none; font-size: 15px; font-weight: bold; width: 130px; display: block; overflow: hidden; text-overflow: ellipsis; }
+        
+        .puan-col { color: #000; font-weight: bold; text-align: right; width: 60px; }
+        .info-col { color: #666; font-family: sans-serif; font-size: 11px; }
+
+        .year-val { text-align: center; font-family: sans-serif; font-size: 10px; color: #888; border-left: 1px solid #f0f0f0; width: 35px; }
+        .year-val.active { color: #000; font-weight: bold; }
+
+        .pagination { display: flex; justify-content: center; gap: 10px; padding: 15px; align-items: center; }
+        .btn-pag { background: white; border: 1px solid #ccc; padding: 4px 15px; border-radius: 4px; font-family: 'Bebas Neue'; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <input type="text" id="globalSearch" placeholder="BUSCAR ARTISTA...">
+        <button class="btn-clear" onclick="clearFilters()">LIMPAR</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="musicTable">
+            <thead>
+                <tr id="table-header">
+                    <th onclick="setSort('scrobbles')">#</th>
+                    <th onclick="setSort('artist')">ARTISTA</th>
+                    <th onclick="setSort('scrobbles')" style="text-align: right;">TOTAL</th>
+                    <th onclick="setSort('dias_ultimo')" style="text-align: center;">DIAS</th>
+                    <th onclick="setSort('country')">PAÍS</th>
+                    <th onclick="setSort('city')">CIDADE</th>
+                    <th onclick="setSort('primeiro_ano')" style="text-align: center;">INÍCIO</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <button class="btn-pag" id="prevBtn">«</button>
+        <select id="selectPage" onchange="goToPage(this.value)" style="font-family:'Bebas Neue';"></select>
+        <button class="btn-pag" id="nextBtn">»</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullData = [], offset = 0;
+    const limit = 50;
+    let sortCol = 'scrobbles', sortAsc = false;
+
+    const years = [];
+    for (let i = 26; i >= 14; i--) years.push(i);
+
+    // Inserir colunas de anos antes da coluna 'Início'
+    const headerRow = document.getElementById('table-header');
+    const inicioTh = headerRow.lastElementChild;
+    years.forEach(y => {
+        const th = document.createElement('th');
+        th.className = 'year-val';
+        th.innerText = `'${y}`;
+        th.onclick = () => setSort(`y${y}`);
+        headerRow.insertBefore(th, inicioTh);
+    });
+
+    async function fetchData() {
+        const gs = document.getElementById('globalSearch').value;
+        const { data, error } = await _supabase.rpc('get_artist_ranking_full', { search_term: gs || '' });
+        if (!error) {
+            fullData = data || [];
+            sortAndRender();
+        }
+    }
+
+    function sortAndRender() {
+        fullData.sort((a, b) => {
+            let vA = a[sortCol] ?? -1;
+            let vB = b[sortCol] ?? -1;
+            if (typeof vA === 'string') { vA = vA.toLowerCase(); vB = vB.toLowerCase(); }
+            return sortAsc ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
+        });
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = fullData.slice(offset, offset + limit);
+        
+        tbody.innerHTML = paged.map((item, index) => {
+            const yearCells = years.map(y => {
+                const val = item[`y${y}`] || 0;
+                return `<td class="year-val ${val > 0 ? 'active' : ''}">${val > 0 ? val.toLocaleString('pt-BR') : '-'}</td>`;
+            }).join('');
+
+            return `
+            <tr>
+                <td class="w-rank" onclick="openDeezer('${(item.artist || '').replace(/'/g, "\\'")}')">${offset + index + 1}</td>
+                <td><a class="artist-name" href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank">${item.artist}</a></td>
+                <td class="puan-col">${(item.scrobbles || 0).toLocaleString('pt-BR')}</td>
+                <td style="text-align:center; font-family:sans-serif; font-size:10px; color:${item.dias_ultimo > 365 ? 'red' : '#666'}">${item.dias_ultimo ?? '-'}</td>
+                <td class="info-col">${item.country || '-'}</td>
+                <td class="info-col">${item.city || '-'}</td>
+                ${yearCells}
+                <td style="text-align:center; font-family:sans-serif; font-size:10px;">${item.primeiro_ano || '-'}</td>
+            </tr>`;
+        }).join('');
+        updatePaginationUI();
+    }
+
+    function openDeezer(artist) {
+        const callbackName = 'dz_' + Math.floor(Math.random() * 100000);
+        window[callbackName] = function(data) {
+            if (data.data && data.data.length > 0) {
+                const artistId = data.data[0].id;
+                window.location.href = `deezer://www.deezer.com/artist/${artistId}`;
+                setTimeout(() => { if (document.hasFocus()) window.open(data.data[0].link, '_blank'); }, 600);
+            } else { window.open(`https://www.deezer.com/search/${encodeURIComponent(artist)}`, '_blank'); }
+            delete window[callbackName];
+        };
+        const script = document.createElement('script');
+        script.src = `https://api.deezer.com/search/artist?q=${encodeURIComponent(artist)}&output=jsonp&callback=${callbackName}`;
+        document.body.appendChild(script);
+    }
+
+    function updatePaginationUI() {
+        const totalPages = Math.ceil(fullData.length / limit) || 1;
+        const select = document.getElementById('selectPage');
+        select.innerHTML = Array.from({length: totalPages}, (_, i) => `<option value="${i+1}" ${i+1 === Math.floor(offset/limit)+1 ? 'selected' : ''}>PÁG ${i+1}</option>`).join('');
+        document.getElementById('prevBtn').disabled = offset <= 0;
+        document.getElementById('nextBtn').disabled = offset + limit >= fullData.length;
+    }
+
+    function setSort(col) {
+        if (sortCol === col) sortAsc = !sortAsc;
+        else { sortCol = col; sortAsc = (col === 'artist' || col === 'country' || col === 'city'); }
+        offset = 0;
+        sortAndRender();
+    }
+
+    function goToPage(p) { offset = (p - 1) * limit; renderTable(); window.scrollTo(0,0); }
+    function clearFilters() { document.getElementById('globalSearch').value = ''; offset = 0; fetchData(); }
+
+    let searchTimer;
+    document.getElementById('globalSearch').oninput = () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { offset = 0; fetchData(); }, 400);
+    };
+
+    document.getElementById('nextBtn').onclick = () => { if (offset + limit < fullData.length) { offset += limit; renderTable(); window.scrollTo(0,0); } };
+    document.getElementById('prevBtn').onclick = () => { if (offset > 0) { offset -= limit; renderTable(); window.scrollTo(0,0); } };
+
+    fetchData();
+</script>
+</body>
+</html>

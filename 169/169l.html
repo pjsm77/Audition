@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Matrix Pro - Versão L</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pessimo: #e82952; --ruim: #f97042; --razoavel: #f7bc31;
+            --bom: #abd43a; --excelente: #48b43c;
+            --border: #e2e8f0; --primary: #2563eb;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Oswald', sans-serif; overflow: hidden; }
+
+        .toolbar {
+            display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+            background: #f8fafc; border-bottom: 1px solid var(--border);
+            height: 40px; box-sizing: border-box;
+        }
+
+        #searchBox { display: none; align-items: center; background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+        #searchBox input { border: none; outline: none; font-size: 13px; width: 80px; font-family: inherit; }
+        
+        .filter-group { display: flex; gap: 3px; border-right: 1px solid #cbd5e1; padding-right: 8px; align-items: center; }
+        .filter-btn { padding: 1px 7px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; cursor: pointer; background: #fff; font-weight: 500; }
+        .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        .wrapper { height: calc(100vh - 40px); overflow: auto; width: 100vw; position: relative; }
+        table { border-collapse: separate; border-spacing: 0; min-width: 800px; font-size: 11px; table-layout: auto; }
+        th, td { padding: 4px 6px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-align: center; }
+
+        thead th { position: sticky; top: 0; background: #f1f5f9; z-index: 10; cursor: pointer; }
+        
+        .col-fixed { 
+            position: sticky; left: 0; z-index: 20; background: #fff !important;
+            border-right: 2px solid var(--border) !important; width: 230px; transition: all 0.2s;
+            text-align: left; cursor: pointer;
+        }
+
+        .scrolled-x .col-fixed { width: 95px; font-size: 10px; }
+        .scrolled-x .col-fixed span.full-text { display: none; }
+        .scrolled-x .col-fixed span.short-text { display: inline; }
+        .short-text { display: none; }
+
+        /* Cores de Fundo - Versão H/L */
+        .bg-excelente { background-color: rgba(72, 180, 60, 0.2); color: #1e4619; }
+        .bg-bom { background-color: rgba(171, 212, 58, 0.2); color: #3e4d15; }
+        .bg-razoavel { background-color: rgba(247, 188, 49, 0.2); color: #634b14; }
+        .bg-ruim { background-color: rgba(249, 112, 66, 0.2); color: #6e2e1a; }
+        .bg-pessimo { background-color: rgba(232, 41, 82, 0.2); color: #5c1121; }
+
+        .modal-overlay { display: none; position: fixed; z-index: 300; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); }
+        .modal-content { background: #fff; margin: 2% auto; width: 90%; height: 90%; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; box-sizing: border-box; }
+        .perf-badge { padding: 3px 10px; border-radius: 20px; color: #fff; font-weight: bold; font-size: 12px; display: inline-block; margin-top: 5px; }
+        
+        .sort-indicator { color: var(--primary); font-size: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <div class="filter-group">
+        <span onclick="toggleSearch()" style="cursor:pointer">🔍</span>
+        <div id="searchBox">
+            <input type="text" id="searchInput" placeholder="Filtrar..." oninput="applyFilters()">
+            <span onclick="clearSearch()" style="cursor:pointer; font-weight:bold; padding:0 3px">×</span>
+        </div>
+    </div>
+    
+    <div class="filter-group">
+        <div class="filter-btn t-btn" onclick="toggleType('$', this)">$</div>
+        <div class="filter-btn t-btn" onclick="toggleType('Q', this)">Q</div>
+        <div class="filter-btn t-btn" onclick="toggleType('%', this)">%</div>
+    </div>
+
+    <div class="filter-group" style="border:none">
+        <div class="filter-btn o-btn active" onclick="toggleOrigin('V', this)">V</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('C', this)">C</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('F', this)">F</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('L', this)">L</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('M', this)">M</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('R', this)">R</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('T', this)">T</div>
+    </div>
+
+    <div style="margin-left: auto; display:flex; gap:10px; align-items:center;">
+        <span onclick="toggleFullScreen()" title="Tela Cheia" style="cursor:pointer; font-size: 18px;">⛶</span>
+        <div class="filter-btn" onclick="toggleColSelector()">⚙️ Colunas</div>
+    </div>
+</div>
+
+<div class="wrapper" id="scrollWrapper">
+    <table id="mainTable">
+        <thead>
+            <tr id="headerRow">
+                <th class="col-fixed" onclick="sortTable(0)">Indicador <span id="sort-0" class="sort-indicator"></span></th>
+                <th onclick="sortTable(1)">Hoje<span id="sort-1" class="sort-indicator"></span></th>
+                <th onclick="sortTable(2)">Mês (PA)<span id="sort-2" class="sort-indicator"></span></th>
+                <th onclick="sortTable(3)">Mês (AA)<span id="sort-3" class="sort-indicator"></span></th>
+                <th onclick="sortTable(4)">3 Meses<span id="sort-4" class="sort-indicator"></span></th>
+                <th onclick="sortTable(5)">6 Meses<span id="sort-5" class="sort-indicator"></span></th>
+                <th onclick="sortTable(6)">Ano (25)<span id="sort-6" class="sort-indicator"></span></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<div id="anaModal" class="modal-overlay">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:start;">
+            <div>
+                <h2 id="mTitle" style="margin:0">Nome do Indicador</h2>
+                <div id="mBadge" class="perf-badge">EXCELENTE</div>
+                <p id="mDesc" style="font-size: 13px; color: #64748b; margin: 10px 0;">Descrição técnica do indicador...</p>
+            </div>
+            <button onclick="closeModal()" style="font-size:30px; border:none; background:none; cursor:pointer;">✕</button>
+        </div>
+        <select id="viewSelect" onchange="updateChart()" style="margin-top:10px; padding:8px; font-family: inherit;">
+            <option value="12">Mensal</option>
+            <option value="6">Bimestral</option>
+            <option value="4">Trimestral</option>
+            <option value="3">Quadrimestral</option>
+            <option value="2">Semestral</option>
+            <option value="1">Anual</option>
+        </select>
+        <div style="flex-grow:1; margin-top:15px;"><canvas id="evolutionChart"></canvas></div>
+    </div>
+</div>
+
+<script>
+    const origens = ['V', 'C', 'F', 'L', 'M', 'R', 'T'];
+    const tipos = ['$', 'Q', '%'];
+    const bases = ["Faturamento Bruto Consolidado Mensal", "Margem de Contribuição Operacional", "Pedidos", "Leads", "Absenteísmo", "NPS"];
+    
+    let activeType = null;
+    let activeOrigin = 'V';
+    let sortState = { idx: -1, asc: true };
+    let currentChart = null;
+
+    function getPerfData(v) {
+        if (v > 10) return { label: "EXCELENTE", cor: "#48b43c", class: "bg-excelente" };
+        if (v > 2) return { label: "BOM", cor: "#abd43a", class: "bg-bom" };
+        if (v >= 0) return { label: "RAZOÁVEL", cor: "#f7bc31", class: "bg-razoavel" };
+        if (v > -8) return { label: "RUIM", cor: "#f97042", class: "bg-ruim" };
+        return { label: "PÉSSIMO", cor: "#e82952", class: "bg-pessimo" };
+    }
+
+    function renderCell(val, fixedVar = null) {
+        const vVar = fixedVar !== null ? fixedVar : (Math.random() * 40 - 20).toFixed(1);
+        const comp = Math.floor(val / (1 + vVar/100));
+        const perf = getPerfData(vVar);
+        return `<td class="${perf.class}">${val} (${comp}) ${vVar}%</td>`;
+    }
+
+    const tbody = document.getElementById('tableBody');
+    // Gerar 50 indicadores
+    for(let i=0; i<50; i++) {
+        const o = origens[i % origens.length];
+        const t = tipos[i % tipos.length];
+        const baseNome = bases[i % bases.length];
+        // Criar títulos maiores (ex: 40 caracteres)
+        const n = (i % 5 === 0) ? `${baseNome} Detalhado por Unidade Negócio ${o}` : `${baseNome} ${o}`;
+        
+        // Variação fixa para teste visual (Positiva, Neutra, Negativa)
+        let testVar = (i === 0) ? 0.0 : (i === 1) ? -15.2 : null;
+        const mainPerf = getPerfData(testVar !== null ? testVar : 5);
+
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-type', t);
+        tr.setAttribute('data-origin', o);
+        tr.innerHTML = `
+            <td class="col-fixed" style="color:${mainPerf.cor}" onclick="openAnalysis('${n}', '${t}', '${mainPerf.label}', '${mainPerf.cor}')">
+                <span class="full-text">${n} (${t})</span>
+                <span class="short-text">${n.substring(0,15)}..</span>
+            </td>
+            ${renderCell(Math.floor(Math.random()*2000), testVar)}
+            ${renderCell(Math.floor(Math.random()*2000))}
+            ${renderCell(Math.floor(Math.random()*2000))}
+            ${renderCell(Math.floor(Math.random()*2000))}
+            ${renderCell(Math.floor(Math.random()*2000))}
+            ${renderCell(Math.floor(Math.random()*2000))}
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else if (document.exitFullscreen) document.exitFullscreen();
+    }
+
+    function toggleSearch() {
+        const s = document.getElementById('searchBox');
+        s.style.display = s.style.display === 'flex' ? 'none' : 'flex';
+        if(s.style.display === 'flex') s.querySelector('input').focus();
+    }
+
+    function clearSearch() { document.getElementById('searchInput').value = ''; applyFilters(); toggleSearch(); }
+
+    function toggleType(t, btn) {
+        document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
+        activeType = (activeType === t) ? null : t;
+        if(activeType) btn.classList.add('active');
+        applyFilters();
+    }
+
+    function toggleOrigin(o, btn) {
+        document.querySelectorAll('.o-btn').forEach(b => b.classList.remove('active'));
+        activeOrigin = (activeOrigin === o) ? null : o;
+        if(activeOrigin) btn.classList.add('active');
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const val = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('#tableBody tr').forEach(r => {
+            const mText = r.cells[0].innerText.toLowerCase().includes(val);
+            const mType = !activeType || r.getAttribute('data-type') === activeType;
+            const mOrig = !activeOrigin || r.getAttribute('data-origin') === activeOrigin;
+            r.style.display = (mText && mType && mOrig) ? '' : 'none';
+        });
+    }
+
+    document.getElementById('scrollWrapper').addEventListener('scroll', function() {
+        document.body.classList.toggle('scrolled-x', this.scrollLeft > 15);
+    });
+
+    function sortTable(idx) {
+        const rows = Array.from(tbody.rows);
+        sortState.asc = (sortState.idx === idx) ? !sortState.asc : true;
+        sortState.idx = idx;
+        rows.sort((a,b) => {
+            let vA = a.cells[idx].innerText.split(' ')[0].replace(/[^0-9.-]+/g, "");
+            let vB = b.cells[idx].innerText.split(' ')[0].replace(/[^0-9.-]+/g, "");
+            if(idx === 0) return sortState.asc ? a.cells[0].innerText.localeCompare(b.cells[0].innerText) : b.cells[0].innerText.localeCompare(a.cells[0].innerText);
+            return sortState.asc ? parseFloat(vA) - parseFloat(vB) : parseFloat(vB) - parseFloat(vA);
+        });
+        document.querySelectorAll('.sort-indicator').forEach(s => s.innerText = '');
+        document.getElementById(`sort-${idx}`).innerText = sortState.asc ? ' ▲' : ' ▼';
+        rows.forEach(r => tbody.appendChild(r));
+    }
+
+    function openAnalysis(n, t, label, cor) {
+        document.getElementById('mTitle').innerText = n + " (" + t + ")";
+        const b = document.getElementById('mBadge');
+        b.innerText = label;
+        b.style.backgroundColor = cor;
+        document.getElementById('mDesc').innerText = `Análise detalhada do indicador ${n}. Este KPI monitora a eficiência operacional baseada na origem selecionada.`;
+        document.getElementById('anaModal').style.display = 'block';
+        updateChart(cor);
+    }
+
+    function closeModal() { document.getElementById('anaModal').style.display = 'none'; }
+
+    function updateChart(color) {
+        const ctx = document.getElementById('evolutionChart').getContext('2d');
+        const count = parseInt(document.getElementById('viewSelect').value);
+        if(currentChart) currentChart.destroy();
+        currentChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: Array.from({length:count}, (_,i)=>`P${i+1}`), datasets:[{data:Array.from({length:count}, ()=>Math.random()*100), borderColor: color, fill: false, tension: 0.1}] },
+            options: { maintainAspectRatio:false, plugins:{legend:{display:false}} }
+        });
+    }
+</script>
+</body>
+</html>

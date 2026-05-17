@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Ranking Pro - Bebas 50</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; --secondary: #888; }
+        
+        body { 
+            font-family: 'Bebas Neue', cursive; 
+            background-color: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 5px;
+            letter-spacing: 0.5px;
+        }
+        
+        .container { max-width: 1000px; margin: auto; }
+        
+        .controls-wrapper { background: var(--surface); padding: 10px; border-radius: 8px 8px 0 0; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
+        .search-row { display: flex; gap: 8px; }
+        
+        #globalSearch, .col-filter { 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            background: #2a2a2a; 
+            border: 1px solid #444; 
+            color: white; 
+            border-radius: 4px;
+            padding: 6px 10px;
+            outline: none;
+        }
+        #globalSearch { flex: 1; font-size: 14px; }
+        .btn-clear { background: #444; border: none; color: white; padding: 0 12px; border-radius: 4px; cursor: pointer; font-family: 'Bebas Neue'; font-size: 16px; }
+
+        .table-wrapper { background: var(--surface); overflow-x: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; table-layout: auto; }
+        
+        th { background: #282828; padding: 6px 8px; border-bottom: 2px solid var(--primary); text-align: left; vertical-align: top; }
+        .header-cell { display: flex; flex-direction: column; gap: 2px; }
+        .sort-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--secondary); }
+        .sort-btns { display: flex; gap: 2px; }
+        .sort-btns button { background: #333; border: none; color: white; cursor: pointer; font-size: 9px; padding: 1px 4px; border-radius: 2px; }
+        
+        .col-filter { padding: 3px; font-size: 11px; width: 100%; box-sizing: border-box; margin-top: 2px; }
+
+        td { padding: 4px 8px; border-bottom: 1px solid #2a2a2a; font-size: 16px; white-space: nowrap; }
+        tr:hover { background: rgba(255,255,255,0.03); }
+        
+        .rank-num { color: var(--primary); font-size: 16px; }
+        .artist-name { color: #fff; text-decoration: none; font-size: 17px; }
+        .long-time { color: #ff5555; }
+        .scrobble-link { color: var(--primary); text-decoration: none; cursor: pointer; font-size: 16px; }
+        .scrobble-link:hover { text-decoration: underline; }
+
+        .clickable { cursor: pointer; }
+        .clickable:hover { color: var(--primary); }
+
+        /* Colunas Fixas e Visíveis */
+        .w-rank { width: 35px; text-align: center; }
+        .w-s { text-align: right; width: 75px; }
+        .w-r { width: 55px; text-align: center; }
+        .w-m { width: 45px; text-align: center; color: var(--secondary); }
+        .col-country { min-width: 80px; }
+
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 10px; padding: 8px; background: #181818; border-radius: 0 0 8px 8px; }
+        .btn-pag { background: #333; border: none; color: white; padding: 4px 15px; border-radius: 4px; cursor: pointer; font-family: 'Bebas Neue'; font-size: 16px; }
+        select#selectPage { font-family: 'Bebas Neue'; font-size: 14px; background: #121212; color: #fff; border: 1px solid #444; padding: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls-wrapper">
+        <div class="search-row">
+            <input type="text" id="globalSearch" placeholder="Pesquisar artista...">
+            <button class="btn-clear" onclick="clearFilters()">Limpar</button>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th class="w-rank">Rank</th>
+                    <th>
+                        <div class="header-cell">
+                            <div class="sort-row"> Artista <div class="sort-btns">
+                                <button onclick="setSort('artist', true)">▲</button>
+                                <button onclick="setSort('artist', false)">▼</button>
+                            </div></div>
+                            <input type="text" id="f-artist" class="col-filter" placeholder="Filtro..." oninput="updateColFilter('artist', this.value)">
+                        </div>
+                    </th>
+                    <th class="w-s">
+                        <div class="header-cell">
+                            <div class="sort-row"> S <div class="sort-btns">
+                                <button onclick="setSort('scrobbles', true)">▲</button>
+                                <button onclick="setSort('scrobbles', false)">▼</button>
+                            </div></div>
+                        </div>
+                    </th>
+                    <th class="w-r">
+                        <div class="header-cell">
+                            <div class="sort-row"> R <div class="sort-btns">
+                                <button onclick="setSort('dias_ultimo', true)">▲</button>
+                                <button onclick="setSort('dias_ultimo', false)">▼</button>
+                            </div></div>
+                        </div>
+                    </th>
+                    <th class="col-country">
+                        <div class="header-cell">
+                            <div class="sort-row"> País <div class="sort-btns">
+                                <button onclick="setSort('country', true)">▲</button>
+                                <button onclick="setSort('country', false)">▼</button>
+                            </div></div>
+                            <input type="text" id="f-country" class="col-filter" placeholder="Filtro..." oninput="updateColFilter('country', this.value)">
+                        </div>
+                    </th>
+                    <th class="w-m">
+                        <div class="header-cell">
+                            <div class="sort-row"> M <div class="sort-btns">
+                                <button onclick="setSort('musicas_distintas', true)">▲</button>
+                                <button onclick="setSort('musicas_distintas', false)">▼</button>
+                            </div></div>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <button class="btn-pag" id="prevBtn">«</button>
+        <div>
+            <select id="selectPage" onchange="goToPage(this.value)"></select>
+            <span id="totalPagesLabel"></span>
+        </div>
+        <button class="btn-pag" id="nextBtn">»</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullData = [], filteredData = [], offset = 0;
+    const limit = 50; // Paginação de 50 em 50
+    let colFilters = { artist: '', country: '' };
+    let sortCol = 'scrobbles', sortAsc = false;
+    let searchTimeout;
+
+    async function fetchData() {
+        const gs = document.getElementById('globalSearch').value;
+        // O RPC é otimizado para retornar apenas os dados necessários
+        const { data, error } = await _supabase.rpc('get_artist_ranking_v3', { search_term: gs });
+        if (error) return;
+        fullData = data || [];
+        applyFiltersAndSort();
+    }
+
+    function applyFiltersAndSort() {
+        filteredData = fullData.filter(item => 
+            (item.artist || '').toLowerCase().includes(colFilters.artist.toLowerCase()) &&
+            (item.country || '').toLowerCase().includes(colFilters.country.toLowerCase())
+        );
+
+        filteredData.sort((a, b) => {
+            let vA = a[sortCol], vB = b[sortCol];
+            if (vA == null) vA = sortAsc ? Infinity : -1;
+            if (vB == null) vB = sortAsc ? Infinity : -1;
+            if (typeof vA === 'string') return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+            return sortAsc ? vA - vB : vB - vA;
+        });
+
+        updatePaginationUI();
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+        tbody.innerHTML = paged.map((item, index) => {
+            const dias = item.dias_ultimo;
+            let formatR = dias === 0 ? 'Hj' : (dias >= 365 ? `${(dias/365).toFixed(1)}A` : `${dias}D`);
+            const safeArtist = (item.artist || '').replace(/'/g, "\\'");
+
+            return `
+                <tr>
+                    <td class="w-rank"><span class="rank-num">${offset + index + 1}</span></td>
+                    <td>
+                        <a class="artist-name" href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank">${item.artist}</a>
+                    </td>
+                    <td class="w-s">
+                        <a class="scrobble-link" onclick="openDeezerArtist('${safeArtist}')">
+                            ${(item.scrobbles || 0).toLocaleString('pt-BR')}
+                        </a>
+                    </td>
+                    <td class="w-r ${dias > 365 ? 'long-time' : ''}">${formatR}</td>
+                    <td class="clickable" onclick="quickFilter('country', '${item.country}')">${item.country || '-'}</td>
+                    <td class="w-m">${item.musicas_distintas || 0}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function openDeezerArtist(artist) {
+        const callbackName = 'dz_art_' + Math.floor(Math.random() * 100000);
+        window[callbackName] = function(data) {
+            if (data.data && data.data.length > 0) {
+                const artistId = data.data[0].id;
+                window.location.href = `deezer://www.deezer.com/artist/${artistId}`;
+                setTimeout(() => { if (document.hasFocus()) window.open(data.data[0].link, '_blank'); }, 500);
+            } else {
+                window.open(`https://www.deezer.com/search/${encodeURIComponent(artist)}`, '_blank');
+            }
+            delete window[callbackName];
+            const s = document.getElementById(callbackName); if (s) s.remove();
+        };
+        const script = document.createElement('script');
+        script.id = callbackName;
+        script.src = `https://api.deezer.com/search/artist?q=${encodeURIComponent(artist)}&output=jsonp&callback=${callbackName}`;
+        document.body.appendChild(script);
+    }
+
+    function updatePaginationUI() {
+        const totalPages = Math.ceil(filteredData.length / limit) || 1;
+        const select = document.getElementById('selectPage');
+        const currentPage = (offset / limit) + 1;
+        select.innerHTML = Array.from({length: totalPages}, (_, i) => `<option value="${i+1}" ${i+1 === currentPage ? 'selected' : ''}>${i+1}</option>`).join('');
+        document.getElementById('totalPagesLabel').innerText = `de ${totalPages}`;
+        document.getElementById('prevBtn').disabled = offset === 0;
+        document.getElementById('nextBtn').disabled = (offset + limit) >= filteredData.length;
+    }
+
+    function setSort(col, asc) { sortCol = col; sortAsc = asc; offset = 0; applyFiltersAndSort(); }
+    function goToPage(p) { offset = (p - 1) * limit; renderTable(); window.scrollTo(0,0); }
+    function updateColFilter(col, val) { colFilters[col] = val; offset = 0; applyFiltersAndSort(); }
+    function quickFilter(col, val) { if(!val || val === '-') return; colFilters[col] = val; document.getElementById('f-country').value = val; offset = 0; applyFiltersAndSort(); }
+    function clearFilters() { colFilters = { artist: '', country: '' }; document.getElementById('globalSearch').value = ''; document.querySelectorAll('.col-filter').forEach(i => i.value = ''); offset = 0; fetchData(); }
+
+    document.getElementById('globalSearch').oninput = () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => { offset = 0; fetchData(); }, 400);
+    };
+
+    document.getElementById('nextBtn').onclick = () => { offset += limit; updatePaginationUI(); renderTable(); window.scrollTo(0,0); };
+    document.getElementById('prevBtn').onclick = () => { offset -= limit; updatePaginationUI(); renderTable(); window.scrollTo(0,0); };
+
+    fetchData();
+</script>
+</body>
+</html>

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LPG - Life Programs Game V16</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #121212; --card-bg: #1e1e1e; --text: #ffffff;
+            --score-red: #ff4d4d; --score-yellow: #ffff4d; --score-green: #4dff88;
+        }
+
+        body { font-family: 'Segoe UI', system-ui; background: var(--bg); color: var(--text); margin: 0; padding: 10px; touch-action: pan-y; overflow-x: hidden; }
+        
+        .header-row { display: flex; justify-content: center; align-items: center; position: relative; margin: 10px 0; }
+        .date-display { font-size: 1.1rem; font-weight: bold; color: #4a90e2; text-transform: uppercase; letter-spacing: 1px; }
+        .toggle-chart { position: absolute; right: 10px; background: none; border: none; color: #666; cursor: pointer; font-size: 1.2rem; }
+
+        .chart-card { background: var(--card-bg); padding: 15px; border-radius: 15px; height: 260px; margin-bottom: 15px; transition: all 0.3s ease; overflow: hidden; }
+        .chart-card.hidden { height: 0; padding: 0; margin-bottom: 0; opacity: 0; }
+
+        .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px; }
+        .toolbar select { background: #2d2d2d; border: 1px solid #444; color: white; padding: 10px; border-radius: 8px; flex: 1; font-size: 0.85rem; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 12px; }
+
+        .prog-btn {
+            aspect-ratio: 1/1; border-radius: 18px; border: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; transition: all 0.2s; cursor: pointer; color: white; padding: 5px;
+            overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+
+        .prog-icon-bg { position: absolute; font-size: 3.2rem; opacity: 0.12; z-index: 1; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .btn-content { z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; position: relative; }
+
+        .st-none { opacity: 0.45; filter: grayscale(0.3); }
+        .st-active { opacity: 1; filter: none; }
+        .st-inactive { opacity: 0.3; border: 2px dashed #666; }
+
+        .top-left { position: absolute; top: 5px; left: 8px; font-size: 0.7rem; font-weight: bold; }
+        .status-slot { position: absolute; top: 5px; right: 8px; display: flex; flex-direction: column; align-items: center; min-height: 28px; }
+        .behavior-icon { font-size: 0.55rem; opacity: 0.7; margin-top: 2px; }
+        
+        .top-center { position: absolute; top: 12%; font-size: 0.55rem; font-weight: bold; background: rgba(0,0,0,0.3); padding: 1px 4px; border-radius: 3px; }
+        .sigla { font-size: 1.25rem; font-weight: 950; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); transition: color 0.3s; }
+        
+        .metas-label { font-size: 0.55rem; font-weight: bold; opacity: 0.9; margin-top: 1px; }
+        .xp-label { position: absolute; bottom: 18%; font-size: 0.6rem; font-weight: 800; }
+        .days-counter { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); font-size: 0.6rem; font-weight: bold; color: white; opacity: 0.9; }
+        .bottom-left { position: absolute; bottom: 5px; left: 8px; font-size: 0.6rem; font-weight: bold; }
+        .bottom-right { position: absolute; bottom: 5px; right: 8px; font-size: 0.65rem; color: #ffd700; }
+
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 380px; background: #252525; border-radius: 20px; padding: 20px; z-index: 1000; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body id="swipeArea">
+
+    <div class="header-row">
+        <div id="dateDisplay" class="date-display"></div>
+        <button class="toggle-chart" onclick="toggleChart()"><i id="eyeIcon" class="fa-solid fa-eye"></i></button>
+    </div>
+
+    <div id="chartContainer" class="chart-card"><canvas id="perfChart"></canvas></div>
+
+    <div class="toolbar">
+        <select id="sortFilter" onchange="renderGrid()">
+            <option value="prio">Sort: Priority</option>
+            <option value="sigla">Sort: Alphabetical</option>
+            <option value="score">Sort: Performance</option>
+        </select>
+        <select id="statusFilter" onchange="renderGrid()">
+            <option value="active">Show: Active Only</option>
+            <option value="inactive">Show: Inactive Only</option>
+            <option value="all">Show: All Programs</option>
+        </select>
+        <select id="periodFilter" onchange="initDashboard()">
+            <option value="7">View: 7 Days</option>
+            <option value="15">View: 15 Days</option>
+            <option value="30">View: 30 Days</option>
+        </select>
+    </div>
+
+    <div class="grid" id="mainGrid"></div>
+
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div id="modal" class="modal">
+        <div class="modal-header"><h3 id="mTitle" style="margin:0"></h3><button onclick="closeModal()" style="background:none; border:none; color:red; font-size:1.5rem;">&times;</button></div>
+        <input type="number" id="valInput" style="width:100%; background:#333; color:white; padding:12px; border:none; border-radius:10px; text-align:center; font-size:1.5rem;" placeholder="Enter XP">
+        <div id="logList" style="margin-top:15px; max-height:120px; overflow-y:auto;"></div>
+    </div>
+
+<script>
+    const COLORS = ["#F87171", "#FB923C", "#FBBF24", "#FACC15", "#EAB308", "#D9F99D", "#BEF264", "#84CC16", "#4ADE80", "#22C55E"];
+    const CATS = { SAUDE: "#40c057", ESTUDOS: "#228be6", PROF: "#fab005", MENTAL: "#be4bdb", SOCIAL: "#fd7e14", FINAN: "#12b886", LEISURE: "#495057" };
+
+    // V16 Data Structure with startDate and active status
+    const programs = [
+        { s: "LIS", n: "Listening", c: "ESTUDOS", mk: 5, md: 10, prio: 1, freq: "D", icon: "fa-headphones", type: "VOLUME", startDate: "2024-01-01", active: true },
+        { s: "GYM", n: "Gym", c: "SAUDE", mk: 1, md: 1, prio: 1, freq: "U", icon: "fa-dumbbell", type: "CONSISTENCY", startDate: "2024-01-01", active: true },
+        { s: "COD", n: "Coding", c: "PROF", mk: 30, md: 60, prio: 2, freq: "U", icon: "fa-code", type: "VOLUME", startDate: "2024-01-15", active: true },
+        { s: "H2O", n: "Water", c: "SAUDE", mk: 4, md: 8, prio: 1, freq: "D", icon: "fa-faucet-drip", type: "CONSISTENCY", startDate: "2024-01-01", active: false }
+    ];
+
+    // Fill up to 24 with Placeholders (V16 logic)
+    for(let i=programs.length+1; i<=24; i++) {
+        programs.push({ s: "P"+i, n: "Extra "+i, c: "LEISURE", mk: 1, md: 1, prio: 4, freq: "U", icon: "fa-plus", type: "CONSISTENCY", startDate: "2024-02-01", active: true });
+    }
+
+    let db = JSON.parse(localStorage.getItem('life_v12_db')) || { logs: [] };
+    let activeDate = new Date().toISOString().split('T')[0];
+    let chartInstance = null;
+    let currentSigla = null;
+    let chartVisible = true;
+
+    function toggleChart() {
+        chartVisible = !chartVisible;
+        const container = document.getElementById('chartContainer');
+        const eye = document.getElementById('eyeIcon');
+        if(chartVisible) {
+            container.classList.remove('hidden');
+            eye.classList.replace('fa-eye-slash', 'fa-eye');
+        } else {
+            container.classList.add('hidden');
+            eye.classList.replace('fa-eye', 'fa-eye-slash');
+        }
+    }
+
+    function getSiglaColor(score) {
+        if(score < 50) return "var(--score-red)";
+        if(score < 80) return "var(--score-yellow)";
+        return "var(--score-green)";
+    }
+
+    function getDayTotal(s, d) { return db.logs.filter(l => l.s === s && l.d === d).reduce((a, b) => a + b.v, 0); }
+    function getXP(s) { return db.logs.filter(l => l.s === s).reduce((a, b) => a + b.v, 0); }
+    
+    function getStreak(sigla) {
+        let count = 0; let d = new Date(activeDate + "T12:00:00");
+        while(true) {
+            let ds = d.toISOString().split('T')[0];
+            let p = programs.find(x => x.s === sigla);
+            if(!p || ds < p.startDate || getDayTotal(sigla, ds) < p.mk) break;
+            count++; d.setDate(d.getDate()-1);
+        }
+        return count;
+    }
+
+    function getScore(sigla, days) {
+        let totalPct = 0; let validDays = 0; let d = new Date(activeDate + "T12:00:00");
+        for(let i=0; i<days; i++) {
+            let ds = d.toISOString().split('T')[0];
+            let p = programs.find(x => x.s === sigla);
+            if(p && ds >= p.startDate) {
+                totalPct += Math.min(1, getDayTotal(sigla, ds) / p.md);
+                validDays++;
+            }
+            d.setDate(d.getDate()-1);
+        }
+        return validDays ? Math.round((totalPct / validDays) * 100) : 0;
+    }
+
+    function initDashboard() {
+        const opt = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('dateDisplay').innerText = new Date(activeDate + "T12:00:00").toLocaleDateString('en-US', opt);
+        renderGrid(); renderChart();
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('mainGrid');
+        const period = parseInt(document.getElementById('periodFilter').value);
+        const sort = document.getElementById('sortFilter').value;
+        const statusMode = document.getElementById('statusFilter').value;
+
+        // Filter 1: Existência (startDate)
+        let list = programs.filter(p => activeDate >= p.startDate);
+
+        // Filter 2: Status (Active/Inactive)
+        if(statusMode === 'active') list = list.filter(p => p.active);
+        if(statusMode === 'inactive') list = list.filter(p => !p.active);
+
+        if(sort === 'score') list.sort((a,b) => getScore(b.s, period) - getScore(a.s, period));
+        if(sort === 'sigla') list.sort((a,b) => a.s.localeCompare(b.s));
+
+        grid.innerHTML = '';
+        list.forEach(p => {
+            const val = getDayTotal(p.s, activeDate);
+            const statusClass = p.active ? (val >= p.mk ? "st-active" : "st-none") : "st-inactive";
+            const score = getScore(p.s, period);
+            const xpTotal = getXP(p.s);
+            const sColor = getSiglaColor(score);
+            
+            const behIcon = p.type === "CONSISTENCY" ? '<i class="fa-solid fa-anchor behavior-icon"></i>' : '<i class="fa-solid fa-bars-staggered behavior-icon"></i>';
+            const statusIcon = val >= p.md ? '<i class="fa-solid fa-star" style="color:#ffd700"></i>' : (val >= p.mk ? '<i class="fa-solid fa-circle-check" style="color:#fff"></i>' : '<div style="height:14px"></div>');
+
+            grid.innerHTML += `
+                <div class="prog-btn ${statusClass}" style="background-color: ${CATS[p.c]}" onclick="openManageModal('${p.s}')">
+                    <i class="fa-solid ${p.icon} prog-icon-bg"></i>
+                    <div class="btn-content">
+                        <span class="top-left">${val || ''}</span>
+                        <div class="status-slot">${statusIcon}${behIcon}</div>
+                        <span class="top-center">${score}%</span>
+                        <span class="sigla" style="color: ${sColor}">${p.s}</span>
+                        <span class="metas-label">${p.mk}/${p.md}</span>
+                        <span class="xp-label">${xpTotal} XP</span>
+                        <span class="days-counter">${Math.max(1, Math.floor((1000-(xpTotal%1000))/p.mk))}</span>
+                        <span class="bottom-left">L1</span>
+                        <span class="bottom-right">${getStreak(p.s) || ''}🔥</span>
+                    </div>
+                </div>`;
+        });
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('perfChart').getContext('2d');
+        const period = parseInt(document.getElementById('periodFilter').value);
+        const labels = [], scores = [], barColors = [], xColors = [];
+
+        for(let i = period - 1; i >= 0; i--) {
+            let d = new Date(activeDate + "T12:00:00"); d.setDate(d.getDate() - i);
+            let ds = d.toISOString().split('T')[0];
+            labels.push([d.getDate(), d.toLocaleDateString('en-US', { weekday: 'short' })]);
+            xColors.push((d.getDay() === 0 || d.getDay() === 6) ? '#f87171' : '#888');
+
+            // V16 Calculation: Only programs that existed and were active ON THAT day
+            let dailyActive = programs.filter(p => ds >= p.startDate && p.active);
+            let dayPct = 0;
+            dailyActive.forEach(p => dayPct += Math.min(1, getDayTotal(p.s, ds) / p.md));
+            
+            let final = dailyActive.length ? Math.round((dayPct / dailyActive.length) * 100) : 0;
+            scores.push(final);
+            barColors.push(COLORS[Math.min(9, Math.floor(final/10))]);
+        }
+
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: labels, datasets: [{ data: scores, backgroundColor: barColors, borderRadius: 4 }] },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { display: false, max: 110 }, 
+                    x: { grid: { display: false }, ticks: { color: xColors, font: { size: 9 } } } 
+                }
+            }
+        });
+    }
+
+    function openManageModal(sigla) {
+        currentSigla = sigla;
+        document.getElementById('mTitle').innerText = programs.find(x => x.s === sigla).n;
+        document.querySelectorAll('#modal, #overlay').forEach(el => el.style.display = 'block');
+        document.getElementById('valInput').value = '';
+    }
+    function closeModal() { document.querySelectorAll('#modal, #overlay').forEach(el => el.style.display = 'none'); }
+    function addXP(v) { if(!isNaN(v)) { db.logs.push({ id: Date.now(), s: currentSigla, d: activeDate, v: v }); save(); closeModal(); } }
+    function save() { localStorage.setItem('life_v12_db', JSON.stringify(db)); initDashboard(); }
+
+    document.getElementById('valInput').onkeypress = (e) => { if(e.key === 'Enter') addXP(parseFloat(e.target.value)); };
+    
+    // Swipe Logic (V15 standard)
+    let tsX = 0;
+    document.getElementById('swipeArea').addEventListener('touchstart', e => tsX = e.changedTouches[0].screenX);
+    document.getElementById('swipeArea').addEventListener('touchend', e => {
+        let teX = e.changedTouches[0].screenX;
+        let d = new Date(activeDate + "T12:00:00");
+        if (teX < tsX - 80) d.setDate(d.getDate() + 1);
+        if (teX > tsX + 80) d.setDate(d.getDate() - 1);
+        activeDate = d.toISOString().split('T')[0];
+        initDashboard();
+    });
+
+    initDashboard();
+</script>
+</body>
+</html>

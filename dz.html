@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista Dinâmica de Álbuns - Deezer API (Netlify Proxy Fix)</title>
+    <style>
+        /* Estilos CSS */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #1a1a1a;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        img {
+            width: 56px;
+            height: 56px;
+            border-radius: 4px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>?? Álbuns do Artista (Deezer API)</h1>
+    <p><i>Requisição feita através do proxy interno do Netlify (via arquivo <code>_redirects</code>) para garantir a funcionalidade.</i></p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Capa</th>
+                <th>ID</th>
+                <th>Título</th>
+                <th>Tipo de Gravação</th>
+                <th>Data de Lançamento</th>
+            </tr>
+        </thead>
+        <tbody id="albums-list">
+            <tr><td colspan="5" style="text-align: center;">Carregando dados da Deezer API...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        // *** NOVO URL USANDO O REDIRECIONAMENTO INTERNO DO NETLIFY ***
+        // O Netlify irá traduzir "/deezer/" para a URL real da API.
+        const API_URL = "/deezer/"; 
+        
+        const albumsListBody = document.getElementById('albums-list');
+
+        /**
+         * Função principal para buscar e renderizar os álbuns.
+         */
+        async function fetchAndRenderAlbums() {
+            try {
+                // 1. Faz a requisição ao path interno do Netlify (/deezer/)
+                const response = await fetch(API_URL);
+
+                // 2. Verifica o status HTTP
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+                }
+
+                // 3. Converte a resposta para JSON
+                const albumData = await response.json();
+
+                // 4. Acessa o array de dados
+                const albums = albumData.data;
+
+                // 5. Limpa o conteúdo de carregamento
+                albumsListBody.innerHTML = '';
+
+                if (albums && albums.length > 0) {
+                    // 6. Itera sobre os álbuns e cria as linhas da tabela
+                    albums.forEach(album => {
+                        const row = document.createElement('tr');
+                        
+                        // Coluna da Capa
+                        row.innerHTML += `
+                            <td>
+                                <a href="${album.link}" target="_blank">
+                                    <img src="${album.cover_small}" alt="Capa: ${album.title}">
+                                </a>
+                            </td>
+                        `;
+                        
+                        // Coluna do ID
+                        row.innerHTML += `<td>${album.id}</td>`;
+                        // Coluna do Título
+                        row.innerHTML += `<td>${album.title}</td>`;
+                        // Coluna do Tipo de Gravação
+                        row.innerHTML += `<td>${album.record_type}</td>`;
+                        // Coluna da Data de Lançamento
+                        row.innerHTML += `<td>${album.release_date}</td>`;
+
+                        albumsListBody.appendChild(row);
+                    });
+                    
+                    console.log(`? ${albums.length} álbuns carregados com sucesso.`);
+                    
+                } else {
+                    albumsListBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Nenhum álbum encontrado para este artista.</td></tr>';
+                }
+
+            } catch (error) {
+                console.error("? Erro fatal na busca de dados:", error);
+                albumsListBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: red;">
+                    Falha crítica ao carregar os dados. Detalhe: ${error.message}.
+                </td></tr>`;
+            }
+        }
+
+        // Chama a função para iniciar a busca
+        fetchAndRenderAlbums();
+    </script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Music Drilldown</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #000; --surface: #121212; --text: #fff; }
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            margin: 0; 
+            padding: 10px; 
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .radio-group { 
+            display: flex; 
+            justify-content: space-around; 
+            background: var(--surface); 
+            padding: 10px; 
+            border-radius: 20px; 
+            margin-bottom: 10px; 
+            border: 1px solid #333;
+        }
+        .radio-group label { font-size: 12px; font-weight: bold; cursor: pointer; color: #888; }
+        .radio-group input { display: none; }
+        .radio-group input:checked + span { color: var(--primary); }
+
+        .breadcrumb { 
+            font-size: 11px; 
+            padding: 5px 10px; 
+            color: var(--primary); 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+        
+        .chart-container { flex: 1; position: relative; min-height: 0; }
+    </style>
+</head>
+<body>
+
+<div class="radio-group" id="selectors">
+    <label><input type="radio" name="entity" value="track" checked> <span>SONGS</span></label>
+    <label><input type="radio" name="entity" value="album"> <span>ALBUMS</span></label>
+    <label><input type="radio" name="entity" value="artist"> <span>ARTISTS</span></label>
+</div>
+
+<div id="breadcrumb" class="breadcrumb" onclick="resetToYear()">🏠 TOTAL (YEARLY)</div>
+
+<div class="chart-container">
+    <canvas id="drillChart"></canvas>
+</div>
+
+<script>
+    // Configurações do Supabase
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    Chart.register(ChartDataLabels);
+
+    let myChart;
+    let currentLevel = 'year';
+    let selectedYear = null;
+
+    async function fetchData() {
+        const type = document.querySelector('input[name="entity"]:checked').value;
+        let start = '2014-01-01';
+        let end = '2026-12-31';
+
+        if (currentLevel === 'month') {
+            start = `${selectedYear}-01-01`;
+            end = `${selectedYear}-12-31`;
+        }
+        
+        try {
+            const { data, error } = await _supabase.rpc('get_scrobble_chart_stats', {
+                entidade_tipo: type,
+                entidade_nome: '%', // Mantendo o padrão que sua função exige
+                periodo_tipo: currentLevel,
+                data_inicio: start,
+                data_fim: end
+            });
+
+            if (error) throw error;
+            if (data) render(data);
+
+        } catch (err) {
+            console.error("Erro ao buscar dados:", err.message);
+        }
+    }
+
+    function render(data) {
+        const ctx = document.getElementById('drillChart').getContext('2d');
+        
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.data_label),
+                datasets: [{
+                    label: 'Quantidade',
+                    data: data.map(d => d.quantidade),
+                    backgroundColor: 'rgba(29, 185, 84, 0.8)',
+                    hoverBackgroundColor: '#1DB954',
+                    borderRadius: 5,
+                    indexAxis: 'y'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                maintainAspectRatio: false,
+                responsive: true,
+                scales: { 
+                    x: { display: false }, 
+                    y: { 
+                        grid: { display: false }, 
+                        ticks: { color: '#fff', font: { size: 11 } } 
+                    } 
+                },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#fff',
+                        anchor: 'end',
+                        align: 'left',
+                        offset: 10,
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (val) => val > 0 ? val.toLocaleString() : ''
+                    }
+                },
+                onClick: (e, el) => {
+                    if (el.length > 0 && currentLevel === 'year') {
+                        const index = el[0].index;
+                        const label = myChart.data.labels[index];
+                        drillDown(label);
+                    }
+                }
+            }
+        });
+    }
+
+    function drillDown(year) {
+        currentLevel = 'month';
+        selectedYear = year;
+        document.getElementById('breadcrumb').innerText = `⬅ VOLTAR (${year})`;
+        fetchData();
+    }
+
+    function resetToYear() {
+        if (currentLevel === 'year') return;
+        currentLevel = 'year';
+        selectedYear = null;
+        document.getElementById('breadcrumb').innerText = "🏠 TOTAL (YEARLY)";
+        fetchData();
+    }
+
+    // Listener para troca de filtros (Songs/Albums/Artists)
+    document.getElementById('selectors').addEventListener('change', () => {
+        fetchData();
+    });
+
+    // Carga inicial
+    fetchData();
+</script>
+</body>
+</html>

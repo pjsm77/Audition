@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Stats - Drilldown Dinâmico</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: auto; }
+        .controls { background: var(--surface); padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        select, input, button { padding: 12px; border-radius: 6px; border: 1px solid #444; background: #2a2a2a; color: white; }
+        button { background: var(--primary); color: black; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
+        button:hover { background: #1ed760; transform: scale(1.02); }
+        .breadcrumb { margin: 0 0 15px 5px; color: var(--primary); font-weight: bold; cursor: pointer; display: inline-block; }
+        .chart-wrapper { background: var(--surface); padding: 20px; border-radius: 12px; height: 75vh; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <div style="display:flex; flex-direction:column; gap:5px;">
+            <label style="font-size:12px; color:#888;">Contar por:</label>
+            <select id="entityType">
+                <option value="track">Volume de Músicas (Scrobbles)</option>
+                <option value="artist">Diversidade de Artistas</option>
+                <option value="album">Diversidade de Álbuns</option>
+            </select>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
+            <label style="font-size:12px; color:#888;">Filtrar Nome (Opcional):</label>
+            <input type="text" id="entityName" placeholder="Ex: Pink Floyd (ou deixe vazio para total)">
+        </div>
+        <button onclick="resetToYear()" style="margin-top:20px;">Gerar Gráfico</button>
+    </div>
+
+    <div id="breadcrumb" class="breadcrumb" onclick="resetToYear()">🏠 Geral (Anual)</div>
+
+    <div class="chart-wrapper">
+        <canvas id="drillChart"></canvas>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let myChart, currentLevel = 'year', selectedYear = null;
+
+    async function fetchData(period, start, end) {
+    const type = document.getElementById('entityType').value;
+    const nameInput = document.getElementById('entityName').value.trim();
+    
+    // Garantimos que o nome seja pelo menos um caractere de busca coringa se vazio
+    const nameParam = nameInput === "" ? "%" : nameInput;
+
+    console.log("Chamando RPC com:", { type, nameParam, period, start, end });
+
+    const { data, error } = await _supabase.rpc('get_scrobble_chart_stats', {
+        entidade_tipo: type,
+        entidade_nome: nameParam,
+        periodo_tipo: period,
+        data_inicio: start,
+        data_fim: end
+    });
+
+    if (error) {
+        console.error("Erro Supabase:", error);
+        alert("Erro na consulta: " + error.message);
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        console.warn("A função retornou zero linhas.");
+        return;
+    }
+
+    console.log("Dados recebidos:", data);
+    
+    const labelText = nameParam === '%' ? 
+        (type === 'artist' ? 'Artistas Únicos' : type === 'album' ? 'Álbuns Únicos' : 'Total de Scrobbles') : 
+        `Scrobbles de "${nameInput}"`;
+
+    render(data, labelText);
+}
+
+    function render(data, labelText) {
+        const ctx = document.getElementById('drillChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.data_label),
+                datasets: [{
+                    label: labelText,
+                    data: data.map(d => d.quantidade),
+                    backgroundColor: '#1DB954',
+                    borderColor: '#1ed760',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    indexAxis: 'y'
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: true, labels: { color: '#fff' } },
+                    tooltip: { backgroundColor: '#222', titleColor: '#1DB954' }
+                },
+                scales: {
+                    x: { grid: { color: '#333' }, ticks: { color: '#888' } },
+                    y: { grid: { display: false }, ticks: { color: '#fff', font: { weight: 'bold' } } }
+                },
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const label = myChart.data.labels[index];
+                        
+                        if (currentLevel === 'year') {
+                            currentLevel = 'month'; selectedYear = label;
+                            document.getElementById('breadcrumb').innerText = `🏠 Anos > 📅 ${label}`;
+                            fetchData('month', `${label}-01-01`, `${label}-12-31`);
+                        } else if (currentLevel === 'month') {
+                            const [m, y] = label.split('/');
+                            currentLevel = 'day';
+                            document.getElementById('breadcrumb').innerText = `🏠 Anos > ${y} > 🗓️ Mês ${m}`;
+                            fetchData('day', `${y}-${m}-01`, `${y}-${m}-${new Date(y, m, 0).getDate()}`);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function resetToYear() {
+        currentLevel = 'year';
+        document.getElementById('breadcrumb').innerText = "🏠 Geral (Anual)";
+        fetchData('year', '2014-01-01', '2026-12-31');
+    }
+
+    resetToYear();
+</script>
+</body>
+</html>

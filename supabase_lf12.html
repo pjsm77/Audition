@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Histórico Completo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .container { max-width: 100%; margin: auto; }
+        
+        .controls { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 10px; }
+        #globalSearch { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2a2a2a; color: white; }
+        .btn-clear { background: #444; border: none; color: white; padding: 10px; border-radius: 5px; cursor: pointer; }
+
+        .table-wrapper { background: var(--surface); overflow-x: auto; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #282828; padding: 10px 5px; border-bottom: 2px solid var(--primary); text-align: left; position: sticky; top: 0; }
+        td { padding: 8px 5px; border-bottom: 1px solid #333; white-space: nowrap; }
+        
+        .sort-btn { background: none; border: none; color: #888; cursor: pointer; padding: 0 2px; font-size: 10px; }
+        .year-col { color: #888; text-align: center; background: rgba(255,255,255,0.02); }
+        .year-val { text-align: center; color: #aaa; font-size: 11px; }
+        .year-val.active { color: var(--primary); font-weight: bold; }
+
+        /* Responsividade */
+        @media (max-width: 800px) and (orientation: portrait) {
+            .year-col, .year-val, .col-country, .col-city, .col-start, .col-days { display: none; }
+            table { font-size: 15px; }
+        }
+
+        .rank-badge { color: var(--primary); font-weight: bold; }
+        .clickable { cursor: pointer; }
+        .clickable:hover { color: var(--primary); }
+        a { color: var(--text); text-decoration: none; }
+
+        .pagination { display: flex; justify-content: center; gap: 10px; padding: 20px; align-items: center; background: #282828; }
+        .btn-pag { background: var(--primary); border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        #selectPage { background: #121212; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <input type="text" id="globalSearch" placeholder="🔍 Buscar artista...">
+        <button class="btn-clear" onclick="clearFilters()">Limpar</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr id="table-header">
+                    <th style="width: 40px;">#</th>
+                    <th>Artista <button class="sort-btn" onclick="setSort('artist')">↕</button></th>
+                    <th class="col-country">País</th>
+                    <th class="col-city">Cidade</th>
+                    <th class="col-start">Início <button class="sort-btn" onclick="setSort('primeiro_ano')">↕</button></th>
+                    <th class="col-days">Dias <button class="sort-btn" onclick="setSort('dias_ultimo')">↕</button></th>
+                    <th>Total <button class="sort-btn" onclick="setSort('scrobbles')">↕</button></th>
+                    </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <button class="btn-pag" id="prevBtn">«</button>
+        <select id="selectPage" onchange="goToPage(this.value)"></select>
+        <span id="totalPagesLabel"></span>
+        <button class="btn-pag" id="nextBtn">»</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullData = [], filteredData = [], offset = 0;
+    const limit = 50;
+    let sortCol = 'scrobbles', sortAsc = false;
+
+    // Gerar cabeçalhos de anos
+    const years = Array.from({length: 12}, (_, i) => 25 - i); // [25, 24, ..., 14]
+    const headerRow = document.getElementById('table-header');
+    years.forEach(y => {
+        const th = document.createElement('th');
+        th.className = 'year-col';
+        th.innerHTML = `'${y} <button class="sort-btn" onclick="setSort('y${y}')">↕</button>`;
+        headerRow.appendChild(th);
+    });
+
+    async function fetchData() {
+        const gs = document.getElementById('globalSearch').value;
+        const { data, error } = await _supabase.rpc('get_artist_ranking_full', { search_term: gs });
+        if (error) return;
+        fullData = data;
+        applySort();
+    }
+
+    function applySort() {
+        filteredData = [...fullData].sort((a, b) => {
+            let vA = a[sortCol] || 0, vB = b[sortCol] || 0;
+            return sortAsc ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
+        });
+        updateUI();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+        
+        tbody.innerHTML = paged.map((item, index) => {
+            let yearCells = years.map(y => {
+                const val = item[`y${y}`] || 0;
+                return `<td class="year-val ${val > 0 ? 'active' : ''}">${val > 0 ? val : '-'}</td>`;
+            }).join('');
+
+            return `
+            <tr>
+                <td><span class="rank-badge">${offset + index + 1}</span></td>
+                <td><strong><a href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank">${item.artist}</a></strong></td>
+                <td class="col-country">${item.country || '-'}</td>
+                <td class="col-city">${item.city || '-'}</td>
+                <td class="col-start">${item.primeiro_ano}</td>
+                <td class="col-days ${item.dias_ultimo > 365 ? 'long-time' : ''}">${item.dias_ultimo}</td>
+                <td style="background: rgba(29,185,84,0.1)"><strong>${item.scrobbles.toLocaleString('pt-BR')}</strong></td>
+                ${yearCells}
+            </tr>`;
+        }).join('');
+    }
+
+    function updateUI() {
+        const totalPages = Math.ceil(filteredData.length / limit) || 1;
+        const select = document.getElementById('selectPage');
+        const currentPage = (offset / limit) + 1;
+        select.innerHTML = Array.from({length: totalPages}, (_, i) => `<option value="${i+1}" ${i+1===currentPage?'selected':''}>${i+1}</option>`).join('');
+        document.getElementById('totalPagesLabel').innerText = `de ${totalPages}`;
+        renderTable();
+    }
+
+    function setSort(col) {
+        if (sortCol === col) sortAsc = !sortAsc;
+        else { sortCol = col; sortAsc = false; }
+        applySort();
+    }
+
+    function goToPage(p) { offset = (p - 1) * limit; renderTable(); }
+    function clearFilters() { document.getElementById('globalSearch').value = ''; offset = 0; fetchData(); }
+    document.getElementById('globalSearch').oninput = () => { offset = 0; fetchData(); };
+    document.getElementById('nextBtn').onclick = () => { offset += limit; updateUI(); };
+    document.getElementById('prevBtn').onclick = () => { offset -= limit; updateUI(); };
+
+    fetchData();
+</script>
+</body>
+</html>

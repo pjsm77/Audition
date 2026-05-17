@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Matrix Pro - Versão K</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pessimo: #e82952; --ruim: #f97042; --razoavel: #f7bc31;
+            --bom: #abd43a; --excelente: #48b43c;
+            --border: #e2e8f0; --primary: #2563eb;
+        }
+
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; font-family: 'Oswald', sans-serif; overflow: hidden; }
+
+        .toolbar {
+            display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+            background: #f8fafc; border-bottom: 1px solid var(--border);
+            height: 40px; box-sizing: border-box;
+        }
+
+        .search-container { display: flex; align-items: center; gap: 5px; }
+        #searchBox { display: none; align-items: center; background: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; }
+        #searchBox input { border: none; outline: none; font-size: 13px; width: 80px; font-family: inherit; }
+        
+        .filter-group { display: flex; gap: 3px; border-right: 1px solid #cbd5e1; padding-right: 8px; align-items: center; }
+        .filter-btn { 
+            padding: 1px 7px; border: 1px solid var(--border); border-radius: 4px; 
+            font-size: 12px; cursor: pointer; background: #fff; font-weight: 500;
+        }
+        .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        /* Grid & Scroll Ajustado */
+        .wrapper { height: calc(100vh - 40px); overflow: auto; width: 100vw; position: relative; }
+        table { border-collapse: separate; border-spacing: 0; min-width: 600px; font-size: 11px; table-layout: auto; }
+        th, td { padding: 4px 6px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-align: center; }
+
+        thead th { position: sticky; top: 0; background: #f1f5f9; z-index: 10; cursor: pointer; }
+        
+        .col-fixed { 
+            position: sticky; left: 0; z-index: 20; background: #fff !important;
+            border-right: 2px solid var(--border) !important; width: 220px; transition: all 0.2s;
+            text-align: left;
+        }
+
+        /* Estilização da Coluna 1 ao scroll horizontal */
+        .scrolled-x .col-fixed { width: 95px; font-size: 10px; }
+        .col-fixed span.full-text { display: inline; }
+        .scrolled-x .col-fixed span.full-text { display: none; }
+        .col-fixed span.short-text { display: none; }
+        .scrolled-x .col-fixed span.short-text { display: inline; }
+
+        /* Cores de Fundo por Performance */
+        .bg-excelente { background-color: rgba(72, 180, 60, 0.2); color: #1e4619; }
+        .bg-razoavel { background-color: rgba(247, 188, 49, 0.2); color: #634b14; }
+        .bg-pessimo { background-color: rgba(232, 41, 82, 0.2); color: #5c1121; }
+
+        .modal-overlay { display: none; position: fixed; z-index: 300; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: #fff; margin: 5% auto; width: 90%; height: 85%; padding: 20px; border-radius: 8px; display: flex; flex-direction: column; }
+        .col-selector-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 400; display: none; width: 250px; }
+        .hidden-col { display: none !important; }
+        .sort-indicator { color: var(--primary); font-size: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <div class="filter-group">
+        <span onclick="toggleSearch()" style="cursor:pointer">🔍</span>
+        <div id="searchBox">
+            <input type="text" id="searchInput" placeholder="Filtrar..." oninput="applyFilters()">
+            <span onclick="clearSearch()" style="cursor:pointer; font-weight:bold; padding:0 3px">×</span>
+        </div>
+    </div>
+    
+    <div class="filter-group">
+        <div class="filter-btn t-btn" onclick="toggleType('$', this)">$</div>
+        <div class="filter-btn t-btn" onclick="toggleType('Q', this)">Q</div>
+        <div class="filter-btn t-btn" onclick="toggleType('%', this)">%</div>
+    </div>
+
+    <div class="filter-group" style="border:none">
+        <div class="filter-btn o-btn active" onclick="toggleOrigin('V', this)">V</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('C', this)">C</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('F', this)">F</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('L', this)">L</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('M', this)">M</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('R', this)">R</div>
+        <div class="filter-btn o-btn" onclick="toggleOrigin('T', this)">T</div>
+    </div>
+
+    <div class="filter-btn" onclick="toggleColSelector()" style="margin-left: auto;">⚙️ Colunas</div>
+</div>
+
+<div class="wrapper" id="scrollWrapper">
+    <table id="mainTable">
+        <thead>
+            <tr id="headerRow">
+                <th class="col-fixed" onclick="sortTable(0)">Indicador <span id="sort-0" class="sort-indicator"></span></th>
+                <th onclick="sortTable(1)">Hoje<span id="sort-1" class="sort-indicator"></span></th>
+                <th onclick="sortTable(2)">Mês (PA)<span id="sort-2" class="sort-indicator"></span></th>
+                <th onclick="sortTable(3)">Mês (AA)<span id="sort-3" class="sort-indicator"></span></th>
+                <th onclick="sortTable(4)">3 Meses<span id="sort-4" class="sort-indicator"></span></th>
+                <th onclick="sortTable(5)">6 Meses<span id="sort-5" class="sort-indicator"></span></th>
+                <th onclick="sortTable(6)">Ano (25)<span id="sort-6" class="sort-indicator"></span></th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<div id="anaModal" class="modal-overlay">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 id="mTitle" style="margin:0">Análise</h2>
+            <button onclick="closeModal()" style="font-size:30px; border:none; background:none; cursor:pointer;">✕</button>
+        </div>
+        <select id="viewSelect" onchange="updateChart()" style="margin-top:15px; padding:8px;">
+            <option value="12">Mensal</option><option value="6">Bimestral</option>
+            <option value="4">Trimestral</option><option value="1">Anual</option>
+        </select>
+        <div style="flex-grow:1; margin-top:15px;"><canvas id="evolutionChart"></canvas></div>
+    </div>
+</div>
+
+<div id="colSelector" class="col-selector-modal">
+    <h3 style="margin-top:0">Colunas Visíveis</h3>
+    <div id="colCheckboxes"></div>
+    <button onclick="toggleColSelector()" style="width:100%; margin-top:15px; padding:8px; cursor:pointer;">Fechar</button>
+</div>
+
+<script>
+    const origens = ['V', 'C', 'F', 'L', 'M', 'R', 'T'];
+    const tipos = ['$', 'Q', '%'];
+    const nomes = ["Faturamento", "Margem Contrib.", "Pedidos", "Absenteísmo", "Leads", "Custo Op."];
+
+    let activeType = null;
+    let activeOrigin = 'V';
+    let sortState = { idx: -1, asc: true };
+    let currentChart = null;
+
+    function renderCell(val) {
+        const comp = Math.floor(val * 0.9);
+        const vVar = (((val - comp) / comp) * 100).toFixed(1);
+        let bgClass = "bg-razoavel";
+        if (vVar > 0) bgClass = "bg-excelente";
+        if (vVar < 0) bgClass = "bg-pessimo";
+        return `<td class="${bgClass}">${val} (${comp}) ${vVar}%</td>`;
+    }
+
+    const tbody = document.getElementById('tableBody');
+    for(let i=0; i<30; i++) {
+        const o = origens[i % origens.length];
+        const t = tipos[i % tipos.length];
+        const n = nomes[i % nomes.length] + " " + o;
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-type', t);
+        tr.setAttribute('data-origin', o);
+        tr.innerHTML = `
+            <td class="col-fixed" onclick="openAnalysis('${n}', '${t}', 5)">
+                <span class="full-text">${n} (${t})</span>
+                <span class="short-text">${n.substring(0,15)}..</span>
+            </td>
+            ${renderCell(Math.floor(Math.random()*1000))}
+            ${renderCell(Math.floor(Math.random()*1000))}
+            ${renderCell(Math.floor(Math.random()*1000))}
+            ${renderCell(Math.floor(Math.random()*1000))}
+            ${renderCell(Math.floor(Math.random()*1000))}
+            ${renderCell(Math.floor(Math.random()*1000))}
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function toggleSearch() {
+        const s = document.getElementById('searchBox');
+        s.style.display = s.style.display === 'flex' ? 'none' : 'flex';
+        if(s.style.display === 'flex') s.querySelector('input').focus();
+    }
+
+    function clearSearch() { document.getElementById('searchInput').value = ''; applyFilters(); toggleSearch(); }
+
+    function toggleType(t, btn) {
+        document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
+        activeType = (activeType === t) ? null : t;
+        if(activeType) btn.classList.add('active');
+        applyFilters();
+    }
+
+    function toggleOrigin(o, btn) {
+        document.querySelectorAll('.o-btn').forEach(b => b.classList.remove('active'));
+        activeOrigin = (activeOrigin === o) ? null : o;
+        if(activeOrigin) btn.classList.add('active');
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const val = document.getElementById('searchInput').value.toLowerCase();
+        document.querySelectorAll('#tableBody tr').forEach(r => {
+            const mText = r.cells[0].innerText.toLowerCase().includes(val);
+            const mType = !activeType || r.getAttribute('data-type') === activeType;
+            const mOrig = !activeOrigin || r.getAttribute('data-origin') === activeOrigin;
+            r.style.display = (mText && mType && mOrig) ? '' : 'none';
+        });
+    }
+
+    document.getElementById('scrollWrapper').addEventListener('scroll', function() {
+        document.body.classList.toggle('scrolled-x', this.scrollLeft > 15);
+    });
+
+    function toggleColSelector() {
+        const m = document.getElementById('colSelector');
+        const list = document.getElementById('colCheckboxes');
+        if(list.innerHTML === "") {
+            document.querySelectorAll('#headerRow th').forEach((th, i) => {
+                if(i===0) return;
+                list.innerHTML += `<label style="display:block; font-size:14px"><input type="checkbox" checked onchange="toggleCol(${i}, this.checked)"> ${th.innerText}</label>`;
+            });
+        }
+        m.style.display = m.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function toggleCol(i, show) { document.querySelectorAll('tr').forEach(r => r.cells[i].classList.toggle('hidden-col', !show)); }
+
+    function sortTable(idx) {
+        const rows = Array.from(tbody.rows);
+        sortState.asc = (sortState.idx === idx) ? !sortState.asc : true;
+        sortState.idx = idx;
+        rows.sort((a,b) => {
+            let vA = a.cells[idx].innerText.split(' ')[0].replace(/[^0-9.-]+/g, "");
+            let vB = b.cells[idx].innerText.split(' ')[0].replace(/[^0-9.-]+/g, "");
+            if(idx === 0) return sortState.asc ? a.cells[0].innerText.localeCompare(b.cells[0].innerText) : b.cells[0].innerText.localeCompare(a.cells[0].innerText);
+            return sortState.asc ? parseFloat(vA) - parseFloat(vB) : parseFloat(vB) - parseFloat(vA);
+        });
+        document.querySelectorAll('.sort-indicator').forEach(s => s.innerText = '');
+        document.getElementById(`sort-${idx}`).innerText = sortState.asc ? ' ▲' : ' ▼';
+        rows.forEach(r => tbody.appendChild(r));
+    }
+
+    function openAnalysis(n, t, v) {
+        document.getElementById('mTitle').innerText = n;
+        document.getElementById('anaModal').style.display = 'block';
+        updateChart('#2563eb');
+    }
+    function closeModal() { document.getElementById('anaModal').style.display = 'none'; }
+
+    function updateChart(color) {
+        const ctx = document.getElementById('evolutionChart').getContext('2d');
+        const count = parseInt(document.getElementById('viewSelect').value);
+        if(currentChart) currentChart.destroy();
+        currentChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: Array.from({length:count}, (_,i)=>`P${i+1}`), datasets:[{data:Array.from({length:count}, ()=>Math.random()*100), backgroundColor: color}] },
+            options: { maintainAspectRatio:false, plugins:{legend:{display:false}} }
+        });
+    }
+</script>
+</body>
+</html>

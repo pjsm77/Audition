@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validação de Cadastro Musical</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #2dd4bf; --border: #334155; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; display: flex; justify-content: center; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; width: 100%; max-width: 450px; border: 1px solid var(--border); box-sizing: border-box; }
+        
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { font-size: 0.7rem; margin-bottom: 5px; color: #94a3b8; text-transform: uppercase; font-weight: bold; }
+        input, select { background: #0f172a; border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        
+        /* Painel de Conferência (Deezer) */
+        #review-panel { margin-top: 20px; padding: 15px; background: #0f172a; border-radius: 10px; border: 1px solid var(--primary); display: none; }
+        .album-info { display: flex; gap: 15px; align-items: center; margin-bottom: 15px; }
+        .album-info img { width: 80px; height: 80px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .track-list { font-size: 0.85rem; color: #94a3b8; max-height: 150px; overflow-y: auto; border-top: 1px solid var(--border); padding-top: 10px; }
+        .track-item { padding: 4px 0; border-bottom: 1px solid #1e293b; }
+
+        /* Rating Styles */
+        .rating-container { display: flex; gap: 8px; margin-top: 5px; }
+        .rating-btn { flex: 1; padding: 12px; border: 1px solid var(--border); background: #1e293b; color: white; cursor: pointer; border-radius: 6px; font-weight: bold; }
+        .rating-btn.active { background: var(--primary); color: #0f172a; border-color: var(--primary); }
+
+        .btn-confirm { width: 100%; padding: 16px; background: var(--primary); border: none; border-radius: 8px; color: #0f172a; font-weight: 800; cursor: pointer; margin-top: 20px; }
+        .hidden { display: none; }
+        #status-msg { text-align: center; font-size: 0.9rem; margin: 10px 0; color: var(--primary); min-height: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="text-align:center; color:var(--primary); margin-bottom:20px;">Validar Importação</h2>
+
+    <div class="form-group">
+        <label>Link Direto do Álbum (Navegador)</label>
+        <input type="text" id="deezer_url" placeholder="https://www.deezer.com/.../album/XXXXX" oninput="captureData(this.value)">
+    </div>
+
+    <div id="status-msg">Aguardando link...</div>
+
+    <div id="review-panel">
+        <div class="album-info">
+            <img id="view_cover" src="">
+            <div>
+                <div id="view_album" style="font-weight: bold; font-size: 1.1rem;"></div>
+                <div id="view_artist" style="color: var(--primary);"></div>
+                <div id="view_year" style="font-size: 0.8rem; color: #64748b;"></div>
+            </div>
+        </div>
+        <label>Músicas encontradas:</label>
+        <div class="track-list" id="view_tracks"></div>
+    </div>
+
+    <div id="manual-validation" class="hidden">
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 20px 0;">
+        
+        <div class="form-group">
+            <label>País do Artista</label>
+            <select id="country_id" required></select>
+        </div>
+
+        <div id="state_group" class="form-group hidden">
+            <label>Estado</label>
+            <select id="state_id"></select>
+        </div>
+
+        <div class="form-group">
+            <label>Idioma Principal</label>
+            <input type="text" id="lang_str" placeholder="ex: ingles">
+        </div>
+
+        <div class="form-group">
+            <label>Sua Avaliação (Rating)</label>
+            <div class="rating-container">
+                <button type="button" class="rating-btn" onclick="setRate(1)">1</button>
+                <button type="button" class="rating-btn" onclick="setRate(2)">2</button>
+                <button type="button" class="rating-btn" onclick="setRate(3)">3</button>
+            </div>
+            <input type="hidden" id="rate_val" value="1">
+        </div>
+
+        <button class="btn-confirm" onclick="validateFinal()">TUDO CORRETO, PREPARAR ENVIO</button>
+    </div>
+</div>
+
+<script>
+    const URL_SB = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const KEY_SB = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    let tempAlbum = null;
+
+    // CAPTURA: Extrai o ID e busca no Deezer
+    async function captureData(url) {
+        const id = url.match(/album\/(\d+)/)?.[1];
+        if (!id) return;
+
+        const msg = document.getElementById('status-msg');
+        msg.innerText = "Consultando Deezer...";
+
+        try {
+            const res = await fetch(`https://corsproxy.io/?${encodeURIComponent('https://api.deezer.com/album/' + id)}`);
+            const data = await res.json();
+            
+            if(data.error) throw new Error("Álbum não encontrado.");
+
+            tempAlbum = data;
+            renderReview(data);
+            msg.innerText = "Dados capturados com sucesso!";
+            document.getElementById('manual-validation').classList.remove('hidden');
+            loadCountries();
+        } catch (e) {
+            msg.innerText = "Erro: " + e.message;
+        }
+    }
+
+    // EXIBIÇÃO: Mostra o que foi capturado para conferência
+    function renderReview(data) {
+        document.getElementById('review-panel').style.display = 'block';
+        document.getElementById('view_cover').src = data.cover_medium;
+        document.getElementById('view_album').innerText = data.title;
+        document.getElementById('view_artist').innerText = data.artist.name;
+        document.getElementById('view_year').innerText = "Lançamento: " + (data.release_date || "N/A");
+        
+        const list = data.tracks.data.map(t => `<div class="track-item">${t.title}</div>`).join('');
+        document.getElementById('view_tracks').innerHTML = list;
+    }
+
+    // AUXILIARES: Rating e Localização
+    function setRate(v) {
+        document.querySelectorAll('.rating-btn').forEach((b, i) => b.classList.toggle('active', i === v-1));
+        document.getElementById('rate_val').value = v;
+    }
+
+    async function loadCountries() {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_countries?select=id_country,portuguese_name&order=portuguese_name`, { headers: { apikey: KEY_SB, Authorization: `Bearer ${KEY_SB}` } });
+        const countries = await res.json();
+        const sel = document.getElementById('country_id');
+        sel.innerHTML = '<option value="">Selecione...</option>';
+        countries.forEach(c => sel.add(new Option(c.portuguese_name, c.id_country)));
+        
+        sel.onchange = () => {
+            const isSpec = ['25', '64'].includes(sel.value);
+            document.getElementById('state_group').classList.toggle('hidden', !isSpec);
+            if(isSpec) loadStates(sel.value);
+        };
+    }
+
+    async function loadStates(cid) {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_states?id_country=eq.${cid}&order=name`, { headers: { apikey: KEY_SB, Authorization: `Bearer ${SB_KEY}` } });
+        const states = await res.json();
+        const sel = document.getElementById('state_id');
+        sel.innerHTML = '<option value="">Selecione o Estado</option>';
+        states.forEach(s => sel.add(new Option(s.name, s.id_state)));
+    }
+
+    // VALIDAÇÃO FINAL: Onde você confere antes de gerar o payload
+    function validateFinal() {
+        const pais = document.getElementById('country_id').value;
+        const idioma = document.getElementById('lang_str').value;
+
+        if (!pais || !idioma) {
+            alert("Por favor, informe o País e o Idioma antes de prosseguir.");
+            return;
+        }
+
+        const resumo = {
+            artista: tempAlbum.artist.name,
+            album: tempAlbum.title,
+            faixas: tempAlbum.tracks.data.length,
+            pais_id: pais,
+            idioma: idioma,
+            rating: document.getElementById('rate_val').value
+        };
+
+        console.log("VALIDADO:", resumo);
+        alert(`Validado!\nArtista: ${resumo.artista}\nÁlbum: ${resumo.album}\n${resumo.faixas} músicas preparadas.`);
+        
+        // Próximo passo será o fetch para a RPC do Supabase
+    }
+</script>
+</body>
+</html>

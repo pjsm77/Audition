@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Histórico Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --primary: #1DB954; 
+            --bg: #ffffff; 
+            --row-even: #f8f8f8;
+            --text: #222;
+            --header-bg: #f1f1f1;
+            --border: #e0e0e0;
+        }
+
+        body { font-family: 'Bebas Neue', cursive; background-color: var(--bg); color: var(--text); margin: 0; padding: 5px; letter-spacing: 0.2px; }
+
+        .controls { padding: 8px 0; display: flex; gap: 8px; position: sticky; top: 0; background: white; z-index: 2000; }
+        #globalSearch { flex: 1; padding: 8px 15px; border-radius: 20px; border: 1px solid #ccc; background: #f9f9f9; font-family: sans-serif; font-size: 14px; outline: none; }
+        .btn-clear { background: #eee; border: none; padding: 0 15px; border-radius: 20px; cursor: pointer; font-family: 'Bebas Neue'; font-size: 14px; }
+
+        .table-wrapper { width: 100%; overflow-x: auto; border: 1px solid var(--border); position: relative; background: white; }
+        
+        table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; min-width: 1200px; }
+
+        th, td { padding: 4px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+
+        /* FIXAÇÃO DE COLUNAS - EVITANDO SOBREPOSIÇÃO */
+        th { background: var(--header-bg); position: sticky; top: 0; z-index: 100; }
+        
+        /* Coluna # */
+        th:nth-child(1), td:nth-child(1) { position: sticky; left: 0; z-index: 50; width: 35px; text-align: center; border-right: 1px solid #ddd; background-color: white; }
+        /* Coluna Artista */
+        th:nth-child(2), td:nth-child(2) { position: sticky; left: 48px; z-index: 50; width: 90px; border-right: 2px solid #ccc; background-color: white; }
+
+        th:nth-child(1), th:nth-child(2) { z-index: 150; background: var(--header-bg); }
+        tbody tr:nth-child(even) td:nth-child(1), 
+        tbody tr:nth-child(even) td:nth-child(2) { background-color: var(--row-even); }
+
+        /* Estilo Artista Compacto */
+        .artist-box { display: flex; align-items: center; gap: 4px; width: 85px; overflow: hidden; }
+        .artist-name { color: #003399; text-decoration: none; font-size: 14px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .flag-icon { width: 14px; height: 10px; object-fit: cover; border: 0.5px solid #ccc; flex-shrink: 0; }
+
+        .puan-col { color: #000; font-weight: bold; text-align: right; width: 65px; }
+        .clickable-filter { cursor: pointer; color: #666; font-family: sans-serif; font-size: 11px; }
+        .clickable-filter:hover { color: var(--primary); text-decoration: underline; }
+        .active-filter { color: var(--primary); font-weight: bold; }
+
+        .year-val { text-align: center; font-family: sans-serif; font-size: 10px; color: #888; border-left: 1px solid #f0f0f0; width: 32px; }
+        .year-val.active { color: #000; font-weight: bold; }
+
+        .pagination { display: flex; justify-content: center; gap: 8px; padding: 15px; align-items: center; }
+        .btn-pag { background: white; border: 1px solid #ccc; padding: 3px 12px; border-radius: 4px; font-family: 'Bebas Neue'; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <input type="text" id="globalSearch" placeholder="BUSCAR ARTISTA...">
+        <button class="btn-clear" onclick="clearFilters()">LIMPAR TUDO</button>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr id="table-header">
+                    <th onclick="setSort('scrobbles')">#</th>
+                    <th onclick="setSort('artist')">ARTISTA</th>
+                    <th onclick="setSort('scrobbles')" style="text-align: right;">TOTAL</th>
+                    <th onclick="setSort('dias_ultimo')" style="text-align: center;">DIAS</th>
+                    <th onclick="setSort('country')">PAÍS</th>
+                    <th onclick="setSort('city')">CIDADE</th>
+                    <th onclick="setSort('primeiro_ano')" style="text-align: center;">INÍCIO</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <button class="btn-pag" id="prevBtn">«</button>
+        <select id="selectPage" onchange="goToPage(this.value)" style="font-family:'Bebas Neue';"></select>
+        <button class="btn-pag" id="nextBtn">»</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullRawData = [], filteredData = [], offset = 0;
+    const limit = 50;
+    let sortCol = 'scrobbles', sortAsc = false;
+    let currentFilter = { type: null, value: null };
+
+    // Dicionário básico para bandeiras (Adicione mais conforme necessário)
+    const countryToCode = { "brazil": "br", "usa": "us", "uk": "gb", "argentina": "ar", "germany": "de", "france": "fr", "italy": "it", "japan": "jp", "canada": "ca" };
+
+    const years = [];
+    for (let i = 26; i >= 14; i--) years.push(i);
+
+    const headerRow = document.getElementById('table-header');
+    const inicioTh = headerRow.lastElementChild;
+    years.forEach(y => {
+        const th = document.createElement('th');
+        th.className = 'year-val';
+        th.innerText = `'${y}`;
+        th.onclick = () => setSort(`y${y}`);
+        headerRow.insertBefore(th, inicioTh);
+    });
+
+    async function fetchData() {
+        const { data, error } = await _supabase.rpc('get_artist_ranking_full', { search_term: '' });
+        if (!error) {
+            fullRawData = data || [];
+            applyLogic();
+        }
+    }
+
+    function applyLogic() {
+        const gs = document.getElementById('globalSearch').value.toLowerCase();
+        
+        // 1. Filtro Estrito (Busca + País/Cidade)
+        filteredData = fullRawData.filter(item => {
+            const nameMatch = item.artist.toLowerCase().includes(gs);
+            const countryMatch = !currentFilter.type || (currentFilter.type === 'country' && item.country === currentFilter.value);
+            const cityMatch = !currentFilter.type || (currentFilter.type === 'city' && item.city === currentFilter.value);
+            
+            if (currentFilter.type === 'country') return nameMatch && countryMatch;
+            if (currentFilter.type === 'city') return nameMatch && cityMatch;
+            return nameMatch;
+        });
+
+        // 2. Ordenação
+        filteredData.sort((a, b) => {
+            let vA = a[sortCol] ?? -1;
+            let vB = b[sortCol] ?? -1;
+            if (typeof vA === 'string') { vA = vA.toLowerCase(); vB = vB.toLowerCase(); }
+            // Lógica: Maior valor sempre é topo (#1), exceto Artista (A-Z)
+            const factor = (sortCol === 'artist') ? (sortAsc ? 1 : -1) : (sortAsc ? 1 : -1);
+            if (sortCol === 'artist') return sortAsc ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
+            
+            // Para números: Sort decrescente por padrão (maior scrobble primeiro)
+            return sortAsc ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
+        });
+
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+        const total = filteredData.length;
+        
+        tbody.innerHTML = paged.map((item, index) => {
+            // Lógica do Ranking: Se desc (padrão), o topo é 1. Se asc, o topo é Total.
+            const displayRank = sortAsc ? (total - (offset + index)) : (offset + index + 1);
+            
+            const countryKey = (item.country || "").toLowerCase();
+            const flagCode = countryToCode[countryKey] || "un"; // "un" para desconhecido
+
+            const yearCells = years.map(y => {
+                const val = item[`y${y}`] || 0;
+                return `<td class="year-val ${val > 0 ? 'active' : ''}">${val > 0 ? val.toLocaleString('pt-BR') : '-'}</td>`;
+            }).join('');
+
+            return `
+            <tr>
+                <td onclick="openDeezer('${(item.artist || '').replace(/'/g, "\\'")}')">${displayRank}</td>
+                <td>
+                    <div class="artist-box">
+                        <img class="flag-icon" src="https://flagcdn.com/w20/${flagCode}.png" onerror="this.style.display='none'">
+                        <a class="artist-name" href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank" title="${item.artist}">${item.artist}</a>
+                    </div>
+                </td>
+                <td class="puan-col">${(item.scrobbles || 0).toLocaleString('pt-BR')}</td>
+                <td style="text-align:center; font-family:sans-serif; font-size:10px; color:${item.dias_ultimo > 365 ? 'red' : '#666'}">${item.dias_ultimo ?? '-'}</td>
+                <td class="clickable-filter ${currentFilter.value === item.country ? 'active-filter' : ''}" onclick="toggleQuickFilter('country', '${item.country}')">${item.country || '-'}</td>
+                <td class="clickable-filter ${currentFilter.value === item.city ? 'active-filter' : ''}" onclick="toggleQuickFilter('city', '${item.city}')">${item.city || '-'}</td>
+                ${yearCells}
+                <td style="text-align:center; font-family:sans-serif; font-size:10px;">${item.primeiro_ano || '-'}</td>
+            </tr>`;
+        }).join('');
+        updatePaginationUI();
+    }
+
+    function toggleQuickFilter(type, value) {
+        if (!value || value === '-') return;
+        if (currentFilter.type === type && currentFilter.value === value) {
+            currentFilter = { type: null, value: null };
+        } else {
+            currentFilter = { type, value };
+        }
+        offset = 0;
+        applyLogic();
+    }
+
+    function openDeezer(artist) {
+        window.open(`https://www.deezer.com/search/${encodeURIComponent(artist)}`, '_blank');
+    }
+
+    function updatePaginationUI() {
+        const totalPages = Math.ceil(filteredData.length / limit) || 1;
+        const select = document.getElementById('selectPage');
+        select.innerHTML = Array.from({length: totalPages}, (_, i) => `<option value="${i+1}" ${i+1 === Math.floor(offset/limit)+1 ? 'selected' : ''}>PÁG ${i+1}</option>`).join('');
+        document.getElementById('prevBtn').disabled = offset <= 0;
+        document.getElementById('nextBtn').disabled = offset + limit >= filteredData.length;
+    }
+
+    function setSort(col) {
+        if (sortCol === col) sortAsc = !sortAsc;
+        else { sortCol = col; sortAsc = (col === 'artist'); }
+        offset = 0;
+        applyLogic();
+    }
+
+    function goToPage(p) { offset = (p - 1) * limit; renderTable(); window.scrollTo(0,0); }
+    
+    function clearFilters() { 
+        document.getElementById('globalSearch').value = ''; 
+        currentFilter = { type: null, value: null };
+        offset = 0; 
+        applyLogic(); 
+    }
+
+    document.getElementById('globalSearch').oninput = () => { offset = 0; applyLogic(); };
+    document.getElementById('nextBtn').onclick = () => { if (offset + limit < filteredData.length) { offset += limit; renderTable(); window.scrollTo(0,0); } };
+    document.getElementById('prevBtn').onclick = () => { if (offset > 0) { offset -= limit; renderTable(); window.scrollTo(0,0); } };
+
+    fetchData();
+</script>
+</body>
+</html>

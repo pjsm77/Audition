@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Deezer Album Scraper</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: auto; padding: 20px; background: #f4f4f9; }
+        textarea { width: 100%; height: 150px; font-family: monospace; border: 1px solid #ccc; padding: 10px; }
+        .controls { margin: 20px 0; display: flex; gap: 10px; }
+        button { padding: 10px 20px; font-size: 14px; cursor: pointer; border: none; border-radius: 4px; background: #ef5464; color: white; font-weight: bold; }
+        button:hover { background: #d44454; }
+        button.secondary { background: #333; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 11px; background: white; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #eee; position: sticky; top: 0; }
+        #status { font-weight: bold; margin-top: 10px; color: #555; }
+        .error { color: red; font-size: 10px; }
+    </style>
+</head>
+<body>
+
+<h2>?? Deezer Album Data Collector</h2>
+
+<p>Insira as URLs do Deezer (uma por linha). Aceita links curtos e longos:</p>
+
+<textarea id="inputUrls" placeholder="https://link.deezer.com/s/328Z0uhiBjphhKlaOQzdV
+https://www.deezer.com/br/album/614353222"></textarea>
+
+<div class="controls">
+    <button onclick="processAlbums()">Coletar Dados</button>
+    <button class="secondary" onclick="downloadTXT()">Baixar TXT (Tabulado)</button>
+</div>
+
+<div id="status">Aguardando...</div>
+
+<table id="resultTable">
+    <thead>
+        <tr>
+            <th>album_id</th>
+            <th>title</th>
+            <th>md5_image</th>
+            <th>nb_tracks</th>
+            <th>duration_min</th>
+            <th>fans</th>
+            <th>release_year</th>
+            <th>artist_ids</th>
+            <th>artist_picture_id</th>
+        </tr>
+    </thead>
+    <tbody id="resultBody"></tbody>
+</table>
+
+<script>
+const CORS_PROXY = "https://corsproxy.io/?";
+
+let allData = [];
+
+async function getAlbumId(url) {
+    // Se já for link longo, extrai via regex
+    const longMatch = url.match(/album\/(\d+)/);
+    if (longMatch) return longMatch[1];
+
+    // Se for link curto, tenta ler o conteúdo via proxy para achar o ID
+    try {
+        const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`);
+        const html = await response.text();
+        // Procura pelo padrão de ID no HTML da página de redirecionamento
+        const idMatch = html.match(/deezer:\/\/www\.deezer\.com\/album\/(\d+)/) || 
+                        html.match(/album\/(\d+)/);
+        return idMatch ? idMatch[1] : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function processAlbums() {
+    const input = document.getElementById("inputUrls").value.trim();
+    if (!input) return alert("Insira ao menos uma URL");
+
+    const urls = input.split("\n").map(u => u.trim()).filter(u => u);
+    const status = document.getElementById("status");
+    const tbody = document.getElementById("resultBody");
+    
+    status.innerText = "Processando... Isso pode levar alguns segundos.";
+    tbody.innerHTML = "";
+    allData = [];
+
+    for (let url of urls) {
+        try {
+            const albumId = await getAlbumId(url);
+            
+            if (!albumId) {
+                appendError(url, "ID não encontrado");
+                continue;
+            }
+
+            const res = await fetch(`${CORS_PROXY}https://api.deezer.com/album/${albumId}`);
+            const data = await res.json();
+
+            if (data.error) {
+                appendError(url, data.error.message);
+                continue;
+            }
+
+            const row = {
+                album_id: albumId,
+                title: data.title,
+                md5_image: data.md5_image,
+                nb_tracks: data.nb_tracks,
+                duration_min: (data.duration / 60).toFixed(2).replace('.', ','),
+                fans: data.fans,
+                release_year: data.release_date ? data.release_date.substring(0, 4) : "",
+                artist_ids: data.contributors ? data.contributors.map(c => c.id).join(';') : data.artist.id,
+                artist_picture_id: ""
+            };
+
+            // Extração do trecho da imagem do artista
+            if (data.contributors && data.contributors[0] && data.contributors[0].picture_small) {
+                const pic = data.contributors[0].picture_small;
+                row.artist_picture_id = pic.split('/artist/')[1].split('/56x56')[0];
+            }
+
+            allData.push(row);
+            renderRow(row);
+
+        } catch (err) {
+            appendError(url, "Erro de conexão");
+        }
+    }
+
+    status.innerText = `Concluído! ${allData.length} álbuns processados.`;
+}
+
+function renderRow(row) {
+    const tbody = document.getElementById("resultBody");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+        <td>${row.album_id}</td>
+        <td>${row.title}</td>
+        <td>${row.md5_image}</td>
+        <td>${row.nb_tracks}</td>
+        <td>${row.duration_min}</td>
+        <td>${row.fans}</td>
+        <td>${row.release_year}</td>
+        <td>${row.artist_ids}</td>
+        <td>${row.artist_picture_id}</td>
+    `;
+    tbody.appendChild(tr);
+}
+
+function appendError(url, msg) {
+    const tbody = document.getElementById("resultBody");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="9" class="error">Falha na URL: ${url} (${msg})</td>`;
+    tbody.appendChild(tr);
+}
+
+function downloadTXT() {
+    if (allData.length === 0) return alert("Sem dados para baixar");
+
+    const headers = ["album_id", "title", "md5_image", "nb_tracks", "duration_min", "fans", "release_year", "artist_ids", "artist_picture_id"];
+    
+    let content = headers.join("\t") + "\n";
+    
+    allData.forEach(row => {
+        content += headers.map(h => row[h]).join("\t") + "\n";
+    });
+
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "deezer_albums.txt";
+    link.click();
+}
+</script>
+
+</body>
+</html>

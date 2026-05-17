@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Curadoria - Validação Avançada</title>
+    <style>
+        :root { 
+            --bg: #0f172a; --card: #1e293b; --text: #f8fafc; 
+            --primary: #2dd4bf; --border: #334155; --accent: #818cf8;
+        }
+        body { 
+            font-family: -apple-system, system-ui, sans-serif; 
+            background: var(--bg); color: var(--text); padding: 15px; margin: 0; 
+            display: flex; justify-content: center; 
+        }
+        .card { 
+            background: var(--card); padding: 20px; border-radius: 12px; 
+            width: 100%; max-width: 500px; border: 1px solid var(--border); 
+            box-sizing: border-box; 
+        }
+        h2 { text-align: center; color: var(--primary); margin: 0 0 20px 0; }
+        
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { font-size: 0.7rem; margin-bottom: 5px; color: #94a3b8; text-transform: uppercase; font-weight: bold; }
+        
+        input, select { 
+            background: #0f172a; border: 1px solid var(--border); 
+            padding: 12px; border-radius: 8px; color: white; 
+            font-size: 1rem; width: 100%; box-sizing: border-box; 
+        }
+
+        /* Resumo das Tabelas */
+        .table-preview {
+            background: #020617; border-radius: 8px; padding: 12px;
+            margin-top: 15px; border-left: 4px solid var(--accent);
+            font-size: 0.8rem; line-height: 1.6;
+        }
+        .table-tag { 
+            background: #312e81; color: #e0e7ff; padding: 2px 6px; 
+            border-radius: 4px; font-size: 0.65rem; font-weight: bold; margin-right: 5px;
+        }
+
+        /* Painel Deezer */
+        #review-panel { margin-top: 20px; display: none; }
+        .album-header { display: flex; gap: 15px; align-items: flex-start; }
+        .album-header img { width: 80px; height: 80px; border-radius: 8px; border: 1px solid var(--border); }
+        
+        .search-btn {
+            display: inline-block; margin-top: 10px; color: var(--primary);
+            text-decoration: none; font-size: 0.75rem; border: 1px solid var(--primary);
+            padding: 4px 10px; border-radius: 20px; transition: 0.3s;
+        }
+        .search-btn:hover { background: var(--primary); color: var(--bg); }
+
+        .track-list { 
+            font-size: 0.8rem; color: #94a3b8; max-height: 120px; 
+            overflow-y: auto; margin-top: 15px; border-top: 1px solid var(--border);
+        }
+
+        /* Rating */
+        .rating-container { display: flex; gap: 8px; }
+        .rating-btn { 
+            flex: 1; padding: 12px; border: 1px solid var(--border); 
+            background: #1e293b; color: white; cursor: pointer; border-radius: 6px; 
+        }
+        .rating-btn.active { background: var(--primary); color: #0f172a; font-weight: bold; }
+
+        .btn-final { 
+            width: 100%; padding: 16px; background: var(--primary); 
+            border: none; border-radius: 8px; color: #0f172a; 
+            font-weight: 800; cursor: pointer; margin-top: 25px; 
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Sincronização Musical</h2>
+
+    <div class="form-group">
+        <label>Link do Álbum</label>
+        <input type="text" id="deezer_url" placeholder="Cole o link do navegador..." oninput="captureData(this.value)">
+    </div>
+
+    <div id="status-msg" style="text-align:center; font-size:0.8rem; color:var(--primary);">Aguardando...</div>
+
+    <div id="review-panel">
+        <div class="album-header">
+            <img id="view_cover" src="">
+            <div>
+                <div id="view_album" style="font-weight: bold;"></div>
+                <div id="view_artist" style="color: var(--primary);"></div>
+                <a id="search_link" target="_blank" class="search-btn">🔍 Pesquisar Origem (Google)</a>
+            </div>
+        </div>
+
+        <div class="table-preview">
+            <div><span class="table-tag">tbl_artists</span> <span id="db_artist"></span></div>
+            <div><span class="table-tag">tbl_albums</span> <span id="db_album"></span></div>
+            <div><span class="table-tag">tbl_tracks</span> <span id="db_tracks"></span> faixas detectadas</div>
+        </div>
+
+        <div class="track-list" id="view_tracks"></div>
+
+        <div id="manual-validation" style="margin-top: 20px;">
+            <div class="form-group">
+                <label>País (tbl_countries)</label>
+                <select id="country_id"></select>
+            </div>
+
+            <div id="state_group" class="form-group hidden">
+                <label>Estado (tbl_states)</label>
+                <select id="state_id"></select>
+            </div>
+
+            <div class="form-group">
+                <label>Cidade de Origem (tbl_cities)</label>
+                <input type="text" id="city_name" placeholder="Digite a cidade (Ex: London)">
+            </div>
+
+            <div class="form-group">
+                <label>Idioma Principal</label>
+                <input type="text" id="lang_str" placeholder="ex: ingles">
+            </div>
+
+            <div class="form-group">
+                <label>Avaliação</label>
+                <div class="rating-container">
+                    <button type="button" class="rating-btn" onclick="setRate(1)">1</button>
+                    <button type="button" class="rating-btn" onclick="setRate(2)">2</button>
+                    <button type="button" class="rating-btn" onclick="setRate(3)">3</button>
+                </div>
+                <input type="hidden" id="rate_val" value="1">
+            </div>
+
+            <button class="btn-final" onclick="generatePayload()">CONFERIR PAYLOAD FINAL</button>
+        </div>
+    </div>
+</div>
+
+<script id="deezer-jsonp"></script>
+
+<script>
+    const URL_SB = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const KEY_SB = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    let tempAlbum = null;
+
+    function captureData(url) {
+        const idMatch = url.match(/album\/(\d+)/);
+        if (!idMatch) return;
+
+        const oldScript = document.getElementById('deezer-jsonp');
+        if (oldScript) oldScript.remove();
+
+        const script = document.createElement('script');
+        script.id = 'deezer-jsonp';
+        script.src = `https://api.deezer.com/album/${idMatch[1]}?output=jsonp&callback=handleDeezerResponse`;
+        document.body.appendChild(script);
+    }
+
+    function handleDeezerResponse(data) {
+        if (data.error) return alert("Erro no Deezer");
+        tempAlbum = data;
+
+        document.getElementById('review-panel').style.display = 'block';
+        document.getElementById('view_cover').src = data.cover_medium;
+        document.getElementById('view_album').innerText = data.title;
+        document.getElementById('view_artist').innerText = data.artist.name;
+
+        // Preenchimento do Resumo de Tabelas
+        document.getElementById('db_artist').innerText = data.artist.name;
+        document.getElementById('db_album').innerText = data.title;
+        document.getElementById('db_tracks').innerText = data.tracks.data.length;
+
+        // Link de Pesquisa de Origem
+        const query = encodeURIComponent(`${data.artist.name} band place of origin city country wikipedia`);
+        document.getElementById('search_link').href = `https://www.google.com/search?q=${query}`;
+
+        document.getElementById('view_tracks').innerHTML = data.tracks.data.map(t => `<div style="padding:2px 0">• ${t.title}</div>`).join('');
+        
+        loadCountries();
+    }
+
+    async function loadCountries() {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_countries?select=id_country,portuguese_name&order=portuguese_name`, { headers: { apikey: KEY_SB, Authorization: `Bearer ${KEY_SB}` } });
+        const countries = await res.json();
+        const sel = document.getElementById('country_id');
+        sel.innerHTML = '<option value="">Selecione...</option>';
+        countries.forEach(c => sel.add(new Option(c.portuguese_name, c.id_country)));
+        
+        sel.onchange = () => {
+            const isSpec = ['25', '64'].includes(sel.value);
+            document.getElementById('state_group').classList.toggle('hidden', !isSpec);
+            if(isSpec) loadStates(sel.value);
+        };
+    }
+
+    async function loadStates(cid) {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_states?id_country=eq.${cid}&order=name`, { headers: { apikey: KEY_SB, Authorization: `Bearer ${KEY_SB}` } });
+        const states = await res.json();
+        const sel = document.getElementById('state_id');
+        sel.innerHTML = '<option value="">Estado...</option>';
+        states.forEach(s => sel.add(new Option(s.name, s.id_state)));
+    }
+
+    function setRate(v) {
+        document.querySelectorAll('.rating-btn').forEach((b, i) => b.classList.toggle('active', i === v-1));
+        document.getElementById('rate_val').value = v;
+    }
+
+    function generatePayload() {
+        const countryName = document.getElementById('country_id').options[document.getElementById('country_id').selectedIndex].text;
+        
+        // Formatação solicitada: país_cidade_idioma (eliminando espaços)
+        const cidade = document.getElementById('city_name').value.replace(/\s+/g, '');
+        const pais = countryName.replace(/\s+/g, '');
+        const idioma = document.getElementById('lang_str').value.replace(/\s+/g, '');
+        
+        const pathString = `${pais}_${cidade}_${idioma}`;
+
+        const payload = {
+            artist: { name: tempAlbum.artist.name, deezer_id: tempAlbum.artist.id },
+            album: { title: tempAlbum.title, deezer_id: tempAlbum.id, cover: tempAlbum.cover_xl },
+            location: { 
+                country_id: document.getElementById('country_id').value,
+                state_id: document.getElementById('state_id').value,
+                city_name: document.getElementById('city_name').value,
+                formatted_string: pathString 
+            },
+            tracks: tempAlbum.tracks.data.map(t => ({ title: t.title, duration: t.duration, deezer_id: t.id })),
+            meta: { rating: document.getElementById('rate_val').value, language: idioma }
+        };
+
+        console.log("Payload Final:", payload);
+        alert(`Payload Gerado!\nString de Identificação: ${pathString}`);
+    }
+</script>
+</body>
+</html>

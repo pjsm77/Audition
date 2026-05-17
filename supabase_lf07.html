@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Ranking Geral de Artistas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; margin: 0; }
+        .container { max-width: 1200px; margin: auto; padding-top: 20px; }
+        
+        /* Busca Global */
+        .search-header { background: var(--surface); padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        #globalSearch { width: 100%; padding: 12px; border-radius: 5px; border: 1px solid #333; background: #2a2a2a; color: white; box-sizing: border-box; font-size: 16px; }
+
+        /* Tabela */
+        .table-wrapper { background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        th { background: #282828; padding: 12px; border-bottom: 2px solid var(--primary); vertical-align: top; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        /* Estilo dos Filtros no Cabeçalho */
+        .header-content { display: flex; flex-direction: column; gap: 8px; }
+        .sort-row { display: flex; align-items: center; justify-content: space-between; }
+        .sort-btns { display: flex; gap: 4px; }
+        .sort-btns button { background: #333; border: none; color: white; cursor: pointer; font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+        .sort-btns button:hover { background: var(--primary); color: black; }
+        .col-filter { padding: 6px; font-size: 11px; border-radius: 3px; border: 1px solid #444; background: #121212; color: white; width: 90%; }
+
+        /* Estilos de linha */
+        .rank-badge { background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: var(--primary); font-size: 0.9em; }
+        a { color: var(--text); text-decoration: none; transition: 0.2s; }
+        a:hover { color: var(--primary); text-decoration: underline; }
+        .long-time { color: #ff5555; }
+
+        /* Paginação */
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #282828; }
+        .btn-pag { background: var(--primary); border: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; color: black; }
+        .btn-pag:disabled { background: #444; cursor: not-allowed; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-header">
+        <input type="text" id="globalSearch" placeholder="Pesquisar em todo o ranking (Artista)...">
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 80px;">Rank</th>
+                    <th>
+                        <div class="header-content">
+                            <div class="sort-row">
+                                <span>Artista</span>
+                                <div class="sort-btns">
+                                    <button onclick="setSort('artist', true)">▲</button>
+                                    <button onclick="setSort('artist', false)">▼</button>
+                                </div>
+                            </div>
+                            <input type="text" class="col-filter" placeholder="Filtrar artista..." oninput="setColFilter('artist', this.value)">
+                        </div>
+                    </th>
+                    <th style="width: 120px;">
+                        <div class="header-content">
+                            <div class="sort-row">
+                                <span>Início</span>
+                                <div class="sort-btns">
+                                    <button onclick="setSort('primeiro_ano', true)">▲</button>
+                                    <button onclick="setSort('primeiro_ano', false)">▼</button>
+                                </div>
+                            </div>
+                            <input type="text" class="col-filter" placeholder="Ano..." oninput="setColFilter('primeiro_ano', this.value)">
+                        </div>
+                    </th>
+                    <th style="width: 120px;">
+                        <div class="header-content">
+                            <div class="sort-row">
+                                <span>Dias</span>
+                                <div class="sort-btns">
+                                    <button onclick="setSort('dias_ultimo', true)">▲</button>
+                                    <button onclick="setSort('dias_ultimo', false)">▼</button>
+                                </div>
+                            </div>
+                            <input type="text" class="col-filter" placeholder="Dias..." oninput="setColFilter('dias_ultimo', this.value)">
+                        </div>
+                    </th>
+                    <th style="width: 150px;">
+                        <div class="header-content">
+                            <div class="sort-row">
+                                <span>Scrobbles</span>
+                                <div class="sort-btns">
+                                    <button onclick="setSort('scrobbles', true)">▲</button>
+                                    <button onclick="setSort('scrobbles', false)">▼</button>
+                                </div>
+                            </div>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button class="btn-pag" id="prevBtn">Anterior</button>
+            <span id="pageLabel">Página 1</span>
+            <button class="btn-pag" id="nextBtn">Próxima</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullData = [];
+    let filteredData = [];
+    let offset = 0;
+    const limit = 50;
+    let globalSearch = "";
+    let colFilters = { artist: '', primeiro_ano: '', dias_ultimo: '' };
+    let sortCol = 'scrobbles';
+    let sortAsc = false;
+
+    async function fetchData() {
+        const { data, error } = await _supabase.rpc('get_artist_ranking_v2', { search_term: globalSearch });
+        if (error) return;
+        fullData = data;
+        applyFiltersAndSort();
+    }
+
+    function applyFiltersAndSort() {
+        // Aplica filtros de coluna
+        filteredData = fullData.filter(item => {
+            return (item.artist || '').toLowerCase().includes(colFilters.artist.toLowerCase()) &&
+                   String(item.primeiro_ano).includes(colFilters.primeiro_ano) &&
+                   String(item.dias_ultimo).includes(colFilters.dias_ultimo);
+        });
+
+        // Aplica ordenação
+        filteredData.sort((a, b) => {
+            let vA = a[sortCol], vB = b[sortCol];
+            if (typeof vA === 'string') return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+            return sortAsc ? vA - vB : vB - vA;
+        });
+
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const pagedData = filteredData.slice(offset, offset + limit);
+
+        tbody.innerHTML = pagedData.map((item, index) => `
+            <tr>
+                <td><span class="rank-badge">#${offset + index + 1}</span></td>
+                <td>
+                    <a href="https://www.last.fm/music/${encodeURIComponent(item.artist).replace(/%20/g, '+')}" target="_blank">
+                        ${item.artist}
+                    </a>
+                </td>
+                <td>${item.primeiro_ano}</td>
+                <td class="${item.dias_ultimo > 365 ? 'long-time' : ''}">${item.dias_ultimo === 0 ? 'Hoje' : item.dias_ultimo}</td>
+                <td><strong>${item.scrobbles.toLocaleString('pt-BR')}</strong></td>
+            </tr>
+        `).join('');
+
+        document.getElementById('pageLabel').innerText = `Página ${(offset / limit) + 1} de ${Math.ceil(filteredData.length / limit) || 1}`;
+        document.getElementById('prevBtn').disabled = offset === 0;
+        document.getElementById('nextBtn').disabled = (offset + limit) >= filteredData.length;
+    }
+
+    // Handlers
+    function setSort(col, asc) { sortCol = col; sortAsc = asc; applyFiltersAndSort(); }
+    
+    function setColFilter(col, val) { 
+        colFilters[col] = val; 
+        offset = 0; 
+        applyFiltersAndSort(); 
+    }
+
+    document.getElementById('globalSearch').oninput = (e) => {
+        globalSearch = e.target.value;
+        offset = 0;
+        fetchData(); // Busca global requer nova chamada ao banco
+    };
+
+    document.getElementById('nextBtn').onclick = () => { offset += limit; renderTable(); };
+    document.getElementById('prevBtn').onclick = () => { offset -= limit; renderTable(); };
+
+    fetchData();
+</script>
+</body>
+</html>

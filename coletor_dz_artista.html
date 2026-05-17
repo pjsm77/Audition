@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor JSON para CSV</title>
+    <style>
+        body { font-family: sans-serif; padding: 40px; line-height: 1.6; }
+        .container { max-width: 600px; margin: auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+        input { margin: 20px 0; }
+        button { background-color: #007bff; color: white; border: none; padding: 10px 20px; cursor: pointer; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        #status { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Extrair Artista para CSV</h2>
+    <p>Selecione o arquivo JSON para extrair o <b>ID</b> e o <b>Nome do Artista</b>.</p>
+    
+    <input type="file" id="fileInput" accept=".json">
+    <br>
+    <button onclick="processarJSON()">Gerar e Baixar CSV</button>
+    
+    <div id="status"></div>
+</div>
+
+<script>
+    function processarJSON() {
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+
+        if (!fileInput.files[0]) {
+            status.innerText = "Por favor, selecione um arquivo primeiro.";
+            status.style.color = "red";
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+            try {
+                const json = JSON.parse(e.target.result);
+                
+                // Extraindo os campos (considerando que pode ser um objeto único ou uma lista)
+                const dados = Array.isArray(json) ? json : [json];
+                
+                // Criar cabeçalho do CSV
+                let csvContent = "id_art,artista\n";
+                
+                // Adicionar linhas
+                dados.forEach(item => {
+                    // Limpar vírgulas do nome do artista para não quebrar o CSV
+                    const nomeArtista = item.artista.replace(/,/g, '');
+                    csvContent += `${item.id_art},${nomeArtista}\n`;
+                });
+
+                downloadCSV(csvContent);
+                status.innerText = "Sucesso! O download deve começar em breve.";
+                status.style.color = "green";
+
+            } catch (err) {
+                status.innerText = "Erro ao processar arquivo. Verifique se o JSON é válido.";
+                status.style.color = "red";
+            }
+        };
+
+        reader.readAsText(file);
+    }
+
+    function downloadCSV(content) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", "artistas_extraidos.csv");
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>

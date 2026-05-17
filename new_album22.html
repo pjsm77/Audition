@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sincronizador Master - DB</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #2dd4bf; --border: #334155; --accent: #818cf8; --warning: #fbbf24; }
+        body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 20px; }
+        
+        /* Formulário e Controles */
+        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; margin-bottom: 5px; }
+        input, select { background: #0f172a; border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        
+        .btn-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn { flex: 1; padding: 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; text-align: center; }
+        
+        /* Seções de Review */
+        .review-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 768px) { .review-grid { grid-template-columns: 1fr 1fr; } .tracks-section { grid-column: span 2; } }
+        
+        .section-box { background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border); border-radius: 8px; padding: 15px; }
+        .section-title { font-size: 0.9rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; }
+        
+        .data-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .data-label { color: #94a3b8; }
+        
+        .track-list { max-height: 250px; overflow-y: auto; font-size: 0.8rem; }
+        .track-row { display: grid; grid-template-columns: 30px 1fr 60px 80px; gap: 10px; padding: 8px 0; border-bottom: 1px solid #334155; }
+
+        .status-badge { padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px; font-weight: bold; display: none; }
+        .found { background: rgba(251, 191, 36, 0.2); color: var(--warning); border: 1px solid var(--warning); }
+        .new { background: rgba(45, 212, 191, 0.2); color: var(--primary); border: 1px solid var(--primary); }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2 style="margin:0 0 20px 0; color: var(--primary)">Sincronizador de Dados (V7)</h2>
+        
+        <div class="btn-row">
+            <button class="btn" style="background: var(--accent); color: white;" onclick="pasteFromClipboard()">📋 Colar Link</button>
+            <button class="btn" style="background: #475569; color: white;" onclick="location.reload()">🗑️ Limpar</button>
+        </div>
+
+        <div class="form-group">
+            <label>Deezer Album URL</label>
+            <input type="text" id="deezer_url" placeholder="https://www.deezer.com/br/album/..." oninput="processUrl(this.value)">
+        </div>
+
+        <div id="status-msg" class="status-badge"></div>
+
+        <div id="manual-inputs" class="hidden">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>País</label>
+                    <input list="countries_list" id="country_search" oninput="onCountrySelect(this.value)">
+                    <datalist id="countries_list"></datalist>
+                    <input type="hidden" id="id_country">
+                </div>
+                <div class="form-group" id="state_group">
+                    <label>Estado</label>
+                    <select id="id_state" onchange="onStateSelect()"></select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>Cidade</label>
+                    <select id="id_city"></select>
+                </div>
+                <div class="form-group">
+                    <label>Idioma</label>
+                    <select id="language" onchange="updateReview()">
+                        <option value="ingles">Inglês</option>
+                        <option value="portugues">Português</option>
+                        <option value="espanhol">Espanhol</option>
+                        <option value="frances">Francês</option>
+                        <option value="italiano">Italiano</option>
+                        <option value="japones">Japonês</option>
+                        <option value="alemao">Alemão</option>
+                        <option value="instrumental">Instrumental</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Rating Artista (1-3)</label>
+                <select id="art_rating" onchange="updateReview()">
+                    <option value="1">⭐ (1)</option>
+                    <option value="2">⭐⭐ (2)</option>
+                    <option value="3">⭐⭐⭐ (3)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-area" class="review-grid hidden">
+        
+        <div class="section-box">
+            <div class="section-title"><span>TBL_ARTISTS</span> <small id="art_mode"></small></div>
+            <div id="review_artist"></div>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title"><span>TBL_ALBUMS</span> <small id="alb_mode"></small></div>
+            <div id="review_album"></div>
+        </div>
+
+        <div class="section-box tracks-section">
+            <div class="section-title">TBL_TRACKS (Lista de Faixas)</div>
+            <div class="track-row" style="font-weight: bold; border-bottom: 2px solid var(--primary); color: #94a3b8;">
+                <span>#</span><span>Título</span><span>Duração</span><span>Deezer ID</span>
+            </div>
+            <div id="review_tracks" class="track-list"></div>
+        </div>
+
+        <button class="btn" style="background: var(--primary); color: #0f172a; width: 100%; grid-column: span 2; font-size: 1.2rem;" onclick="saveToDatabase()">
+            CONFIRMAR E SALVAR NO BANCO
+        </button>
+    </div>
+</div>
+
+<script>
+    const URL_SB = 'SUA_URL_SUPABASE';
+    const KEY_SB = 'SUA_KEY_SUPABASE';
+    let rawData = { album: null, tracks: [] };
+    let globalCountries = [];
+
+    // --- FUNÇÕES DE INTERFACE ---
+    async function pasteFromClipboard() {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('deezer_url').value = text;
+        processUrl(text);
+    }
+
+    function setStatus(text, type) {
+        const el = document.getElementById('status-msg');
+        el.innerText = text; el.className = `status-badge ${type}`; el.style.display = 'block';
+    }
+
+    // --- PROCESSAMENTO ---
+    async function processUrl(url) {
+        const id = url.match(/album\/(\d+)/)?.[1];
+        if (!id) return;
+
+        setStatus("🔍 Verificando Coleção...", "new");
+
+        // 1. Verificar se álbum existe (deezer_id_album)
+        const resAlb = await fetch(`${URL_SB}/rest/v1/tbl_albums?deezer_id_album=eq.${id}&select=*,tbl_artists(*)`, 
+            { headers: { apikey: KEY_SB, Authorization: `Bearer ${KEY_SB}` } });
+        const albData = await resAlb.json();
+
+        // 2. Buscar no Deezer
+        fetchDeezer(id, albData[0]);
+    }
+
+    function fetchDeezer(id, dbAlbum) {
+        const s = document.createElement('script');
+        s.src = `https://api.deezer.com/album/${id}?output=jsonp&callback=handleDeezer`;
+        window.dbRef = dbAlbum;
+        document.body.appendChild(s);
+    }
+
+    async function handleDeezer(data) {
+        rawData.album = data;
+        rawData.tracks = data.tracks.data;
+
+        document.getElementById('manual-inputs').classList.remove('hidden');
+        document.getElementById('review-area').classList.remove('hidden');
+
+        if (window.dbRef) {
+            setStatus("⚠️ ÁLBUM JÁ EXISTE - MODO ATUALIZAÇÃO", "found");
+            document.getElementById('art_mode').innerText = "[UPDATE]";
+            document.getElementById('alb_mode').innerText = "[UPDATE]";
+            // Auto-preencher com dados do banco
+            fillGeo(window.dbRef.tbl_artists);
+        } else {
+            // Checar se apenas o artista existe
+            const resArt = await fetch(`${URL_SB}/rest/v1/tbl_artists?deezer_id=eq.${data.artist.id}&select=*`, 
+                { headers: { apikey: KEY_SB, Authorization: `Bearer ${KEY_SB}` } });
+            const artData = await resArt.json();
+            
+            if (artData.length > 0) {
+                setStatus("👤 ARTISTA ENCONTRADO - VINCULANDO NOVO ÁLBUM", "found");
+                document.getElementById('art_mode').innerText = "[UPDATE]";
+                document.getElementById('alb_mode').innerText = "[INSERT]";
+                fillGeo(artData[0]);
+            } else {
+                setStatus("✨ NOVO CADASTRO COMPLETO", "new");
+                document.getElementById('art_mode').innerText = "[INSERT]";
+                document.getElementById('alb_mode').innerText = "[INSERT]";
+            }
+        }
+        await loadCountries();
+        updateReview();
+    }
+
+    // --- REVISÃO DOS DADOS ---
+    function updateReview() {
+        if (!rawData.album) return;
+
+        const artRating = document.getElementById('art_rating').value;
+        const lang = document.getElementById('language').value;
+        const cityId = document.getElementById('id_city').value || "NULL";
+        const cityName = document.getElementById('id_city').options[document.getElementById('id_city').selectedIndex]?.text || "-";
+
+        // TBL_ARTISTS
+        document.getElementById('review_artist').innerHTML = `
+            <div class="data-row"><span class="data-label">Nome:</span> <b>${rawData.album.artist.name}</b></div>
+            <div class="data-row"><span class="data-label">Deezer ID:</span> <b>${rawData.album.artist.id}</b></div>
+            <div class="data-row"><span class="data-label">Cidade ID:</span> <b>${cityId} (${cityName})</b></div>
+            <div class="data-row"><span class="data-label">Idioma:</span> <b>${lang}</b></div>
+            <div class="data-row"><span class="data-label">Rating:</span> <b>${artRating}</b></div>
+        `;
+
+        // TBL_ALBUMS
+        const releaseYear = rawData.album.release_date.split('-')[0];
+        document.getElementById('review_album').innerHTML = `
+            <div class="data-row"><span class="data-label">Álbum:</span> <b>${rawData.album.title}</b></div>
+            <div class="data-row"><span class="data-label">Ano:</span> <b>${releaseYear}</b></div>
+            <div class="data-row"><span class="data-label">Data Lanç.:</span> <b>${rawData.album.release_date}</b></div>
+            <div class="data-row"><span class="data-label">Deezer ID:</span> <b>${rawData.album.id}</b></div>
+            <div class="data-row"><span class="data-label">Capa ID:</span> <b>${rawData.album.cover_id}</b></div>
+        `;
+
+        // TBL_TRACKS
+        document.getElementById('review_tracks').innerHTML = rawData.tracks.map(t => `
+            <div class="track-row">
+                <span>${t.track_position}</span>
+                <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</span>
+                <span>${fmtMSS(t.duration)}</span>
+                <span style="font-size:0.7rem; color:var(--accent)">${t.id}</span>
+            </div>
+        `).join('');
+    }
+
+    // --- GEOGRAFIA ---
+    async function loadCountries() {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_countries?select=*&order=portuguese_name`, { headers: { apikey: KEY_SB } });
+        globalCountries = await res.json();
+        document.getElementById('countries_list').innerHTML = globalCountries.map(c => `<option value="${c.portuguese_name}">`).join('');
+    }
+
+    async function onCountrySelect(val) {
+        const country = globalCountries.find(c => c.portuguese_name === val);
+        if (!country) return;
+        document.getElementById('id_country').value = country.id_country;
+        
+        const needsState = [25, 64].includes(country.id_country);
+        document.getElementById('state_group').classList.toggle('hidden', !needsState);
+        
+        if (needsState) await loadStates(country.id_country);
+        else await loadCities(country.id_country, null);
+    }
+
+    async function loadStates(cid) {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_states?id_country=eq.${cid}&order=name`, { headers: { apikey: KEY_SB } });
+        const states = await res.json();
+        const sel = document.getElementById('id_state');
+        sel.innerHTML = '<option value="">Estado...</option>' + states.map(s => `<option value="${s.id_state}">${s.name}</option>`).join('');
+    }
+
+    async function onStateSelect() {
+        loadCities(document.getElementById('id_country').value, document.getElementById('id_state').value);
+    }
+
+    async function loadCities(cid, sid) {
+        let url = `${URL_SB}/rest/v1/tbl_cities?id_country=eq.${cid}&order=name`;
+        if(sid) url += `&id_state=eq.${sid}`;
+        const res = await fetch(url, { headers: { apikey: KEY_SB } });
+        const cities = await res.json();
+        const sel = document.getElementById('id_city');
+        sel.innerHTML = '<option value="">Cidade...</option>' + cities.map(c => `<option value="${c.id_city}">${c.name}</option>`).join('');
+        sel.onchange = updateReview;
+    }
+
+    function fillGeo(obj) {
+        if (!obj) return;
+        document.getElementById('language').value = obj.language || "portugues";
+        document.getElementById('art_rating').value = obj.rating || "1";
+        // Lógica para setar país/cidade vinda do banco se necessário
+    }
+
+    function fmtMSS(s){return(s-(s%=60))/60+(9<s?':':':0')+s}
+
+    async function saveToDatabase() {
+        alert("Integrando com Supabase RPC... Dados prontos para envio!");
+        // Aqui chamaremos a função SQL (RPC) para garantir que artistas, álbuns e tracks sejam inseridos em uma única transação.
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Coletor de IDs e URLs - Rock Archive</title>
+    <style>
+        body { font-family: sans-serif; padding: 30px; background: #121212; color: white; }
+        textarea { width: 100%; height: 200px; background: #222; color: #0f0; border: 1px solid #444; padding: 10px; }
+        button { background: #e63946; color: white; border: none; padding: 15px 30px; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        #log { margin-top: 20px; font-family: monospace; font-size: 12px; height: 200px; overflow-y: scroll; border: 1px solid #333; padding: 10px; background: #000; }
+    </style>
+</head>
+<body>
+    <h2>1. Cole seu CSV aqui (Artista;Álbum)</h2>
+    <textarea id="entrada" placeholder="Joe Satriani;Black Swans and Wormhole Wizards..."></textarea>
+    <br><br>
+    <button onclick="iniciarColeta()">Processar e Gerar JSON</button>
+
+    <div id="log">Aguardando início...</div>
+
+    <script>
+        async function iniciarColeta() {
+            const texto = document.getElementById('entrada').value;
+            const linhas = texto.split('\n').filter(l => l.includes(';'));
+            const log = document.getElementById('log');
+            const resultados = [];
+
+            log.innerHTML = "Iniciando processamento de " + linhas.length + " álbuns...<br>";
+
+            for (let linha of linhas) {
+                const [artista, album] = linha.split(';');
+                try {
+                    const busca = encodeURIComponent(`${artista} ${album}`);
+                    const response = await fetch(`https://itunes.apple.com/search?term=${busca}&entity=album&limit=1`);
+                    const data = await response.json();
+
+                    if (data.results.length > 0) {
+                        const res = data.results[0];
+                        
+                        // Otimizamos o JSON salvando apenas o essencial
+                        // "u" será a URL da imagem SEM o tamanho final (ex: .../image.jpg/)
+                        const urlBase = res.artworkUrl100.split('100x100bb.jpg')[0];
+
+                        resultados.push({
+                            a: res.artistName,
+                            t: res.collectionName,
+                            u: urlBase,
+                            p: res.country,
+                            d: Math.floor(res.trackTimeMillis / 60000),
+                            l: res.collectionViewUrl
+                        });
+                        log.innerHTML += `<span style="color: #0f0">? ${res.collectionName}</span><br>`;
+                    } else {
+                        log.innerHTML += `<span style="color: #f00">? Não encontrado: ${album}</span><br>`;
+                    }
+                } catch (err) {
+                    log.innerHTML += `<span style="color: #ff0">?? Erro na conexão para: ${album}</span><br>`;
+                }
+                log.scrollTop = log.scrollHeight;
+                // Pausa curta para não sobrecarregar a API
+                await new Promise(r => setTimeout(r, 150));
+            }
+
+            // Gera o download do arquivo JSON
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(resultados));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "meus_albuns.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+            
+            log.innerHTML += "<br><strong>CONCLUÍDO! O arquivo meus_albuns.json foi baixado.</strong>";
+        }
+    </script>
+</body>
+</html>

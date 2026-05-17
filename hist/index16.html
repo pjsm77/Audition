@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lista de Contatos e Ranking Dinâmico</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+:root { font-family: 'Bebas Neue', cursive; }
+body { background-color:#f7f9fb; }
+
+.details-panel {
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .3s cubic-bezier(0.25,0.8,0.25,1);
+}
+.details-panel.open {
+    max-height:1000px;
+    transition:max-height .6s cubic-bezier(0.25,0.8,0.25,1);
+}
+
+.contact-card:hover,
+.ranking-card:hover,
+.sta-card:hover {
+    transform: scale(1.002);
+}
+
+.hidden-filter-btn {
+    visibility:hidden;
+    opacity:0;
+}
+.visible-filter-btn {
+    visibility:visible;
+    opacity:1;
+}
+
+/* ===== AJUSTES EXCLUSIVOS ABA RAN ===== */
+.ran-card {
+    background:#ffffff;
+    padding:6px 8px;
+    margin:2px 0;
+    border-radius:6px;
+}
+.ran-name {
+    font-size:13px;
+    line-height:1.1;
+}
+.ran-flag {
+    width:32px;
+    height:24px;
+    cursor:pointer;
+}
+</style>
+</head>
+
+<body class="min-h-screen p-2 sm:p-4">
+<div class="max-w-4xl mx-auto">
+<div class="bg-white p-2 sm:p-3 rounded-2xl shadow-xl border border-gray-100">
+
+<div id="sheet-nav" class="mb-3 flex flex-wrap gap-2 justify-center"></div>
+
+<div id="search-controls-container">
+    <div class="mb-3">
+        <input id="search-input" type="text"
+               class="w-full p-3 border border-gray-200 rounded-xl"
+               placeholder="Pesquisar por artista, álbum, ano...">
+    </div>
+    <div id="sort-controls" class="mb-3 p-3 bg-gray-50 rounded-xl"></div>
+</div>
+
+<div id="results-count"
+     class="text-sm text-gray-500 mb-3 px-1"></div>
+
+<div id="status-message"
+     class="text-center text-lg text-gray-600 p-4 rounded-xl bg-yellow-50 shadow-inner">
+Carregando dados da Planilha...
+</div>
+
+<div id="contact-list" class="space-y-1"></div>
+
+<div id="no-results"
+     class="hidden text-center text-xl text-gray-400 p-10">
+Nenhum resultado encontrado.
+</div>
+
+</div>
+</div>
+
+<script>
+/* =====================================================
+   CONFIG
+=====================================================*/
+const SHEET_ID = "1QCyU_zShDAWzsZm1G-8cMUamrMdUOvyc3AIXtnhfiUw";
+
+const SHEETS_CONFIG = [
+    { name: 'Alb', gid: '0' },
+    { name: 'Artists', gid: '60086446' },
+    { name: 'Ran', gid: '1085390429' },
+    { name: 'Sta', gid: '45947330' }
+];
+
+let currentSheet = SHEETS_CONFIG[0];
+let allData = [];
+let activeCountryFilter = null;
+
+/* =====================================================
+   DOM
+=====================================================*/
+const contactList  = document.getElementById("contact-list");
+const statusMessage= document.getElementById("status-message");
+const searchInput = document.getElementById("search-input");
+const resultsCount= document.getElementById("results-count");
+const sheetNav    = document.getElementById("sheet-nav");
+
+const getSheetUrl = gid =>
+`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+/* =====================================================
+   UTILS
+=====================================================*/
+function parseSheetData(jsonText){
+    const json = JSON.parse(
+        jsonText.substring(
+            jsonText.indexOf("(")+1,
+            jsonText.lastIndexOf(")")
+        )
+    );
+
+    const headers = json.table.cols.map(col => col.label || col.id);
+    const rows = [];
+
+    json.table.rows.forEach(row=>{
+        const obj = {};
+        row.c.forEach((cell,i)=>{
+            obj[headers[i]] = cell?.f ?? cell?.v ?? '';
+        });
+        rows.push(obj);
+    });
+
+    rows.shift();
+    return rows;
+}
+
+function getColumnKeyByIndex(index){
+    if(!allData[0]) return null;
+    return Object.keys(allData[0])[index];
+}
+
+/* =====================================================
+   PROCESSAMENTO
+=====================================================*/
+function processRankingData(rawData){
+
+    if (currentSheet.name === 'Ran') {
+
+        const keyPos = getColumnKeyByIndex(0);
+
+        rawData.sort((a,b)=>{
+            const pa = parseInt(a[keyPos]) || 9999;
+            const pb = parseInt(b[keyPos]) || 9999;
+            return pa - pb;
+        });
+
+        return rawData;
+    }
+
+    if (currentSheet.name === 'Artists') {
+
+        const keyScore = getColumnKeyByIndex(11);
+
+        rawData.sort((a,b)=>{
+            const va = parseFloat(String(a[keyScore]).replace(',','.')) || 0;
+            const vb = parseFloat(String(b[keyScore]).replace(',','.')) || 0;
+            return vb - va;
+        });
+
+        return rawData.map((row,i)=>({
+            ...row,
+            calculated_rank: i+1
+        }));
+    }
+
+    return rawData;
+}
+
+/* =====================================================
+   CARDS
+=====================================================*/
+function createExplicitRankingCard(row){
+
+    const keyPos   = getColumnKeyByIndex(0);   // A
+    const keyName  = getColumnKeyByIndex(1);   // B
+    const keyCtry  = getColumnKeyByIndex(2);   // C
+    const keyScore = getColumnKeyByIndex(3);   // D
+    const keyRate  = getColumnKeyByIndex(6);   // G
+
+    const pos  = row[keyPos];
+    const name = row[keyName] || 'ARTISTA';
+    const ctr  = String(row[keyCtry]||'').toLowerCase();
+    const pts  = parseFloat(row[keyScore]||0)
+                   .toLocaleString('pt-BR',{minimumFractionDigits:2});
+
+    const rate = parseInt(row[keyRate]) || 1;
+
+    let nameColor = "text-red-600";
+    if (rate === 3) nameColor = "text-green-600";
+    else if (rate === 2) nameColor = "text-yellow-500";
+
+    const flag = ctr.length>=2
+        ? `<img class="ran-flag"
+                 onclick="applyCountryFilter('${ctr}')"
+                 src="https://flagcdn.com/32x24/${ctr}.png">`
+        : "";
+
+    const card = document.createElement("div");
+    card.className =
+        "ran-card flex items-center gap-2 shadow-sm border";
+
+    card.innerHTML = `
+        <div class="text-xs w-7 text-center font-bold">${pos}</div>
+        ${flag}
+        <div class="flex-grow">
+            <div class="ran-name font-bold ${nameColor}">
+                ${name.toUpperCase()}
+            </div>
+        </div>
+        <div class="text-right text-xs">
+            <div class="text-gray-400">PTS</div>
+            <div class="text-indigo-600 font-bold">${pts}</div>
+        </div>
+    `;
+
+    return card;
+}
+
+/* =====================================================
+   FILTRO PAÍS
+=====================================================*/
+function applyCountryFilter(country){
+    activeCountryFilter = country;
+    renderData(allData);
+}
+function clearCountryFilter(){
+    activeCountryFilter = null;
+    renderData(allData);
+}
+
+/* =====================================================
+   RENDER
+=====================================================*/
+function createGenericCard(row){
+    const div = document.createElement("div");
+    div.className =
+        "contact-card bg-white p-2 rounded shadow";
+    div.innerHTML =
+        Object.values(row)
+              .map(v=>`<div class="text-xs">${v}</div>`)
+              .join("");
+    return div;
+}
+
+function renderData(data){
+
+    contactList.innerHTML = "";
+
+    let displayData = data;
+
+    if (currentSheet.name === 'Ran' && activeCountryFilter) {
+
+        const keyCtry = getColumnKeyByIndex(2);
+
+        displayData = data.filter(row =>
+            String(row[keyCtry]||"").toLowerCase() === activeCountryFilter
+        );
+
+        const btn = document.createElement("button");
+        btn.textContent = "?? Mostrar Todos";
+        btn.className =
+            "mb-2 px-3 py-1 text-xs rounded bg-gray-200";
+        btn.onclick = clearCountryFilter;
+
+        contactList.appendChild(btn);
+    }
+
+    displayData.forEach(row=>{
+        if (currentSheet.name === 'Ran')
+            contactList.appendChild(createExplicitRankingCard(row));
+        else
+            contactList.appendChild(createGenericCard(row));
+    });
+
+    resultsCount.textContent =
+        `${displayData.length} registros`;
+}
+
+/* =====================================================
+   NAVEGAÇÃO
+=====================================================*/
+function renderSheetNavigation(){
+
+    sheetNav.innerHTML = "";
+
+    SHEETS_CONFIG.forEach(sheet=>{
+
+        const btn=document.createElement("button");
+
+        btn.textContent = sheet.name;
+        btn.className =
+            sheet.gid === currentSheet.gid
+                ? "bg-indigo-600 text-white px-3 py-1 rounded"
+                : "bg-gray-100 px-3 py-1 rounded";
+
+        btn.onclick = ()=>{
+            activeCountryFilter = null;
+            currentSheet = sheet;
+            fetchData();
+            renderSheetNavigation();
+        };
+
+        sheetNav.appendChild(btn);
+    });
+}
+
+/* =====================================================
+   FETCH
+=====================================================*/
+async function fetchData(){
+
+    statusMessage.textContent =
+        `Carregando aba ${currentSheet.name}...`;
+
+    const res  = await fetch(getSheetUrl(currentSheet.gid));
+    const txt  = await res.text();
+
+    let data = parseSheetData(txt);
+
+    allData = data;
+
+    if (
+        currentSheet.name === 'Ran' ||
+        currentSheet.name === 'Artists'
+    ){
+        data = processRankingData(data);
+    }
+
+    renderData(data);
+
+    statusMessage.textContent = "";
+}
+
+/* =====================================================
+   START
+=====================================================*/
+renderSheetNavigation();
+fetchData();
+</script>
+
+</body>
+</html>

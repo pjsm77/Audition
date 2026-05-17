@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Histórico Pro - Mobile Fit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { 
+            --primary: #1DB954; 
+            --bg: #ffffff; 
+            --row-even: #f8f8f8;
+            --text: #222;
+            --header-bg: #f1f1f1;
+            --border: #e0e0e0;
+        }
+
+        body { font-family: 'Bebas Neue', cursive; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; letter-spacing: 0.2px; overflow: hidden; }
+
+        /* HEADER FIXO */
+        .table-wrapper { width: 100%; height: 92vh; overflow: auto; border: 1px solid var(--border); position: relative; background: white; }
+        table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12px; min-width: 1300px; }
+        th { background: var(--header-bg); position: sticky; top: 0; z-index: 900; padding: 8px 4px; border-bottom: 2px solid #ddd; text-align: left; }
+        
+        /* Colunas Fixas */
+        th:nth-child(1), td:nth-child(1) { position: sticky; left: 0; z-index: 400; width: 32px; background: white; border-right: 1px solid #ddd; color: var(--primary); cursor: pointer; }
+        th:nth-child(2), td:nth-child(2) { position: sticky; left: 33px; z-index: 400; min-width: 100px; background: white; border-right: 1px solid #ddd; }
+        th:nth-child(3), td:nth-child(3) { position: sticky; left: 144px; z-index: 400; width: 60px; background: #fff; border-right: 2px solid #ccc; cursor: pointer; }
+
+        td { padding: 6px 5px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: left; }
+        tbody tr:nth-child(even) td { background-color: var(--row-even); }
+
+        /* RODAPÉ E PAGINAÇÃO */
+        .footer-controls { 
+            height: 8vh; background: #f9f9f9; display: flex; align-items: center; 
+            justify-content: space-around; border-top: 1px solid #ddd; padding: 0 10px;
+        }
+        .btn-footer { background: none; border: none; font-size: 20px; cursor: pointer; padding: 5px 10px; }
+        .pagination-select { font-family: 'Bebas Neue'; border-radius: 5px; padding: 2px; }
+
+        /* BUSCA OVERLAY */
+        #search-overlay {
+            display: none; position: fixed; bottom: 8vh; left: 0; width: 100%; 
+            background: white; padding: 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 2000;
+        }
+        #globalSearch { width: 80%; padding: 10px; border-radius: 20px; border: 1px solid #ccc; font-family: sans-serif; }
+
+        /* DETALHES MODAL */
+        #detail-overlay { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: white; z-index: 3000; padding: 10px; box-sizing: border-box; overflow-y: auto;
+        }
+        .tab-btn { background: #eee; border: none; padding: 10px 5px; font-family: 'Bebas Neue'; cursor: pointer; flex: 1; font-size: 14px; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .artist-box { display: flex; align-items: center; gap: 4px; }
+        .flag-icon { width: 14px; height: 10px; border: 0.5px solid #bbb; }
+        .puan-col { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="main-view">
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr id="table-header">
+                    <th onclick="setSort('scrobbles')">#</th>
+                    <th onclick="setSort('artist')">ARTISTA</th>
+                    <th onclick="setSort('scrobbles')">TOTAL</th>
+                    <th onclick="setSort('dias_ultimo')">DIAS</th>
+                    <th onclick="setSort('country')">PAÍS</th>
+                    <th onclick="setSort('city')">CIDADE</th>
+                    <th onclick="setSort('primeiro_ano')">INÍCIO</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div id="search-overlay">
+        <div style="display:flex; gap:10px; align-items:center;">
+            <input type="text" id="globalSearch" placeholder="BUSCAR ARTISTA...">
+            <button onclick="clearFilters()" style="background:#eee; border:none; padding:8px 12px; border-radius:5px; font-family:'Bebas Neue';">LIMPAR</button>
+        </div>
+    </div>
+
+    <div class="footer-controls">
+        <button class="btn-footer" onclick="toggleSearch()">🔍</button>
+        <button class="btn-footer" id="prevBtn">«</button>
+        <select id="selectPage" class="pagination-select" onchange="goToPage(this.value)"></select>
+        <button class="btn-footer" id="nextBtn">»</button>
+        <button class="btn-footer" onclick="clearFilters()">🔄</button>
+    </div>
+</div>
+
+<div id="detail-overlay">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; border-bottom:2px solid var(--primary); padding-bottom:10px;">
+        <button onclick="closeDetails()" style="background:none; border:none; font-size:24px;">✕</button>
+        <div id="detail-artist-info" class="artist-box" style="font-size: 18px;"></div>
+    </div>
+
+    <div style="display:flex; gap:5px; margin-bottom:10px;">
+        <button id="tab-songs" class="tab-btn active" onclick="switchTab('songs')">MÚSICAS (0)</button>
+        <button id="tab-albums" class="tab-btn" onclick="switchTab('albums')">ÁLBUNS (0)</button>
+    </div>
+
+    <div class="table-wrapper" style="height: 75vh;">
+        <table style="min-width: unset; width: 100%;">
+            <thead>
+                <tr>
+                    <th style="width:40px">#</th>
+                    <th onclick="sortDetails('count')" style="width:80px; cursor:pointer;">TOTAL</th>
+                    <th onclick="sortDetails('title')" style="cursor:pointer;">TÍTULO</th>
+                </tr>
+            </thead>
+            <tbody id="detail-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullRawData = [], filteredData = [], offset = 0;
+    const limit = 50;
+    let sortCol = 'scrobbles', sortAsc = false;
+    let currentFilter = { type: null, value: null };
+
+    let detailData = { songs: [], albums: [] };
+    let currentTab = 'songs';
+    let detailSortAsc = false;
+
+    const countryMap = { "brasil": "br", "estados unidos": "us", "eua": "us", "argentina": "ar", "alemanha": "de", "frança": "fr", "itália": "it", "espanha": "es", "japão": "jp", "canadá": "ca", "austrália": "au", "portugal": "pt", "méxico": "mx", "suécia": "se", "noruega": "no", "finlândia": "fi", "holanda": "nl", "países baixos": "nl", "polônia": "pl", "bulgária": "bg", "colômbia": "co", "chile": "cl", "uruguai": "uy", "bélgica": "be", "dinamarca": "dk", "islândia": "is", "peru": "pe", "estônia": "ee", "hungria": "hu", "irlanda": "ie", "áfrica do sul": "za", "rússia": "ru", "inglaterra": "gb-eng", "escócia": "gb-sct", "país de gales": "gb-wls" };
+    const years = [];
+    for (let i = 26; i >= 14; i--) years.push(i);
+
+    const headerRow = document.getElementById('table-header');
+    const inicioTh = headerRow.lastElementChild;
+    years.forEach(y => {
+        const th = document.createElement('th');
+        th.style.fontSize = "9px";
+        th.innerText = `'${y}`;
+        th.onclick = () => setSort(`y${y}`);
+        headerRow.insertBefore(th, inicioTh);
+    });
+
+    async function fetchData() {
+        const { data, error } = await _supabase.rpc('get_artist_ranking_full', { search_term: '' });
+        if (!error) {
+            fullRawData = data || [];
+            applyLogic();
+        }
+    }
+
+    function applyLogic() {
+        const gs = document.getElementById('globalSearch').value.toLowerCase();
+        filteredData = fullRawData.filter(item => {
+            const nameMatch = item.artist.toLowerCase().includes(gs);
+            const countryMatch = !currentFilter.type || (currentFilter.type === 'country' && item.country === currentFilter.value);
+            const cityMatch = !currentFilter.type || (currentFilter.type === 'city' && item.city === currentFilter.value);
+            return nameMatch && (currentFilter.type ? (countryMatch || cityMatch) : true);
+        });
+
+        filteredData.sort((a, b) => {
+            let vA = a[sortCol] ?? -1; let vB = b[sortCol] ?? -1;
+            return sortAsc ? (vA - vB) : (vB - vA);
+        });
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+        
+        tbody.innerHTML = paged.map((item, index) => {
+            const flagCode = countryMap[(item.country || "").toLowerCase().trim()] || "un";
+            const yearCells = years.map(y => `<td style="color:${(item[`y${y}`]||0)>0?'#000':'#ccc'}">${item[`y${y}`] || '-'}</td>`).join('');
+
+            return `
+            <tr>
+                <td onclick="openDeezer('${item.artist.replace(/'/g, "\\'")}')">${offset + index + 1}</td>
+                <td>
+                    <div class="artist-box">
+                        <img class="flag-icon" src="https://flagcdn.com/w20/${flagCode}.png">
+                        <a style="color:#003399; font-weight:bold; text-decoration:none;" href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank">${item.artist}</a>
+                    </div>
+                </td>
+                <td class="puan-col" onclick="showDetails('${item.artist.replace(/'/g, "\\'")}', '${flagCode}', ${item.scrobbles})">${item.scrobbles.toLocaleString('pt-BR')}</td>
+                <td>${item.dias_ultimo ?? '-'}</td>
+                <td style="cursor:pointer" onclick="toggleQuickFilter('country', '${item.country}')">${item.country || '-'}</td>
+                <td style="cursor:pointer" onclick="toggleQuickFilter('city', '${item.city}')">${item.city || '-'}</td>
+                ${yearCells}
+                <td>${item.primeiro_ano || '-'}</td>
+            </tr>`;
+        }).join('');
+        updatePaginationUI();
+    }
+
+    // --- FILTROS E BUSCA ---
+    function toggleSearch() {
+        const el = document.getElementById('search-overlay');
+        el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+        if(el.style.display === 'block') document.getElementById('globalSearch').focus();
+    }
+
+    function toggleQuickFilter(type, value) {
+        if (!value || value === '-') return;
+        currentFilter = (currentFilter.type === type && currentFilter.value === value) ? { type: null, value: null } : { type, value };
+        offset = 0;
+        applyLogic();
+    }
+
+    // --- DETALHES ---
+    async function showDetails(artist, flag, total) {
+        document.getElementById('detail-overlay').style.display = 'block';
+        document.getElementById('detail-artist-info').innerHTML = `
+            <img class="flag-icon" style="width:20px; height:14px" src="https://flagcdn.com/w40/${flag}.png">
+            <span>${artist}</span> <span style="color:var(--primary); margin-left:10px">${total.toLocaleString('pt-BR')}</span>
+        `;
+        const [resSongs, resAlbums] = await Promise.all([
+            _supabase.from('scrobbles_test').select('song').eq('artist', artist),
+            _supabase.from('scrobbles_test').select('album').eq('artist', artist)
+        ]);
+        const songCounts = {}; resSongs.data.forEach(r => songCounts[r.song] = (songCounts[r.song] || 0) + 1);
+        detailData.songs = Object.entries(songCounts).map(([title, count]) => ({ title, count }));
+        const albumCounts = {}; resAlbums.data.forEach(r => { const a = r.album || '[Desconhecido]'; albumCounts[a] = (albumCounts[a] || 0) + 1; });
+        detailData.albums = Object.entries(albumCounts).map(([title, count]) => ({ title, count }));
+        
+        document.getElementById('tab-songs').innerText = `MÚSICAS (${detailData.songs.length})`;
+        document.getElementById('tab-albums').innerText = `ÁLBUNS (${detailData.albums.length})`;
+        detailSortAsc = true; sortDetails('count'); 
+    }
+
+    function sortDetails(col) {
+        detailSortAsc = !detailSortAsc;
+        detailData[currentTab].sort((a, b) => col === 'count' ? (detailSortAsc ? a.count - b.count : b.count - a.count) : (detailSortAsc ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title)));
+        const tbody = document.getElementById('detail-body');
+        tbody.innerHTML = detailData[currentTab].map((item, i) => `<tr><td style="color:#999">${i+1}</td><td class="puan-col">${item.count}</td><td>${item.title}</td></tr>`).join('');
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        detailSortAsc = true; sortDetails('count');
+    }
+
+    function closeDetails() { document.getElementById('detail-overlay').style.display = 'none'; }
+
+    function openDeezer(artist) {
+        const callbackName = 'dz_' + Math.floor(Math.random() * 100000);
+        window[callbackName] = function(data) {
+            if (data.data && data.data.length > 0) { window.location.href = `deezer://www.deezer.com/artist/${data.data[0].id}`; }
+            else { window.open(`https://www.deezer.com/search/${encodeURIComponent(artist)}`, '_blank'); }
+            delete window[callbackName];
+        };
+        const script = document.createElement('script');
+        script.src = `https://api.deezer.com/search/artist?q=${encodeURIComponent(artist)}&output=jsonp&callback=${callbackName}`;
+        document.body.appendChild(script);
+    }
+
+    function updatePaginationUI() {
+        const totalPages = Math.ceil(filteredData.length / limit) || 1;
+        const select = document.getElementById('selectPage');
+        select.innerHTML = Array.from({length: totalPages}, (_, i) => `<option value="${i+1}" ${i+1 === Math.floor(offset/limit)+1 ? 'selected' : ''}>PÁG ${i+1}</option>`).join('');
+    }
+
+    function setSort(col) { if (sortCol === col) sortAsc = !sortAsc; else { sortCol = col; sortAsc = false; } offset = 0; applyLogic(); }
+    function goToPage(p) { offset = (p - 1) * limit; renderTable(); }
+    function clearFilters() { 
+        document.getElementById('globalSearch').value = ''; 
+        currentFilter = { type: null }; 
+        document.getElementById('search-overlay').style.display = 'none';
+        fetchData(); 
+    }
+    
+    document.getElementById('globalSearch').oninput = () => { offset = 0; applyLogic(); };
+    document.getElementById('nextBtn').onclick = () => { if (offset + limit < filteredData.length) { offset += limit; renderTable(); } };
+    document.getElementById('prevBtn').onclick = () => { if (offset > 0) { offset -= limit; renderTable(); } };
+
+    fetchData();
+</script>
+</body>
+</html>

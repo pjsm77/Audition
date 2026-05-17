@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Pro - Mobile Friendly</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; --link: #1DB954; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .container { max-width: 1200px; margin: auto; }
+        
+        /* Controles Superiores */
+        .controls-wrapper { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .search-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        #globalSearch { flex: 1; padding: 12px; border-radius: 5px; border: 1px solid #333; background: #2a2a2a; color: white; font-size: 16px; }
+        .btn-clear { background: #444; color: white; border: none; padding: 0 15px; border-radius: 5px; cursor: pointer; }
+
+        /* Tabela Responsiva */
+        .table-wrapper { background: var(--surface); border-radius: 8px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        
+        /* Esconder cabeçalho em Mobile */
+        @media (max-width: 768px) {
+            thead { display: none; }
+            tr { display: block; margin-bottom: 15px; border: 1px solid #333; border-radius: 8px; padding: 10px; background: #252525; }
+            td { display: flex; justify-content: space-between; padding: 8px 5px; border: none; text-align: right; border-bottom: 1px solid #333; }
+            td:last-child { border-bottom: none; }
+            td::before { content: attr(data-label); font-weight: bold; color: var(--primary); text-align: left; }
+            td .rank-badge { margin-left: auto; }
+        }
+
+        @media (min-width: 769px) {
+            th { background: #282828; padding: 12px; border-bottom: 2px solid var(--primary); text-align: left; font-size: 13px; }
+            td { padding: 12px; border-bottom: 1px solid #333; }
+        }
+
+        /* Paginação Avançada */
+        .pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 15px; padding: 20px; background: #282828; border-radius: 0 0 8px 8px; }
+        .page-selector { display: flex; align-items: center; gap: 8px; background: #121212; padding: 5px 10px; border-radius: 5px; }
+        #selectPage { background: #2a2a2a; color: white; border: 1px solid #444; padding: 5px; border-radius: 3px; }
+        .btn-pag { background: var(--primary); border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; color: black; }
+        .btn-pag:disabled { background: #444; cursor: not-allowed; }
+
+        /* Estilos de Conteúdo */
+        .header-content { display: flex; flex-direction: column; gap: 5px; }
+        .col-filter { padding: 5px; font-size: 11px; border-radius: 3px; border: 1px solid #444; background: #121212; color: white; }
+        .rank-badge { background: #333; padding: 2px 8px; border-radius: 4px; color: var(--primary); font-weight: bold; }
+        .long-time { color: #ff5555; }
+        .clickable { cursor: pointer; text-decoration: underline; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls-wrapper">
+        <div class="search-row">
+            <input type="text" id="globalSearch" placeholder="Busca Global...">
+            <button class="btn-clear" onclick="clearFilters()">Limpar</button>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table id="mainTable">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">#</th>
+                    <th>
+                        <div class="header-content">
+                            <span>Artista</span>
+                            <input type="text" id="f-art" class="col-filter" oninput="updateColFilter('artist', this.value)">
+                        </div>
+                    </th>
+                    <th>País</th>
+                    <th>Cidade</th>
+                    <th>Início</th>
+                    <th>Dias</th>
+                    <th>Scrobbles</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button class="btn-pag" id="prevBtn">«</button>
+            
+            <div class="page-selector">
+                <span>Pág:</span>
+                <select id="selectPage" onchange="goToPage(this.value)"></select>
+                <span id="totalPagesLabel">de 1</span>
+            </div>
+
+            <button class="btn-pag" id="nextBtn">»</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullData = [], filteredData = [], offset = 0;
+    const limit = 50;
+    let colFilters = { artist: '', country: '', city: '' };
+
+    function getFlagEmoji(c) {
+        const flags = {'Brasil': '🇧🇷', 'Portugal': '🇵🇹', 'USA': '🇺🇸', 'Germany': '🇩🇪', 'France': '🇫🇷', 'Japan': '🇯🇵'};
+        return flags[c] || (c ? '🏳️' : '');
+    }
+
+    async function fetchData() {
+        const gs = document.getElementById('globalSearch').value;
+        const { data, error } = await _supabase.rpc('get_artist_ranking_v3', { search_term: gs });
+        if (error) return;
+        fullData = data;
+        applyFilters();
+    }
+
+    function applyFilters() {
+        filteredData = fullData.filter(item => 
+            (item.artist || '').toLowerCase().includes(colFilters.artist.toLowerCase()) &&
+            (item.country || '').toLowerCase().includes(colFilters.country.toLowerCase()) &&
+            (item.city || '').toLowerCase().includes(colFilters.city.toLowerCase())
+        );
+        updatePagination();
+        renderTable();
+    }
+
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredData.length / limit) || 1;
+        const select = document.getElementById('selectPage');
+        const currentPage = (offset / limit) + 1;
+        
+        let options = '';
+        for (let i = 1; i <= totalPages; i++) {
+            options += `<option value="${i}" ${i === currentPage ? 'selected' : ''}>${i}</option>`;
+        }
+        select.innerHTML = options;
+        document.getElementById('totalPagesLabel').innerText = `de ${totalPages}`;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+        
+        tbody.innerHTML = paged.map((item, index) => `
+            <tr>
+                <td data-label="Rank"><span class="rank-badge">${offset + index + 1}</span></td>
+                <td data-label="Artista"><a href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank">${item.artist}</a></td>
+                <td data-label="País" class="clickable" onclick="quickFilter('country', '${item.country}')">${getFlagEmoji(item.country)} ${item.country || '-'}</td>
+                <td data-label="Cidade" class="clickable" onclick="quickFilter('city', '${item.city}')">${item.city || '-'}</td>
+                <td data-label="Início">${item.primeiro_ano}</td>
+                <td data-label="Dias" class="${item.dias_ultimo > 365 ? 'long-time' : ''}">${item.dias_ultimo === 0 ? 'Hoje' : item.dias_ultimo}</td>
+                <td data-label="Scrobbles"><strong>${item.scrobbles.toLocaleString('pt-BR')}</strong></td>
+            </tr>
+        `).join('');
+    }
+
+    function goToPage(page) { offset = (page - 1) * limit; renderTable(); }
+    function quickFilter(col, val) { if(!val || val === '-') return; colFilters[col] = val; offset = 0; applyFilters(); }
+    function updateColFilter(col, val) { colFilters[col] = val; offset = 0; applyFilters(); }
+    function clearFilters() { 
+        colFilters = { artist: '', country: '', city: '' }; 
+        document.getElementById('globalSearch').value = '';
+        document.getElementById('f-art').value = '';
+        offset = 0; fetchData(); 
+    }
+
+    document.getElementById('globalSearch').oninput = () => { offset = 0; fetchData(); };
+    document.getElementById('nextBtn').onclick = () => { if((offset + limit) < filteredData.length) { offset += limit; updatePagination(); renderTable(); } };
+    document.getElementById('prevBtn').onclick = () => { if(offset > 0) { offset -= limit; updatePagination(); renderTable(); } };
+
+    fetchData();
+</script>
+</body>
+</html>

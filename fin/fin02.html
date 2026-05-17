@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meu Finanças V2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fff; color: #1a1a1a; }
+        .bar-glow { box-shadow: inset 0 1px 1px rgba(255,255,255,0.3); }
+        .transition-all-custom { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const FinanceApp = () => {
+            const [currentMonthIdx, setCurrentMonthIdx] = useState(2); // Março 2026
+            const [expandedCat, setExpandedCat] = useState(null);
+            const [expandedSub, setExpandedSub] = useState(null);
+            const [allExpanded, setAllExpanded] = useState(false);
+
+            const months = ["Janeiro 2026", "Fevereiro 2026", "Março 2026"];
+
+            // Dados Fictícios Ampliados
+            const data = {
+                "Março 2026": {
+                    receita: 12000,
+                    categorias: [
+                        { 
+                            id: 'CASA', budget: 3000, sub: [
+                                { label: 'Luz', budget: 800, gastos: [
+                                    { dia: '10', desc: 'CEEE Equatorial', valor: 245.15, parc: '1/1' },
+                                    { dia: '25', desc: 'Ajuste Retroativo', valor: 470.00, parc: '1/1' }
+                                ]},
+                                { label: 'Internet', budget: 150, gastos: [{ dia: '05', desc: 'Vivo Fibra', valor: 150, parc: '1/1' }]},
+                                { label: 'Manutenção', budget: 400, gastos: [{ dia: '12', desc: 'Reparo Torneira', valor: 450, parc: '1/1' }]}
+                            ]
+                        },
+                        { 
+                            id: 'CARRO', budget: 2000, sub: [
+                                { label: 'Combustível', budget: 400, gastos: [
+                                    { dia: '02', desc: 'Posto Ipiranga', valor: 220, parc: '1/1' },
+                                    { dia: '15', desc: 'Posto Shell', valor: 260, parc: '1/1' }
+                                ]},
+                                { label: 'Seguro', budget: 300, gastos: [{ dia: '10', desc: 'Porto Seguro', valor: 300, parc: '3/10' }]}
+                            ]
+                        },
+                        { id: 'COLÉGIO', budget: 1500, sub: [{ label: 'Mensalidade', budget: 1500, gastos: [{ dia: '05', desc: 'Escola XYZ', valor: 1500, parc: '3/12' }] }] },
+                        { id: 'PESSOAL', budget: 1000, sub: [{ label: 'Lazer', budget: 500, gastos: [{ dia: '20', desc: 'Cinema/Jantar', valor: 450, parc: '1/1' }] }] }
+                    ]
+                }
+            };
+
+            const currentData = data[months[currentMonthIdx]] || { receita: 0, categorias: [] };
+            const totalGasto = currentData.categorias.reduce((acc, cat) => acc + cat.sub.reduce((sAcc, s) => sAcc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0), 0);
+            
+            const getBarColor = (perc) => {
+                if (perc > 100) return 'bg-gradient-to-r from-red-500 to-red-600';
+                if (perc === 100) return 'bg-gradient-to-r from-yellow-400 to-yellow-500';
+                return 'bg-gradient-to-r from-green-400 to-green-500';
+            };
+
+            const toggleAll = () => {
+                setAllExpanded(!allExpanded);
+                setExpandedCat(null);
+                setExpandedSub(null);
+            };
+
+            const ProgressBar = ({ label, spent, budget, isSub = false, count = null }) => {
+                const perc = budget > 0 ? (spent / budget) * 100 : 0;
+                const visualWidth = Math.min(perc, 110);
+
+                return (
+                    <div className="w-full mb-3">
+                        <div className="flex justify-between items-end mb-1 px-1">
+                            <span className={`text-[11px] font-bold ${isSub ? 'text-gray-400' : 'text-gray-700'} uppercase`}>
+                                {label} {count !== null && <span className="text-[10px] text-gray-300 ml-1">({count})</span>}
+                            </span>
+                            <span className="text-[10px] font-mono font-bold text-gray-500">
+                                R$ {spent.toLocaleString('pt-BR', {minimumFractionDigits: 2})} / R$ {budget.toLocaleString('pt-BR')}
+                                <span className={`ml-1 ${perc > 100 ? 'text-red-500' : ''}`}> ({perc.toFixed(1)}%)</span>
+                            </span>
+                        </div>
+                        <div className="w-full bg-gray-100 h-3.5 rounded-full relative overflow-hidden shadow-inner border border-gray-50">
+                            <div 
+                                className={`h-full rounded-full transition-all-custom bar-glow ${getBarColor(perc)}`}
+                                style={{ width: `${visualWidth}%` }}
+                            />
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen bg-white pb-10">
+                    {/* Navegação Mês */}
+                    <div className="flex items-center justify-between p-6 sticky top-0 bg-white/90 backdrop-blur-md z-30">
+                        <button onClick={() => setCurrentMonthIdx(Math.max(0, currentMonthIdx - 1))} className="p-2 text-gray-300 hover:text-gray-600 font-bold">&lt;</button>
+                        <h1 className="text-sm font-black tracking-widest uppercase">{months[currentMonthIdx]}</h1>
+                        <button onClick={() => setCurrentMonthIdx(Math.min(months.length - 1, currentMonthIdx + 1))} className="p-2 text-gray-300 hover:text-gray-600 font-bold">&gt;</button>
+                    </div>
+
+                    {/* Barra TOTAL (Destaque Cinza) */}
+                    <div className="bg-gray-50 p-6 mb-4 border-y border-gray-100 shadow-sm">
+                        <ProgressBar label="TOTAL GERAL" spent={totalGasto} budget={currentData.receita} />
+                        <div className="flex justify-between mt-2 px-1">
+                            <div className="text-[10px] uppercase font-bold text-gray-400">Receitas: <span className="text-green-600">R$ {currentData.receita.toLocaleString('pt-BR')}</span></div>
+                            <div className="text-[10px] uppercase font-bold text-gray-400">Saldo: <span className={currentData.receita - totalGasto < 0 ? 'text-red-500' : 'text-blue-500'}>R$ {(currentData.receita - totalGasto).toLocaleString('pt-BR')}</span></div>
+                        </div>
+                    </div>
+
+                    {/* Expandir Tudo */}
+                    <div className="px-6 mb-4">
+                        <button onClick={toggleAll} className="text-[10px] font-bold text-blue-500 uppercase tracking-widest border border-blue-100 px-3 py-1 rounded-full hover:bg-blue-50 transition-colors">
+                            {allExpanded ? 'Recolher Tudo' : 'Expandir Tudo'}
+                        </button>
+                    </div>
+
+                    {/* Lista de Categorias */}
+                    <div className="px-6 space-y-4">
+                        {currentData.categorias.map(cat => {
+                            const catSpent = cat.sub.reduce((acc, s) => acc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0);
+                            const isCatOpen = allExpanded || expandedCat === cat.id;
+
+                            return (
+                                <div key={cat.id} className="border-b border-gray-50 pb-2">
+                                    <div onClick={() => setExpandedCat(isCatOpen ? null : cat.id)} className="cursor-pointer">
+                                        <ProgressBar label={cat.id} spent={catSpent} budget={cat.budget} count={cat.sub.length} />
+                                    </div>
+
+                                    {isCatOpen && (
+                                        <div className="mt-3 ml-4 space-y-3 animate-in fade-in duration-500">
+                                            {cat.sub.map(sub => {
+                                                const subSpent = sub.gastos.reduce((acc, g) => acc + g.valor, 0);
+                                                const isSubOpen = allExpanded || expandedSub === sub.label;
+
+                                                return (
+                                                    <div key={sub.label}>
+                                                        <div onClick={() => setExpandedSub(isSubOpen ? null : sub.label)} className="cursor-pointer">
+                                                            <ProgressBar label={sub.label} spent={subSpent} budget={sub.budget} isSub={true} count={sub.gastos.length} />
+                                                        </div>
+
+                                                        {isSubOpen && (
+                                                            <div className="bg-gray-50/50 rounded-xl p-3 my-2 space-y-2 border border-gray-100">
+                                                                {sub.gastos.map((g, idx) => (
+                                                                    <div key={idx} className="flex justify-between items-center text-[10px] border-b border-gray-100 last:border-0 pb-1 italic">
+                                                                        <div className="text-gray-400 font-bold">{g.dia}</div>
+                                                                        <div className="flex-1 px-3 text-gray-600 font-medium truncate">{g.desc}</div>
+                                                                        <div className="text-gray-800 font-bold">R$ {g.valor.toLocaleString('pt-BR')}</div>
+                                                                        <div className="ml-2 text-blue-400 font-black">{g.parc}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<FinanceApp />);
+    </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Music - Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; --link: #1DB954; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .container { max-width: 100%; margin: auto; }
+        
+        /* Controles */
+        .controls-wrapper { background: var(--surface); padding: 15px; border-radius: 12px 12px 0 0; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; }
+        .search-row { display: flex; gap: 10px; }
+        #globalSearch { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #444; background: #2a2a2a; color: white; font-size: 16px; }
+        .btn-clear { background: #444; border: none; color: white; padding: 0 20px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* Tabela */
+        .table-wrapper { background: var(--surface); overflow-x: auto; border-bottom: 1px solid #333; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        
+        th { background: #282828; padding: 12px 8px; border-bottom: 2px solid var(--primary); vertical-align: top; position: sticky; top: 0; }
+        .header-cell { display: flex; flex-direction: column; gap: 8px; }
+        .sort-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: bold; text-transform: uppercase; color: #aaa; }
+        .sort-btns { display: flex; gap: 4px; }
+        .sort-btns button { background: #3c3c3c; border: none; color: white; cursor: pointer; font-size: 10px; padding: 4px 6px; border-radius: 4px; transition: 0.2s; }
+        .sort-btns button:hover { background: var(--primary); }
+        .col-filter { padding: 6px; font-size: 11px; border-radius: 5px; border: 1px solid #444; background: #121212; color: white; width: 100%; box-sizing: border-box; }
+
+        /* Colunas de Anos */
+        .year-col-head { font-size: 10px; text-align: center; color: #777; width: 45px; }
+        .year-cell { text-align: center; font-size: 11px; color: #555; font-family: monospace; }
+        .year-cell.active { color: var(--primary); font-weight: bold; }
+
+        /* Responsividade */
+        @media (max-width: 800px) {
+            .col-country, .col-city, .col-start, .col-days { display: none; }
+        }
+
+        td { padding: 12px 8px; border-bottom: 1px solid #282828; font-size: 14px; white-space: nowrap; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        .rank-badge { color: var(--primary); font-weight: bold; font-family: monospace; }
+        .long-time { color: #ff5555; }
+        .clickable { cursor: pointer; }
+        .clickable:hover { color: var(--primary); }
+        a { color: var(--text); text-decoration: none; }
+        a:hover { color: var(--primary); text-decoration: underline; }
+
+        /* Paginação */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; padding: 20px; background: #1e1e1e; border-radius: 0 0 12px 12px; }
+        .btn-pag { background: #333; border: none; color: white; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-pag:hover:not(:disabled) { background: var(--primary); }
+        .btn-pag:disabled { opacity: 0.2; cursor: not-allowed; }
+        #selectPage { background: #121212; color: white; border: 1px solid #444; padding: 8px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls-wrapper">
+        <div class="search-row">
+            <input type="text" id="globalSearch" placeholder="🔍 Buscar artista no banco de dados...">
+            <button class="btn-clear" onclick="clearFilters()">Limpar</button>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr id="header-row">
+                    <th style="width: 40px;">#</th>
+                    <th class="col-artist">
+                        <div class="header-cell">
+                            <div class="sort-row"> Artista <div class="sort-btns">
+                                <button onclick="setSort('artist', true)">▲</button>
+                                <button onclick="setSort('artist', false)">▼</button>
+                            </div></div>
+                            <input type="text" id="f-artist" class="col-filter" placeholder="Filtrar..." oninput="updateColFilter('artist', this.value)">
+                        </div>
+                    </th>
+                    <th class="col-country">
+                        <div class="header-cell">
+                            <div class="sort-row"> País <div class="sort-btns">
+                                <button onclick="setSort('country', true)">▲</button>
+                                <button onclick="setSort('country', false)">▼</button>
+                            </div></div>
+                            <input type="text" id="f-country" class="col-filter" placeholder="Filtrar..." oninput="updateColFilter('country', this.value)">
+                        </div>
+                    </th>
+                    <th class="col-city">
+                        <div class="header-cell">
+                            <div class="sort-row"> Cidade <div class="sort-btns">
+                                <button onclick="setSort('city', true)">▲</button>
+                                <button onclick="setSort('city', false)">▼</button>
+                            </div></div>
+                        </div>
+                    </th>
+                    <th class="col-start">
+                        <div class="header-cell">
+                            <div class="sort-row"> Início <div class="sort-btns">
+                                <button onclick="setSort('primeiro_ano', true)">▲</button>
+                                <button onclick="setSort('primeiro_ano', false)">▼</button>
+                            </div></div>
+                        </div>
+                    </th>
+                    <th class="col-days">
+                        <div class="header-cell">
+                            <div class="sort-row"> Dias <div class="sort-btns">
+                                <button onclick="setSort('dias_ultimo', true)">▲</button>
+                                <button onclick="setSort('dias_ultimo', false)">▼</button>
+                            </div></div>
+                        </div>
+                    </th>
+                    <th class="col-scrobbles">
+                        <div class="header-cell">
+                            <div class="sort-row"> Total <div class="sort-btns">
+                                <button onclick="setSort('scrobbles', true)">▲</button>
+                                <button onclick="setSort('scrobbles', false)">▼</button>
+                            </div></div>
+                        </div>
+                    </th>
+                    </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        <button class="btn-pag" id="prevBtn">« Anterior</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span>Página</span>
+            <select id="selectPage" onchange="goToPage(this.value)"></select>
+            <span id="totalPagesLabel"></span>
+        </div>
+        <button class="btn-pag" id="nextBtn">Próxima »</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullData = [], filteredData = [], offset = 0;
+    const limit = 50;
+    let colFilters = { artist: '', country: '', city: '' };
+    let sortCol = 'scrobbles', sortAsc = false;
+
+    // Lista de anos para as colunas
+    const years = [26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14];
+
+    // Criar cabeçalhos de anos dinamicamente
+    const headerRow = document.getElementById('header-row');
+    years.forEach(y => {
+        const th = document.createElement('th');
+        th.className = 'year-col-head';
+        th.innerHTML = `'${y}<br><button style="font-size:8px; border:none; background:#444; color:white; cursor:pointer" onclick="setSort('y${y}', false)">▼</button>`;
+        headerRow.appendChild(th);
+    });
+
+    async function fetchData() {
+        const gs = document.getElementById('globalSearch').value;
+        // Sincronizado com a nova função get_artist_ranking_full
+        const { data, error } = await _supabase.rpc('get_artist_ranking_full', { search_term: gs });
+        
+        if (error) {
+            console.error(error);
+            return;
+        }
+        fullData = data || [];
+        applyFiltersAndSort();
+    }
+
+    function applyFiltersAndSort() {
+        filteredData = fullData.filter(item => 
+            (item.artist || '').toLowerCase().includes(colFilters.artist.toLowerCase()) &&
+            (item.country || '').toLowerCase().includes(colFilters.country.toLowerCase()) &&
+            (item.city || '').toLowerCase().includes(colFilters.city.toLowerCase())
+        );
+
+        filteredData.sort((a, b) => {
+            let vA = a[sortCol] ?? (sortAsc ? Infinity : -1);
+            let vB = b[sortCol] ?? (sortAsc ? Infinity : -1);
+            
+            if (typeof vA === 'string') {
+                return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+            }
+            return sortAsc ? vA - vB : vB - vA;
+        });
+
+        updatePaginationUI();
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+        
+        tbody.innerHTML = paged.map((item, index) => {
+            const yearCells = years.map(y => {
+                const val = item[`y${y}`] || 0;
+                return `<td class="year-cell ${val > 0 ? 'active' : ''}">${val > 0 ? val : '-'}</td>`;
+            }).join('');
+
+            return `
+                <tr>
+                    <td><span class="rank-badge">${offset + index + 1}</span></td>
+                    <td><strong><a href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank">${item.artist}</a></strong></td>
+                    <td class="col-country clickable" onclick="quickFilter('country', '${item.country}')">${item.country || '-'}</td>
+                    <td class="col-city clickable" onclick="quickFilter('city', '${item.city}')">${item.city || '-'}</td>
+                    <td class="col-start">${item.primeiro_ano || '-'}</td>
+                    <td class="col-days ${item.dias_ultimo > 365 ? 'long-time' : ''}">${item.dias_ultimo === 0 ? 'Hoje' : item.dias_ultimo}</td>
+                    <td style="text-align:right; font-weight:bold; color:var(--primary)">${(item.scrobbles || 0).toLocaleString('pt-BR')}</td>
+                    ${yearCells}
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function updatePaginationUI() {
+        const totalPages = Math.ceil(filteredData.length / limit) || 1;
+        const select = document.getElementById('selectPage');
+        const currentPage = (offset / limit) + 1;
+        
+        select.innerHTML = Array.from({length: totalPages}, (_, i) => 
+            `<option value="${i+1}" ${i+1 === currentPage ? 'selected' : ''}>${i+1}</option>`
+        ).join('');
+        
+        document.getElementById('totalPagesLabel').innerText = `de ${totalPages}`;
+        document.getElementById('prevBtn').disabled = offset === 0;
+        document.getElementById('nextBtn').disabled = (offset + limit) >= filteredData.length;
+    }
+
+    function setSort(col, asc) { 
+        sortCol = col; 
+        sortAsc = asc; 
+        offset = 0;
+        applyFiltersAndSort(); 
+    }
+
+    function goToPage(p) { offset = (p - 1) * limit; renderTable(); }
+    function updateColFilter(col, val) { colFilters[col] = val; offset = 0; applyFiltersAndSort(); }
+    function quickFilter(col, val) { if(!val || val === '-') return; colFilters[col] = val; const el = document.getElementById('f-'+col); if(el) el.value = val; offset = 0; applyFiltersAndSort(); }
+    
+    function clearFilters() { 
+        colFilters = { artist: '', country: '', city: '' }; 
+        document.getElementById('globalSearch').value = '';
+        document.querySelectorAll('.col-filter').forEach(i => i.value = '');
+        offset = 0; fetchData(); 
+    }
+
+    let searchTimer;
+    document.getElementById('globalSearch').oninput = () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => { offset = 0; fetchData(); }, 400);
+    };
+
+    document.getElementById('nextBtn').onclick = () => { offset += limit; updatePaginationUI(); renderTable(); };
+    document.getElementById('prevBtn').onclick = () => { offset -= limit; updatePaginationUI(); renderTable(); };
+
+    fetchData();
+</script>
+</body>
+</html>

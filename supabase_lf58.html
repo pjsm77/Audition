@@ -1,0 +1,657 @@
+<!-- 
+  PROJETO: Ranking Histórico Pro - Mobile Fit
+  VERSÃO: 1.0 (Consolidada e Seccionada)
+-->
+
+<!-- SEÇÃO 1: METADADOS E BIBLIOTECAS -->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Histórico Pro - Mobile Fit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- SEÇÃO 2: ESTILIZAÇÃO (CSS) -->
+    <style>
+        :root { 
+            --primary: #1DB954; 
+            --bg: #ffffff; 
+            --row-even: #f8f8f8;
+            --text: #222;
+            --header-bg: #f1f1f1;
+            --border: #e0e0e0;
+        }
+
+        body { font-family: 'Bebas Neue', cursive; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; letter-spacing: 0.2px; overflow: hidden; }
+
+        .table-wrapper { 
+    width: 100%; 
+    height: 94vh; /* Aumentado de 92vh para preencher o espaço ganho no rodapé */
+    overflow: auto; 
+    border: 1px solid var(--border); 
+    position: relative; 
+    background: white; 
+}
+        
+
+        /* Ajuste vital para remover vãos de renderização */
+table { 
+    border-collapse: collapse; /* Une as bordas, eliminando o espaço entre células */
+    border-spacing: 0; 
+    width: 100%; 
+    font-size: 12px; 
+    min-width: 1000px; /* Reduzido de 1300 para não forçar scroll excessivo */
+}
+
+
+        th { background: var(--header-bg); position: sticky; top: 0; z-index: 900; padding: 8px 4px; border-bottom: 2px solid #ddd; text-align: left; }
+        
+        /* Ajuste de colunas fixas para Mobile */
+/* SEÇÃO 2: Larguras mínimas e novo posicionamento fixo */
+/* Atualize estas linhas no seu CSS */
+/* SEÇÃO 2: Ajuste exato dos offsets para eliminar vãos */
+
+
+/* SEÇÃO 2: Ajuste fino de larguras e offsets para eliminar vãos */
+
+/* Coluna POS */
+th:nth-child(1), td:nth-child(1) { 
+    position: sticky; left: 0; z-index: 401; 
+    width: 28px; background: white; border-right: 1px solid #ddd; 
+    color: var(--primary); text-align: center; 
+}
+
+/* Coluna TOTAL - Reduzida em 40% (de ~45px para 28px) */
+th:nth-child(2), td:nth-child(2) { 
+    position: sticky; 
+    left: 29px; /* POS (28px) + 1px de borda */
+    z-index: 400; 
+    width: 28px; 
+    background: #fff; 
+    border-right: 1px solid #ddd; 
+    cursor: pointer; 
+    text-align: right;
+    padding-right: 4px !important;
+}
+
+/* Coluna DAYS */
+th:nth-child(3), td:nth-child(3) { 
+    position: sticky; 
+    left: 58px; /* POS (29) + TOTAL (29) */
+    z-index: 400; 
+    width: 32px; 
+    background: #fff; 
+    border-right: 1px solid #ddd; 
+    cursor: pointer; 
+    text-align: center; 
+}
+
+/* Coluna GR */
+th:nth-child(4), td:nth-child(4) { 
+    position: sticky; 
+    left: 91px; /* POS+TOT+DAYS */
+    z-index: 400; 
+    width: 28px; 
+    background: #fff; 
+    border-right: 1px solid #ddd; 
+    text-align: center;
+} 
+
+/* Coluna ARTISTA - Left ajustado para seguir as colunas menores */
+th:nth-child(5), td:nth-child(5) { 
+    position: sticky; 
+    left: 120px; /* Início exato após a coluna GR */
+    z-index: 400; 
+    min-width: 90px; 
+    max-width: 140px; 
+    background: white; 
+    border-right: 2px solid #ccc; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+
+
+
+/* SEÇÃO 2: Ajuste de densidade vertical (Linhas mais baixas) */
+
+/* Redução do padding vertical de 6px para 3px (redução de 50% no respiro, ~25% na altura total) */
+td { 
+    padding: 3px 1px !important; 
+    border-bottom: 1px solid var(--border); 
+    white-space: nowrap; 
+    text-align: left;
+    line-height: 1.2; /* Garante que a linha fique compacta */
+}
+
+/* Ajuste proporcional para o cabeçalho */
+th { 
+    background: var(--header-bg); 
+    position: sticky; 
+    top: 0; 
+    z-index: 900; 
+    padding: 4px 1px !important; 
+    border-bottom: 2px solid #ddd; 
+    text-align: left; 
+}
+
+/* Manter a consistência nas colunas fixas com o novo padding */
+th:nth-child(1), td:nth-child(1),
+th:nth-child(2), td:nth-child(2),
+th:nth-child(3), td:nth-child(3),
+th:nth-child(4), td:nth-child(4),
+th:nth-child(5), td:nth-child(5) {
+    /* O navegador aplicará o padding de 3px definido acima automaticamente */
+}
+
+/* Ajuste específico para a barra de progresso não esticar a linha */
+.progress-container {
+    height: 10px; /* Reduzido levemente de 11px */
+    display: inline-grid;
+    grid-template-columns: repeat(6, 2px); 
+    gap: 1.5px; 
+    vertical-align: middle;
+}
+
+
+
+
+        td { padding: 6px 5px; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: left; }
+        tbody tr:nth-child(even) td { background-color: var(--row-even); }
+
+        .footer-controls { 
+    height: 6vh; /* Reduzido de 8vh para 6vh (~30% de redução) */
+    background: #f9f9f9; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    border-top: 1px solid #ddd; 
+    padding: 0 5px; 
+    gap: 10px; /* Reduzido levemente o espaço entre elementos */
+}
+
+        .btn-footer { 
+    background: none; 
+    border: none; 
+    font-size: 20px; 
+    cursor: pointer; 
+    padding: 2px 8px; /* Padding vertical reduzido */
+    display: flex; 
+    align-items: center; 
+    height: 100%; /* Garante que o botão se alinhe ao novo rodapé */
+}
+
+        .pagination-select { 
+    font-family: 'Bebas Neue'; 
+    border-radius: 5px; 
+    padding: 1px; /* Reduzido de 2px */
+    font-size: 16px; 
+    height: 28px; /* Altura fixa para não estourar o rodapé de 6vh */
+}
+
+        #search-overlay {
+    display: none; 
+    position: fixed; 
+    bottom: 6vh; /* Ajustado para bater com a nova altura do rodapé */
+    left: 0; 
+    width: 100%; 
+    background: white; 
+    padding: 10px 15px; /* Reduzido de 15px */
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1); 
+    z-index: 2000;
+}       
+
+        #globalSearch { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; font-family: sans-serif; }
+
+        #detail-overlay { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: white; z-index: 3000; padding: 10px; box-sizing: border-box; overflow-y: auto;
+        }
+        .tab-btn { background: #eee; border: none; padding: 10px 5px; font-family: 'Bebas Neue'; cursor: pointer; flex: 1; font-size: 14px; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        
+        .artist-box { display: flex; align-items: center; gap: 4px; }
+        .pos-rank { font-family: sans-serif; font-size: 10px; color: #777; min-width: 18px; text-align: center; }
+        .flag-icon { width: 16px; height: 12px; border: 0.5px solid #bbb; }
+        .puan-col { font-weight: bold; }
+        .clickable-title { color: #003399; cursor: pointer; }
+
+        .progress-container {
+            display: inline-grid;
+            grid-template-columns: repeat(6, 2px); 
+            gap: 1.5px; 
+            height: 11px;
+            vertical-align: middle;
+        }
+        .step { height: 100%; border-radius: 0.3px; background-color: #f2f2f2; }
+        .score-1 { background-color: #e97b78; }
+        .score-2 { background-color: #ff7d45; }
+        .score-3 { background-color: #ffc845; }
+        .score-4 { background-color: #e2ef4d; }
+        .score-5 { background-color: #a3e04d; }
+        .score-6 { background-color: #6dbe99; }
+
+        .header-artist { display: flex; align-items: center; gap: 6px; }
+        .sort-icon { cursor: pointer; font-size: 13px; color: #999; transition: color 0.2s; }
+        .sort-icon:hover { color: var(--primary); }
+    </style>
+</head>
+
+<!-- SEÇÃO 3: ESTRUTURA HTML (MAIN VIEW) -->
+<body>
+<div class="container" id="main-view">
+    <div class="table-wrapper">
+        <table>
+<!-- SEÇÃO 3: Ajuste da ordem do cabeçalho -->
+<thead>
+    <tr id="table-header">
+        <th onclick="setSort('scrobbles')">POS</th>
+        <th onclick="setSort('scrobbles')">TOTAL</th>
+        <th onclick="setSort('dias_ultimo')">DAYS</th>
+        <th onclick="setSort('global_pos')">GR</th> <!-- NOVA COLUNA -->
+        <th style="min-width: 140px;">
+            <div class="header-artist">
+                <span onclick="setSort('artist')" style="cursor:pointer">ARTIST</span>
+                <span onclick="setSort('recencia_score')" class="sort-icon" title="Score">◈</span>
+                <span onclick="setSort('recencia_variation')" class="sort-icon" title="Variação">±</span>
+                <span onclick="setSort('y26')" class="sort-icon" title="Ano Corrente">📅</span>
+                <span onclick="setSort('dias_ultimo')" class="sort-icon" title="Última Execução">⌛</span>
+            </div>
+        </th>
+        <th onclick="setSort('country')">PAÍS</th>
+        <th onclick="setSort('city')">CIDADE</th>
+        <th onclick="setSort('primeiro_ano')">INÍCIO</th>
+    </tr>
+</thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div id="search-overlay">
+        <div style="display:flex; gap:10px; align-items:center;">
+            <input type="text" id="globalSearch" placeholder="BUSCAR ARTISTA...">
+            <button onclick="clearFilters()" style="background:#eee; border:none; padding:8px 12px; border-radius:5px; font-family:'Bebas Neue';">LIMPAR</button>
+        </div>
+    </div>
+
+    <div class="footer-controls">
+        <button class="btn-footer" id="prevBtn">«</button>
+        <select id="selectPage" class="pagination-select" onchange="goToPage(this.value)"></select>
+        <button class="btn-footer" id="nextBtn">»</button>
+        <button class="btn-footer" onclick="toggleSearch()">🔍</button>
+        <span id="total-artistas-count" style="font-family: 'Bebas Neue', sans-serif; font-size: 14px; margin-left: 10px; color: #666;"></span>
+    </div>
+</div>
+
+<!-- SEÇÃO 4: ESTRUTURA HTML (DETAIL OVERLAY) -->
+<div id="detail-overlay">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px; border-bottom:2px solid var(--primary); padding-bottom:10px;">
+        <button onclick="closeDetails()" style="background:none; border:none; font-size:24px;">✕</button>
+        <div id="detail-artist-info" class="artist-box" style="font-size: 18px;"></div>
+    </div>
+
+    <div style="display:flex; gap:5px; margin-bottom:10px;">
+        <button id="tab-songs" class="tab-btn active" onclick="switchTab('songs')">MÚSICAS (0)</button>
+        <button id="tab-albums" class="tab-btn" onclick="switchTab('albums')">ÁLBUNS (0)</button>
+    </div>
+
+    <div class="table-wrapper" style="height: 75vh;">
+        <table style="min-width: unset; width: 100%;">
+    <thead>
+        <tr>
+            <th style="width:30px">#A</th>
+            <th style="width:30px">#G</th>
+            <th onclick="sortDetails('count')" style="width:60px; cursor:pointer;">TOT</th>
+            <th onclick="sortDetails('days')" style="width:50px; cursor:pointer;">DIAS</th>
+            <th onclick="sortDetails('title')" style="cursor:pointer;">TÍTULO</th>
+        </tr>
+    </thead>
+            <tbody id="detail-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- SEÇÃO 5: CONFIGURAÇÕES E ESTADO GLOBAL -->
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullRawData = [], filteredData = [], offset = 0, currentArtist = "";
+    const limit = 50;
+    let sortCol = 'scrobbles', sortAsc = false;
+    let currentFilter = { type: null, value: null };
+
+    let detailData = { songs: [], albums: [] };
+    let currentTab = 'songs', detailSortAsc = false;
+
+    const countryMap = {
+  "[desconhecido]": "unknown",
+  "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", "andorra": "ad",
+  "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
+  "áustria": "at", "azerbaijão": "az", "bangladesh": "bd", "barbados": "bb",
+  "bélgica": "be", "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br",
+  "bulgária": "bg", "canadá": "ca", "chile": "cl", "china": "cn", "colômbia": "co",
+  "coreia do sul": "kr", "costa rica": "cr", "croácia": "hr", "cuba": "cu",
+  "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", "equador": "ec",
+  "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es",
+  "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi",
+  "frança": "fr", "geórgia": "ge", "grécia": "gr", "guatemala": "gt",
+  "hungria": "hu", "índia": "in", "indonésia": "id", "inglaterra": "gb-eng",
+  "irã": "ir", "irlanda": "ie", "islândia": "is", "israel": "il", "itália": "it",
+  "jamaica": "jm", "japão": "jp", "jordânia": "jo", "líbano": "lb",
+  "luxemburgo": "lu", "malásia": "my", "malta": "mt", "marrocos": "ma",
+  "méxico": "mx", "mongólia": "mn", "montenegro": "me", "nigéria": "ng",
+  "noruega": "no", "nova zelândia": "nz", "país de gales": "gb-wls",
+  "países baixos": "nl", "holanda": "nl", "panamá": "pa", "paquistão": "pk",
+  "paraguai": "py", "peru": "pe", "polônia": "pl", "portugal": "pt",
+  "quênia": "ke", "quirguistão": "kg", "reino unido": "gb", "república checa": "cz",
+  "romênia": "ro", "rússia": "ru", "sérvia": "rs", "síria": "sy",
+  "sri lanka": "lk", "suécia": "se", "suíça": "ch", "tailândia": "th",
+  "taiwan": "tw", "tajiquistão": "tj", "tunísia": "tn", "turquia": "tr",
+  "ucrânia": "ua", "uruguai": "uy", "venezuela": "ve", "vietnã": "vn",
+  "zâmbia": "zm", "zimbábue": "zw"
+};
+
+    const years = [];
+    for (let i = 26; i >= 14; i--) years.push(i);
+
+    const headerRow = document.getElementById('table-header');
+    const inicioTh = headerRow.lastElementChild;
+    years.forEach(y => {
+        const th = document.createElement('th');
+        th.style.fontSize = "9px"; th.innerText = `'${y}`;
+        headerRow.insertBefore(th, inicioTh);
+    });
+
+<!-- SEÇÃO 6: PROCESSAMENTO E LÓGICA DE DADOS -->
+    async function fetchData() {
+        const [resRanking, resFidelidade, resRecencia] = await Promise.all([
+            _supabase.rpc('get_artist_ranking_full', { search_term: '' }),
+            _supabase.from('artista_fidelidade_score_v2').select('artist, score_numérico, rating_artista'),
+            _supabase.from('artista_recencia_v2').select('artist, score, variation')
+        ]);
+
+        if (!resRanking.error) { 
+            let base = (resRanking.data || []).map(item => {
+                const f = resFidelidade.data?.find(x => x.artist === item.artist);
+                const r = resRecencia.data?.find(x => x.artist === item.artist);
+                return { 
+                    ...item, 
+                    score_numérico: f ? f.score_numérico : 0.5,
+                    rating_artista: f ? f.rating_artista : 0,
+                    recencia_score: r ? r.score : 0,
+                    recencia_variation: r ? r.variation : 0
+                };
+            });
+
+            base.sort((a,b) => (b.scrobbles - a.scrobbles) || a.artist.localeCompare(b.artist));
+            base.forEach((item, idx) => item.global_pos = idx + 1);
+
+            fullRawData = base;
+            applyLogic(); 
+        }
+    }
+
+    function applyLogic() {
+        const gs = document.getElementById('globalSearch').value.toLowerCase();
+        filteredData = fullRawData.filter(item => {
+            const nameMatch = item.artist.toLowerCase().includes(gs);
+            const countryMatch = !currentFilter.type || (currentFilter.type === 'country' && item.country === currentFilter.value);
+            const cityMatch = !currentFilter.type || (currentFilter.type === 'city' && item.city === currentFilter.value);
+            return nameMatch && (currentFilter.type ? (countryMatch || cityMatch) : true);
+        });
+
+        filteredData.sort((a, b) => {
+            let valA = a[sortCol];
+            let valB = b[sortCol];
+            if (typeof valA === 'string') return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            valA = valA ?? -1; valB = valB ?? -1;
+            if (valA === valB) return a.artist.localeCompare(b.artist);
+            return sortAsc ? valA - valB : valB - valA;
+        });
+        renderTable();
+    }
+
+<!-- SEÇÃO 7: INTERFACE, EVENTOS E DEEZER -->
+    function generateFidelityBar(rating) {
+        let bars = '';
+        const finalScore = Math.min(Math.max(Math.round(rating), 0), 6);
+        for (let i = 1; i <= 6; i++) {
+            const activeClass = i <= finalScore ? `score-${finalScore}` : '';
+            bars += `<div class="step ${activeClass}"></div>`;
+        }
+        return `<div class="progress-container">${bars}</div>`;
+    }
+
+function getScoreBgColor(score) {
+    if (score >= 90) return '#6dbe99'; // Verde escuro
+    if (score >= 80) return '#86d03a'; // Verde claro
+    if (score >= 70) return '#b7d13e'; // Lima
+    if (score >= 60) return '#e0d341'; // Amarelo
+    if (score >= 50) return '#ffcc33'; // Ouro/Laranja claro
+    if (score >= 40) return '#ffaa33'; // Laranja
+    if (score >= 30) return '#ff8833'; // Laranja escuro
+    if (score >= 20) return '#ff5f33'; // Coral/Tomate
+    if (score >= 10) return '#ff4433'; // Vermelho claro
+    if (score >= 1) return '#e97b78'; // Vermelho forte
+    return '#aaaaaa'; // cinza
+}
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+
+        const totalArtistas = filteredData.length; // Ou o nome da variável que contém sua lista de artistas
+document.getElementById('total-artistas-count').textContent = totalArtistas;
+
+        tbody.innerHTML = paged.map((item, index) => {
+            const flagCode = countryMap[(item.country || "").toLowerCase().trim()] || "un";
+            const yearCells = years.map(y => `<td style="color:${(item[`y${y}`]||0)>0?'#000':'#ccc'}">${item[`y${y}`] || '-'}</td>`).join('');
+            
+            let nameColor = "#e97b78"; 
+            if (item.score_numérico >= 2.0 && item.score_numérico < 4.0) nameColor = "#f8c039"; 
+            else if (item.score_numérico >= 4.0) nameColor = "#6dbe99"; 
+
+            let recenciaColor = "#f8c039"; 
+            if (item.recencia_variation > 0) recenciaColor = "#6dbe99"; 
+            else if (item.recencia_variation < 0) recenciaColor = "#e97b78"; 
+
+            const variationText = item.recencia_variation > 0 ? `+${item.recencia_variation}` : item.recencia_variation;
+
+// SEÇÃO 7: Score com estilo Metacritic (retângulo arredondado colorido)
+const scoreBg = getScoreBgColor(item.recencia_score);
+
+return `
+<tr>
+    <td onclick="openDeezer('artist', '${item.artist.replace(/'/g, "\\'")}')">${offset + index + 1}</td>
+    <td class="puan-col" onclick="showDetails('${item.artist.replace(/'/g, "\\'")}', '${flagCode}', ${item.scrobbles})">${item.scrobbles.toLocaleString('pt-BR')}</td>
+    <td>${item.dias_ultimo ?? '-'}</td>
+    <td class="pos-rank" style="font-family: 'Bebas Neue', sans-serif; font-size: 12px;">${item.global_pos}</td> <!-- GR AQUI -->
+    <td><div class="artist-box">
+        ${generateFidelityBar(item.rating_artista)}
+       
+        <span style="margin-left:1px; font-family:Bebas Neue; font-weight:bold; display: inline-flex; align-items: center; gap: 1px;">
+            <span style="
+                background-color: ${scoreBg}; 
+                color: #fff; 
+                font-size: 10px; 
+                width: 14px; 
+                height: 12px; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                border-radius: 1px; 
+                line-height: 1;
+            ">${item.recencia_score}</span>
+            <!--<span style="font-size:10px; line-height: 1; color: ${recenciaColor}; font-weight: bold;">${variationText}</span>-->
+            
+            <span style="
+    display: inline-block; 
+    width: 3.5ch; 
+    text-align: center; 
+    font-family: monospace;
+    font-size: 8px; 
+    line-height: 1; 
+    color: ${recenciaColor};
+">
+    ${variationText}
+</span>
+
+        <img class="flag-icon" 
+             src="https://flagcdn.com/32x24/${flagCode}.png" 
+             style="cursor:pointer" 
+             onclick="toggleQuickFilter('country', '${item.country}')" 
+             title="Filtrar por ${item.country}">
+        <a style="color:${nameColor}; font-weight:bold; text-decoration:none;" href="https://www.last.fm/music/${encodeURIComponent(item.artist)}" target="_blank">${item.artist}</a>
+        
+
+        </span>
+    </div></td>
+    <td style="cursor:pointer" onclick="toggleQuickFilter('country', '${item.country}')">${item.country || '-'}</td>
+    <td style="cursor:pointer" onclick="toggleQuickFilter('city', '${item.city}')">${item.city || '-'}</td>
+    ${yearCells}<td>${item.primeiro_ano || '-'}</td>
+</tr>`;
+        }).join('');
+        updatePaginationUI();
+    }
+
+    async function showDetails(artist, flag, total) {
+    currentArtist = artist;
+    document.getElementById('detail-overlay').style.display = 'block';
+    document.getElementById('detail-artist-info').innerHTML = `
+        <img class="flag-icon" style="width:32px; height:24px" src="https://flagcdn.com/32x24/${flag}.png">
+        <span>${artist}</span> 
+        <span style="color:var(--primary); margin-left:10px">${total.toLocaleString('pt-BR')}</span>`;
+    
+    // Busca na nova View 'scrobbles_unificados'
+    // Filtramos pelo 'artist_clean' (que na view é a coluna 'artist')
+    const [resSongs, resAlbums] = await Promise.all([
+        _supabase.from('scrobbles_unificados')
+            .select('ranking_no_artista_unico, ranking_geral_unico, total_scrobbles, dias_ultima_execucao, track_name')
+            .eq('artist', artist.toLowerCase()), // artist na view está em lowercase
+        _supabase.from('scrobbles_test') // Álbuns continuam da fonte original por enquanto
+            .select('album')
+            .eq('artist', artist)
+    ]);
+
+    // Processamento das Músicas vindo da View
+    detailData.songs = (resSongs.data || []).map(item => ({
+        rank_artist: item.ranking_no_artista_unico,
+        rank_global: item.ranking_geral_unico,
+        count: item.total_scrobbles,
+        days: item.dias_ultima_execucao,
+        title: item.track_name
+    }));
+
+    // Processamento dos Álbuns (mantido)
+    const aCnt = {}; 
+    (resAlbums.data || []).forEach(r => { 
+        const a = r.album || '[Desconhecido]'; 
+        aCnt[a] = (aCnt[a] || 0) + 1; 
+    });
+    detailData.albums = Object.entries(aCnt).map(([title, count]) => ({ title, count }));
+    
+    document.getElementById('tab-songs').innerText = `MÚSICAS (${detailData.songs.length})`;
+    document.getElementById('tab-albums').innerText = `ÁLBUNS (${detailData.albums.length})`;
+    
+    detailSortAsc = false; 
+    sortDetails('rank_artist'); // Ordena pelo ranking do artista por padrão
+}
+
+    function sortDetails(col) {
+    detailSortAsc = !detailSortAsc;
+    
+    detailData[currentTab].sort((a, b) => {
+        let valA = a[col];
+        let valB = b[col];
+        if (typeof valA === 'string') return detailSortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        return detailSortAsc ? valA - valB : valB - valA;
+    });
+
+    const tbody = document.getElementById('detail-body');
+    
+    if (currentTab === 'songs') {
+        tbody.innerHTML = detailData.songs.map(item => `
+            <tr>
+                <td style="color:var(--primary); font-weight:bold;">${item.rank_artist}</td>
+                <td style="font-size:10px; color:#777;">${item.rank_global}</td>
+                <td class="puan-col">${item.count}</td>
+                <td style="font-size:10px;">${item.days}d</td>
+                <td class="clickable-title" onclick="openDeezer('track', '${currentArtist.replace(/'/g, "\\'")} ${item.title.replace(/'/g, "\\")}')">
+                    ${item.title}
+                </td>
+            </tr>`).join('');
+    } else {
+        // Lógica simplificada para álbuns (já que eles não estão na View unificada ainda)
+        tbody.innerHTML = detailData.albums.map((item, i) => `
+            <tr>
+                <td>-</td>
+                <td>-</td>
+                <td class="puan-col">${item.count}</td>
+                <td>-</td>
+                <td class="clickable-title" onclick="openDeezer('album', '${currentArtist.replace(/'/g, "\\'")} ${item.title.replace(/'/g, "\\")}')">
+                    ${item.title}
+                </td>
+            </tr>`).join('');
+    }
+}
+
+    function openDeezer(type, query) {
+        const callbackName = 'dz_' + Math.floor(Math.random() * 100000);
+        window[callbackName] = (data) => {
+            if (data.data && data.data.length > 0) { window.location.href = `deezer://www.deezer.com/${type}/${data.data[0].id}`; }
+            else { window.open(`https://www.deezer.com/search/${encodeURIComponent(query)}`, '_blank'); }
+            delete window[callbackName];
+        };
+        const s = document.createElement('script');
+        s.src = `https://api.deezer.com/search/${type}?q=${encodeURIComponent(query)}&output=jsonp&callback=${callbackName}`;
+        document.body.appendChild(s);
+    }
+
+    function toggleSearch() {
+        const el = document.getElementById('search-overlay');
+        el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+        if(el.style.display === 'block') document.getElementById('globalSearch').focus();
+    }
+
+    function toggleQuickFilter(type, value) {
+        if (!value || value === '-') return;
+        currentFilter = (currentFilter.type === type && currentFilter.value === value) ? { type: null, value: null } : { type, value };
+        offset = 0; applyLogic();
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        detailSortAsc = true; sortDetails('count');
+    }
+
+    function closeDetails() { document.getElementById('detail-overlay').style.display = 'none'; }
+    
+    function updatePaginationUI() {
+        const totalPages = Math.ceil(filteredData.length / limit) || 1;
+        document.getElementById('selectPage').innerHTML = Array.from({length: totalPages}, (_, i) => `<option value="${i+1}" ${i+1 === Math.floor(offset/limit)+1 ? 'selected' : ''}>PÁG ${i+1}</option>`).join('');
+    }
+    
+    function setSort(col) { 
+        if (sortCol === col) sortAsc = !sortAsc; 
+        else { sortCol = col; sortAsc = (col === 'artist'); } 
+        offset = 0; applyLogic(); 
+    }
+    
+    function goToPage(p) { offset = (p - 1) * limit; renderTable(); }
+    function clearFilters() { document.getElementById('globalSearch').value = ''; currentFilter = { type: null }; document.getElementById('search-overlay').style.display = 'none'; fetchData(); }
+    
+    document.getElementById('globalSearch').oninput = () => { offset = 0; applyLogic(); };
+    document.getElementById('nextBtn').onclick = () => { if (offset + limit < filteredData.length) { offset += limit; renderTable(); } };
+    document.getElementById('prevBtn').onclick = () => { if (offset > 0) { offset -= limit; renderTable(); } };
+
+    fetchData();
+</script>
+</body>
+</html>

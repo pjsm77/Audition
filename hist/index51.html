@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Lista de Contatos e Ranking Dinâmico</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+:root { font-family: 'Bebas Neue', cursive; }
+body { background-color:#f7f9fb; }
+
+.details-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.25,0.8,0.25,1);
+}
+.details-panel.open {
+    max-height: 1000px;
+    transition: max-height 0.6s cubic-bezier(0.25,0.8,0.25,1);
+}
+
+.contact-card:hover,
+.ranking-card:hover,
+.sta-card:hover {
+    transform: scale(1.002);
+}
+
+.hidden-filter-btn { visibility:hidden; opacity:0; }
+.visible-filter-btn { visibility:visible; opacity:1; }
+
+.ran-card {
+    background:#ffffff;
+    padding:4px 6px; 
+    margin:1px 0; 
+    border-radius:6px;
+    border:1px solid #f0f0f0;
+}
+.ran-flag { width:28px; height:20px; cursor:pointer; object-fit:cover; border-radius:3px; box-shadow:0 0 0 1px rgba(0,0,0,0.1); } 
+
+.contact-card, .ranking-card, .sta-card {
+    padding: 6px 8px;
+    margin: 4px 0;
+    border-radius: 8px;
+}
+.ranking-card { 
+    padding: 4px 6px;
+    margin: 1px 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #374151; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
+
+.country-grid {
+    display: grid;
+    grid-template-columns: 25px 35px 110px 32px 32px 32px 1fr;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+}
+.bar-container {
+    display: flex;
+    height: 12px;
+    background: #eee;
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 150px;
+}
+.bar-3 { background-color: #6dbe99; }
+.bar-2 { background-color: #f8c039; }
+.bar-1 { background-color: #e97b78; }
+</style>
+</head>
+<body class="min-h-screen p-1 sm:p-2"> 
+<div class="max-w-4xl mx-auto">
+<div class="bg-white p-1 sm:p-2 rounded-2xl shadow-xl border border-gray-100"> 
+
+    <div id="sheet-nav" class="mb-3 flex flex-wrap gap-2 justify-center"></div>
+
+    <div id="search-controls-container">
+        <div class="mb-3">
+            <div class="relative flex items-center">
+                <input type="text" id="search-input" placeholder="Pesquisar por artista, álbum, ano..."
+                       class="w-full p-3 border border-gray-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-lg transition duration-150 shadow-inner pr-12">
+                <button id="clear-filter-btn" onclick="clearActiveFilter()"
+                        class="absolute right-0 mr-2 p-1.5 h-9 w-9 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-600 transition duration-150 disabled:bg-gray-300 hidden-filter-btn"
+                        title="Limpar Filtro Ativo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="sort-controls" class="mb-3 p-3 bg-gray-50 rounded-xl flex items-center justify-between space-x-2 border border-gray-200"></div>
+    </div>
+
+    <div id="results-count" class="text-sm text-gray-500 mb-3 px-1"></div>
+
+    <div id="status-message" class="text-center text-lg text-gray-600 p-4 rounded-xl bg-yellow-50 shadow-inner">
+        Carregando dados...
+    </div>
+
+    <div id="contact-list" class="space-y-1"></div>
+
+    <div id="no-results" class="hidden text-center text-xl text-gray-400 p-10 bg-white rounded-xl shadow-lg mt-8">
+        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p>Nenhum resultado encontrado.</p>
+    </div>
+
+</div>
+</div>
+
+<div id="cover-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 backdrop-blur-sm" onclick="closeCoverModal()">
+    <div class="relative max-w-full max-h-full p-4" onclick="event.stopPropagation()">
+        <button onclick="closeCoverModal()" class="absolute top-2 right-2 text-white text-3xl font-bold p-2 bg-black bg-opacity-50 rounded-full z-10">&times;</button>
+        <img id="modal-cover-image" src="" alt="Capa Ampliada" class="max-w-[90vw] max-h-[90vh] rounded-xl shadow-2xl object-contain">
+    </div>
+</div>
+
+<div id="album-tooltip-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm" onclick="closeAlbumTooltip()">
+    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl relative w-full max-w-sm max-h-[90vh] mx-4" onclick="event.stopPropagation()">
+        <button onclick="closeAlbumTooltip()" class="absolute top-2 right-2 text-white text-3xl font-bold p-1">&times;</button>
+        <div id="album-tooltip-content"></div>
+    </div>
+</div>
+
+<script>
+const SHEET_ID = '1QCyU_zShDAWzsZm1G-8cMUamrMdUOvyc3AIXtnhfiUw'; 
+const SHEETS_CONFIG = [
+    { name: 'Alb', gid: '1120041506' },
+    { name: 'Art', gid: '46372522' },
+    { name: 'Sta', gid: '45947330' },
+    { name: 'Paí', gid: '1789152441' } 
+];
+
+let currentSheet = SHEETS_CONFIG[0];
+let allData = [];
+let ALBUM_DATA = []; 
+let DEEZER_DATA = {}; 
+let activeFilter = { key: null, value: null, columnName: null };
+let sortState = { columnKey: null, direction: 'asc' }; 
+let activeCountryFilter = null;
+let artSortState = { columnKey: null, direction: 'desc' }; 
+let paiSortState = { columnKey: null, direction: 'desc' };
+
+const contactList = document.getElementById('contact-list');
+const statusMessage = document.getElementById('status-message');
+const searchInput = document.getElementById('search-input');
+const noResultsMessage = document.getElementById('no-results');
+const sheetNav = document.getElementById('sheet-nav');
+const sortControlsContainer = document.getElementById('sort-controls');
+const resultsCountElement = document.getElementById('results-count');
+const clearFilterBtn = document.getElementById('clear-filter-btn');
+const searchControlsContainer = document.getElementById('search-controls-container');
+
+const SORTABLE_INDICES = [0,1,2,3,4,5,9,52];
+const COLUMN_TITLES = { 0: 'album_id', 1: 'date', 2: 'artist', 3: 'artist_rating', 4: 'year', 5: 'album', 9: 'country', 52: 'BA' };
+
+const getSheetUrl = gid => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function parseDDMMAADate(dateString){
+    if(!dateString) return 0;
+    const parts = dateString.split('/');
+    if(parts.length !== 3) return 0;
+    let [day,month,year] = parts.map(p=>parseInt(p.trim(),10));
+    if(year >=0 && year < 100) year = year >=70 ? year+1900 : year+2000;
+    return new Date(year, month-1, day).getTime();
+}
+
+function getColumnKeyByIndex(index){
+    if(allData.length === 0 || !allData[0]) return null;
+    const allKeys = Object.keys(allData[0]);
+    return allKeys[index] || null;
+}
+
+function openCoverModal(albumId) {
+    if (!albumId || !DEEZER_DATA[albumId]) return;
+    const modal = document.getElementById('cover-modal');
+    const image = document.getElementById('modal-cover-image');
+    image.src = DEEZER_DATA[albumId].capa_xl || DEEZER_DATA[albumId].capa_sm;
+    modal.classList.remove('hidden');
+    document.addEventListener('keydown', handleEscKey);
+}
+
+function closeCoverModal() {
+    document.getElementById('cover-modal').classList.add('hidden');
+    document.removeEventListener('keydown', handleEscKey);
+}
+
+function handleEscKey(event) {
+    if (event.key === 'Escape') { closeCoverModal(); closeAlbumTooltip(); }
+}
+
+function showArtistAlbums(artistName) {
+    if (ALBUM_DATA.length === 0) return;
+    const allKeys = Object.keys(ALBUM_DATA[0]);
+    const filtered = ALBUM_DATA.filter(a => String(a[allKeys[2]]).toUpperCase() === String(artistName).toUpperCase());
+    filtered.sort((a, b) => (parseInt(a[allKeys[4]]) || 0) - (parseInt(b[allKeys[4]]) || 0));
+    let listHtml = filtered.map(a => `<li class="p-1 border-b border-gray-700 flex justify-between">
+        <span class="text-gray-200 font-bold">${a[allKeys[4]] || ''}</span>
+        <span class="text-white">${a[allKeys[5]]}</span></li>`).join('');
+    const modalContent = document.getElementById('album-tooltip-content');
+    modalContent.innerHTML = `<h3 class="text-xl font-bold mb-3 text-white border-b pb-2">ÁLBUNS DE ${artistName.toUpperCase()}</h3>
+        <ul class="max-h-[70vh] overflow-y-auto custom-scrollbar">${listHtml}</ul>`;
+    document.getElementById('album-tooltip-modal').classList.remove('hidden');
+}
+
+function closeAlbumTooltip() { document.getElementById('album-tooltip-modal').classList.add('hidden'); }
+
+function parseSheetData(jsonText) {
+    try {
+        const startIndex = jsonText.indexOf('(');
+        const endIndex = jsonText.lastIndexOf(')');
+        const jsonString = jsonText.substring(startIndex+1, endIndex);
+        const json = JSON.parse(jsonString);
+        const columns = json.table.cols.map(col => col.label || col.id);
+        return json.table.rows.map(row => {
+            const contact = {};
+            row.c.forEach((cell, i) => { contact[columns[i]] = cell && (cell.f || cell.v) || ''; });
+            return contact;
+        });
+    } catch (e) { return []; }
+}
+
+function createSortControls(){
+    if(currentSheet.name !== 'Alb'){
+        sortControlsContainer.innerHTML = '';
+        searchControlsContainer.classList.toggle('hidden', !['Art','Paí'].includes(currentSheet.name));
+        return;
+    }
+    searchControlsContainer.classList.remove('hidden');
+    const allKeys = Object.keys(allData[0] || {});
+    const opts = SORTABLE_INDICES.filter(i => allKeys[i]).map(i => `<option value="${allKeys[i]}">${COLUMN_TITLES[i] || allKeys[i]}</option>`).join('');
+    sortControlsContainer.innerHTML = `<div class="flex items-center space-x-2 w-full">
+        <label class="text-sm font-medium">Ordenar:</label>
+        <select id="sort-column" class="p-2 border rounded-lg flex-grow bg-white">${opts}</select>
+        <button id="sort-direction-btn" class="p-2 bg-indigo-500 text-white rounded-lg">
+            <span id="sort-icon">${sortState.direction === 'asc' ? '?' : '?'}</span>
+        </button></div>`;
+    
+    const sel = document.getElementById('sort-column');
+    if(sortState.columnKey) sel.value = sortState.columnKey;
+    sel.onchange = (e) => { sortState.columnKey = e.target.value; applySortAndFilter(); };
+    document.getElementById('sort-direction-btn').onclick = () => {
+        sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+        document.getElementById('sort-icon').textContent = sortState.direction === 'asc' ? '?' : '?';
+        applySortAndFilter();
+    };
+}
+
+function applySortAndFilter(){
+    if(currentSheet.name === 'Alb' && sortState.columnKey){
+        allData.sort((a,b)=>{
+            let valA = a[sortState.columnKey], valB = b[sortState.columnKey];
+            if(sortState.columnKey === getColumnKeyByIndex(1)) return (parseDDMMAADate(valA) - parseDDMMAADate(valB)) * (sortState.direction==='asc'?1:-1);
+            let comparison = isNaN(valA) || valA==='' ? String(valA).localeCompare(String(valB)) : parseFloat(valA) - parseFloat(valB);
+            return comparison * (sortState.direction==='asc'?1:-1);
+        });
+    }
+    const query = searchInput.value.toLowerCase().trim();
+    let data = allData;
+    if(currentSheet.name==='Alb' && activeFilter.key) data = data.filter(c => String(c[activeFilter.key]).toUpperCase() === String(activeFilter.value).toUpperCase());
+    if(query !== ''){
+        if(currentSheet.name==='Alb') data = data.filter(c => Object.values(c).join(' ').toLowerCase().includes(query));
+        else { const kn = getColumnKeyByIndex(0); if(kn) data = data.filter(c => String(c[kn]).toLowerCase().includes(query)); }
+    }
+    renderData(data);
+}
+
+function createContactCard(contact){
+    const keys = Object.keys(contact);
+    const rawId = contact[keys[0]] ? String(contact[keys[0]]).trim() : "";
+    const rating = contact[keys[3]] || "";
+    const ratingColors = { '3': '#6dbe99', '2': '#f8c039', '1': '#e97b78' };
+    
+    let coverHtml = "";
+    if (rawId && rawId !== "0" && DEEZER_DATA[rawId]) {
+        coverHtml = `<img src="${DEEZER_DATA[rawId].capa_sm}" class="h-[50px] w-[50px] object-cover rounded shadow-md ml-4 cursor-pointer" onclick="event.stopPropagation(); openCoverModal('${rawId}')">`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'contact-card bg-white p-2 rounded-xl shadow-md border-t border-gray-100 cursor-pointer';
+    card.onclick = () => card.querySelector('.details-panel').classList.toggle('open');
+    card.innerHTML = `
+        <div class="flex justify-between items-center">
+            <div class="flex items-center min-w-0">
+                ${contact[keys[9]] ? `<img src="https://flagcdn.com/24x18/${String(contact[keys[9]]).toLowerCase()}.png" class="w-6 h-4 mr-3">` : '<div class="w-6 mr-3"></div>'}
+                <div class="truncate">
+                    <h2 class="text-lg font-bold text-gray-800">${contact[keys[5]]}<span class="text-gray-400 font-normal ml-1">(${contact[keys[4]]})</span></h2>
+                    <p class="text-base font-bold" style="color:${ratingColors[rating]||'#6366f1'}">${String(contact[keys[2]]).toUpperCase()}</p>
+                </div>
+            </div>
+            ${coverHtml}
+        </div>
+        <div class="details-panel"><div class="mt-2 pt-2 border-t text-sm text-gray-600">
+            ${keys.map((k,i) => contact[k] ? `<p><b>${COLUMN_TITLES[i]||k}:</b> ${contact[k]}</p>` : '').join('')}
+        </div></div>`;
+    return card;
+}
+
+function createRankingCard(row, pos){
+    const ks = Object.keys(row);
+    const card = document.createElement('div');
+    card.className = "ranking-card ran-card flex items-center p-1 shadow-sm border mb-1";
+    card.innerHTML = `<div class="w-8 text-right font-bold text-gray-400 mr-2">${pos}</div>
+        <img src="https://flagcdn.com/24x18/${String(row[ks[2]]||'').toLowerCase()}.png" class="w-6 h-4 mr-2">
+        <div class="flex-grow font-bold text-indigo-700 cursor-pointer" onclick="event.stopPropagation(); showArtistAlbums('${row[ks[1]]}')">${String(row[ks[1]]).toUpperCase()}</div>
+        <div class="text-sm font-bold text-gray-500">${row[ks[3]]} pts</div>`;
+    return card;
+}
+
+function createCountryCard(row, pos){
+    const ks = Object.keys(row);
+    const card = document.createElement('div');
+    card.className = "ranking-card ran-card p-1 border mb-1 flex items-center";
+    card.innerHTML = `<div class="w-8 text-right text-gray-400 mr-2">${pos}</div>
+        <img src="https://flagcdn.com/24x18/${String(row[ks[1]]).toLowerCase()}.png" class="w-6 h-4 mr-2">
+        <div class="flex-grow font-bold">${String(row[ks[0]]).toUpperCase()}</div>
+        <div class="text-sm text-gray-500">${row[ks[2]]} Artistas</div>`;
+    return card;
+}
+
+function renderData(data){
+    contactList.innerHTML = '';
+    statusMessage.classList.add('hidden');
+    resultsCountElement.textContent = `${data.length} resultado(s).`;
+    if(data.length === 0) noResultsMessage.classList.remove('hidden');
+    else {
+        noResultsMessage.classList.add('hidden');
+        data.forEach((c, i) => {
+            if(currentSheet.name === 'Alb') contactList.appendChild(createContactCard(c));
+            else if(currentSheet.name === 'Art') contactList.appendChild(createRankingCard(c, i+1));
+            else if(currentSheet.name === 'Paí') contactList.appendChild(createCountryCard(c, i+1));
+            else if(currentSheet.name === 'Sta' && i===0) contactList.innerHTML = `<div class="p-4 bg-white rounded-xl shadow border whitespace-pre-wrap">${c[Object.keys(c)[0]]}</div>`;
+        });
+    }
+}
+
+function clearActiveFilter(){ activeFilter={key:null}; searchInput.value=''; applySortAndFilter(); }
+searchInput.addEventListener('input', applySortAndFilter);
+
+function switchSheet(gid){
+    currentSheet = SHEETS_CONFIG.find(s => s.gid === gid);
+    renderSheetNavigation();
+    fetchData(currentSheet);
+}
+
+function renderSheetNavigation(){
+    sheetNav.innerHTML = SHEETS_CONFIG.map(s => `<button onclick="switchSheet('${s.gid}')" 
+        class="px-3 py-1 rounded-lg text-sm font-medium transition ${s.gid===currentSheet.gid?'bg-indigo-600 text-white shadow-md':'bg-gray-100 text-gray-600 border'}">${s.name}</button>`).join('');
+}
+
+async function fetchDeezerData() {
+    try { const r = await fetch('dados_deezer.json'); if(r.ok) DEEZER_DATA = await r.json(); } catch(e){}
+}
+
+async function fetchData(config){
+    statusMessage.classList.remove('hidden');
+    statusMessage.textContent = `Carregando ${config.name}...`;
+    try {
+        const r = await fetch(getSheetUrl(config.gid));
+        const t = await r.text();
+        const d = parseSheetData(t);
+        if(config.name === 'Alb') ALBUM_DATA = d;
+        if(config.gid === currentSheet.gid){ allData = d; createSortControls(); applySortAndFilter(); }
+    } catch(e){ statusMessage.textContent = "Erro de conexão."; }
+}
+
+async function initLoad() {
+    await fetchDeezerData();
+    await fetchData(SHEETS_CONFIG[0]);
+}
+
+renderSheetNavigation();
+initLoad();
+</script>
+</body>
+</html>

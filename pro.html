@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Interativo (Corrigido Definitivo)</title>
+    <style>
+        /* Variáveis de Cores */
+        :root {
+            --cor-fundo-claro: #f5f5f5;
+            --cor-cartao: #ffffff;
+            --cor-principal: #337eff; /* Cor das barras históricas (Azul) */
+            --cor-texto-escuro: #333333;
+            --cor-texto-claro: #999999; 
+            --cor-barra-hoje: #ff7f50; /* Cor da barra de hoje ativa (Coral) */
+        }
+
+        /* Estilos Gerais (mantidos) */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--cor-fundo-claro);
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        /* ... outros estilos de container, card, title (mantidos) ... */
+        .dashboard-container {
+            width: 100%;
+            max-width: 380px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-radius: 12px;
+            background-color: var(--cor-fundo-claro);
+        }
+        .card {
+            background-color: var(--cor-cartao);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--cor-texto-escuro);
+            margin-bottom: 15px;
+        }
+        
+        /* --- Estilos do Gráfico de Barras --- */
+        .time-spent-info { font-size: 24px; font-weight: bold; color: var(--cor-texto-escuro); margin-bottom: 10px; }
+        .label-small { font-size: 12px; color: var(--cor-texto-claro); margin-bottom: 5px; }
+        .bar-chart { display: flex; justify-content: space-between; align-items: flex-end; height: 100px; padding-top: 10px; }
+        .bar-chart-item { display: flex; flex-direction: column; align-items: center; width: 12%; }
+
+        /* Estilo base das barras (Azul Histórico) */
+        .bar { 
+            width: 100%; 
+            background-color: var(--cor-principal); 
+            border-radius: 4px 4px 0 0; 
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); 
+            transition: height 0.3s ease, background-color 0.3s ease; /* Adicionei transição de cor */
+        }
+        
+        /* CORREÇÃO CRÍTICA 1: Força a cor para o ID da barra de hoje */
+        /* O seletor de ID é mais forte que a classe. */
+        #today-bar {
+            /* Definimos a cor aqui, mas o JS vai sobrescrever */
+            background-color: var(--cor-barra-hoje) !important;
+        }
+        
+        .bar-day { font-size: 11px; color: var(--cor-texto-claro); margin-top: 5px; }
+
+        /* --- Estilos da Matriz de Status (mantidos) --- */
+        .status-matrix-container { padding: 10px; }
+        .status-matrix { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; text-align: center; }
+        .status-item { 
+            height: 45px; display: flex; justify-content: center; align-items: center; 
+            border-radius: 6px; font-weight: bold; font-size: 14px; 
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); cursor: pointer; 
+            transition: background-color 0.15s, transform 0.1s; 
+        }
+        .status-item:hover { transform: scale(1.05); }
+
+        /* Classes de Cores VIVAS */
+        .status-green-viva { background-color: var(--cor-verde-viva); color: white; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); }
+        .status-yellow-viva { background-color: var(--cor-amarelo-viva); color: white; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); }
+        .status-red-viva { background-color: var(--cor-vermelho-vivo); color: white; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); }
+        
+        /* Classes de Cores OPACAS (INATIVAS - Texto cinza claro) */
+        .status-green-opaca { background-color: var(--cor-verde-opaca); color: var(--cor-texto-claro) !important; }
+        .status-yellow-opaca { background-color: var(--cor-amarelo-opaca); color: var(--cor-texto-claro) !important; }
+        .status-red-opaca { background-color: var(--cor-vermelho-opaco); color: var(--cor-texto-claro) !important; }
+
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+
+        <div class="card">
+            <div class="section-title">This Week</div>
+
+            <div class="label-small">ITENS ATIVOS</div>
+            <div class="time-spent-info" id="active-count-display">0 itens ativos</div>
+
+            <div class="bar-chart">
+                <div class="bar-chart-item"><div class="bar" style="height: 55%;"></div><div class="bar-day">Seg</div></div>
+                <div class="bar-chart-item"><div class="bar" style="height: 72%;"></div><div class="bar-day">Ter</div></div>
+                <div class="bar-chart-item"><div class="bar" style="height: 38%;"></div><div class="bar-day">Qua</div></div>
+                <div class="bar-chart-item"><div class="bar" style="height: 80%;"></div><div class="bar-day">Qui</div></div>
+                <div class="bar-chart-item"><div class="bar" style="height: 44%;"></div><div class="bar-day">Sex</div></div>
+                <div class="bar-chart-item"><div class="bar" style="height: 67%;"></div><div class="bar-day">Sáb</div></div>
+                
+                <div class="bar-chart-item">
+                    <div class="bar" id="today-bar" style="height: 0%;"></div>
+                    <div class="bar-day">HOJE</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title" style="margin-left: 5px;">Matriz de Status (Clique para Ativar)</div>
+
+        <div class="card status-matrix-container">
+            <div class="status-matrix">
+                <div class="status-item status-green-opaca" data-color="green">PRO</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">REV</div>
+                <div class="status-item status-red-opaca" data-color="red">BUG</div>
+                <div class="status-item status-green-opaca" data-color="green">DOC</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">IMP</div>
+                
+                <div class="status-item status-red-opaca" data-color="red">FIX</div>
+                <div class="status-item status-green-opaca" data-color="green">DEV</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">TES</div>
+                <div class="status-item status-green-opaca" data-color="green">REQ</div>
+                <div class="status-item status-red-opaca" data-color="red">DEP</div>
+
+                <div class="status-item status-yellow-opaca" data-color="yellow">R&D</div>
+                <div class="status-item status-green-opaca" data-color="green">QA</div>
+                <div class="status-item status-green-opaca" data-color="green">PRO</div>
+                <div class="status-item status-red-opaca" data-color="red">BUG</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">REV</div>
+
+                <div class="status-item status-green-opaca" data-color="green">IMP</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">FIX</div>
+                <div class="status-item status-green-opaca" data-color="green">TES</div>
+                <div class="status-item status-red-opaca" data-color="red">DEV</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">DOC</div>
+
+                <div class="status-item status-red-opaca" data-color="red">REQ</div>
+                <div class="status-item status-green-opaca" data-color="green">DEP</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">R&D</div>
+                <div class="status-item status-green-opaca" data-color="green">QA</div>
+                <div class="status-item status-red-opaca" data-color="red">PRO</div>
+                
+                <div class="status-item status-green-opaca" data-color="green">REV</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">BUG</div>
+                <div class="status-item status-red-opaca" data-color="red">IMP</div>
+                <div class="status-item status-green-opaca" data-color="green">FIX</div>
+                <div class="status-item status-yellow-opaca" data-color="yellow">DEV</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const statusItems = document.querySelectorAll('.status-item');
+            const todayBar = document.getElementById('today-bar');
+            const activeCountDisplay = document.getElementById('active-count-display');
+            const totalRectangles = statusItems.length; // 30 itens
+
+            function mapCountToHeight(count) {
+                return Math.min(100, Math.round((count / totalRectangles) * 100));
+            }
+
+            // CORREÇÃO 2: Forçando a cor de fundo via JavaScript, que tem maior precedência que o CSS.
+            function updateActiveCount() {
+                const activeCount = document.querySelectorAll('.status-green-viva, .status-yellow-viva, .status-red-viva').length;
+                const newHeight = mapCountToHeight(activeCount);
+                
+                // 1. Atualiza a altura da barra
+                todayBar.style.height = newHeight + '%';
+                
+                // 2. FORÇA A COR: Garante que a cor seja a de HOJE, sobrepondo qualquer CSS conflitante.
+                todayBar.style.backgroundColor = 'var(--cor-barra-hoje)'; 
+                
+                // 3. Atualiza o texto
+                activeCountDisplay.textContent = `${activeCount} itens ativos`;
+            }
+
+            // Adiciona o listener de clique a cada retângulo (mantido)
+            statusItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const color = item.dataset.color; 
+                    const vivaClass = `status-${color}-viva`;
+                    const opacaClass = `status-${color}-opaca`;
+
+                    if (item.classList.contains(vivaClass)) {
+                        item.classList.remove(vivaClass);
+                        item.classList.add(opacaClass);
+                    } else {
+                        item.classList.remove(opacaClass);
+                        item.classList.add(vivaClass);
+                    }
+
+                    // Recalcula e atualiza o gráfico
+                    updateActiveCount();
+                });
+            });
+
+            // Inicializa a contagem ao carregar a página
+            updateActiveCount();
+        });
+    </script>
+
+</body>
+</html>

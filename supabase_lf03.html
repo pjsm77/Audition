@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking de Artistas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 900px; margin: auto; }
+        
+        .search-header { background: var(--surface); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        #globalSearch { width: 100%; padding: 12px; border-radius: 5px; border: 1px solid #333; background: #2a2a2a; color: white; box-sizing: border-box; }
+
+        .table-wrapper { background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #282828; padding: 15px; border-bottom: 2px solid var(--primary); text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #333; }
+        
+        .header-content { display: flex; flex-direction: column; gap: 8px; }
+        .sort-btns { display: flex; align-items: center; gap: 10px; }
+        .sort-btns button { background: none; border: none; color: #888; cursor: pointer; font-size: 12px; }
+        .sort-btns button.active { color: var(--primary); }
+
+        a { color: var(--text); text-decoration: none; }
+        a:hover { color: var(--primary); text-decoration: underline; }
+
+        .rank-badge { background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-header">
+        <input type="text" id="globalSearch" placeholder="Pesquisar artista no ranking...">
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Posição</th>
+                    <th>
+                        <div class="header-content">
+                            <div class="sort-btns">
+                                <span>Artista</span>
+                                <button onclick="updateSort('artist', true)">▲</button>
+                                <button onclick="updateSort('artist', false)">▼</button>
+                            </div>
+                        </div>
+                    </th>
+                    <th>
+                        <div class="header-content">
+                            <div class="sort-btns">
+                                <span>Scrobbles</span>
+                                <button onclick="updateSort('scrobbles', true)">▲</button>
+                                <button onclick="updateSort('scrobbles', false)">▼</button>
+                            </div>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let sortCol = 'scrobbles';
+    let sortAsc = false;
+    let searchTerm = "";
+
+    async function loadRanking() {
+        const tbody = document.getElementById('ranking-body');
+        
+        // Chamada da função RPC criada no banco
+        let { data, error } = await _supabase
+            .rpc('get_artist_ranking', { search_term: searchTerm });
+
+        if (error) { console.error(error); return; }
+
+        // Ordenação manual no Front-end (mais rápido para rankings agregados)
+        data.sort((a, b) => {
+            let valA = a[sortCol];
+            let valB = b[sortCol];
+            if (typeof valA === 'string') {
+                return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+            return sortAsc ? valA - valB : valB - valA;
+        });
+
+        tbody.innerHTML = data.map((item, index) => `
+            <tr>
+                <td><span class="rank-badge">#${index + 1}</span></td>
+                <td>
+                    <a href="https://www.last.fm/music/${encodeURIComponent(item.artist).replace(/%20/g, '+')}" target="_blank">
+                        ${item.artist || 'Desconhecido'}
+                    </a>
+                </td>
+                <td>${item.scrobbles.toLocaleString('pt-BR')}</td>
+            </tr>
+        `).join('');
+    }
+
+    function updateSort(col, asc) {
+        sortCol = col;
+        sortAsc = asc;
+        loadRanking();
+    }
+
+    let timeout;
+    document.getElementById('globalSearch').oninput = (e) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            searchTerm = e.target.value;
+            loadRanking();
+        }, 400);
+    };
+
+    // Inicialização
+    loadRanking();
+</script>
+</body>
+</html>

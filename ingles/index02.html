@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Quest - Kids</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #58cc02;
+            --primary-dark: #46a302;
+            --wrong: #ff4b4b;
+            --correct: #58cc02;
+            --bg: #ffffff;
+            --text: #4b4b4b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text);
+        }
+
+        #app-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 0 #e5e5e5;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 2px solid #e5e5e5;
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #afafaf;
+        }
+
+        #word-display {
+            font-size: 3rem;
+            margin: 20px 0;
+            color: #3c3c3c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .audio-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 var(--primary-dark);
+            transition: transform 0.1s;
+        }
+
+        .audio-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--primary-dark); }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .option {
+            padding: 15px;
+            border: 2px solid #e5e5e5;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 #e5e5e5;
+        }
+
+        .option:hover { background-color: #f1f1f1; }
+
+        .option.correct {
+            background-color: #d7ffb8 !important;
+            border-color: var(--correct) !important;
+            color: var(--primary-dark);
+            box-shadow: 0 4px 0 var(--primary-dark);
+        }
+
+        .option.wrong {
+            background-color: #ffdfe0 !important;
+            border-color: var(--wrong) !important;
+            color: var(--wrong);
+            box-shadow: 0 4px 0 #e40000;
+        }
+
+        .disabled { pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+<div class="score-board">
+    <span>ACERTOS: <span id="total-score">0</span></span>
+    <span id="grade-display" style="font-weight: bold;">NOTA: <span id="current-grade">0.0</span></span>
+    <span>STREAK: 🔥 <span id="streak">0</span></span>
+</div>
+
+    <div id="word-display">
+        <span id="current-en">...</span>
+        <button class="audio-btn" onclick="speak()"><i class="fas fa-volume-up"></i></button>
+    </div>
+
+    <div class="options-grid" id="options-container">
+        </div>
+</div>
+
+<script>
+    const dictionary = [
+        /*{ en: 'the', pt: 'o,a', weight: 1, errors: 0 },
+        { en: 'a', pt: 'um, uma', weight: 1, errors: 0 },
+        { en: 'is', pt: 'é', weight: 1, errors: 0 },
+        { en: 'it', pt: 'isso, isto', weight: 1, errors: 0 },
+        { en: 'in', pt: 'em', weight: 1, errors: 0 },
+        { en: 'of', pt: 'da, de, do', weight: 1, errors: 0 },
+        { en: 'that', pt: 'aquilo, aquele, aquela', weight: 1, errors: 0 },
+        { en: 'to', pt: 'para', weight: 1, errors: 0 },
+        { en: 'and', pt: 'e', weight: 1, errors: 0 },
+        { en: 'you', pt: 'você, tu', weight: 1, errors: 0 },*/
+        { en: 'he', pt: 'ele', weight: 1, errors: 0 },
+        { en: 'was', pt: 'foi, era', weight: 1, errors: 0 },
+        { en: 'for', pt: 'para', weight: 1, errors: 0 },
+        { en: 'am', pt: 'sou, estou', weight: 1, errors: 0 },
+        { en: 'are', pt: 'são', weight: 1, errors: 0 },
+        { en: 'with', pt: 'com', weight: 1, errors: 0 },
+        { en: 'as', pt: 'como', weight: 1, errors: 0 },
+        { en: 'I', pt: 'eu', weight: 1, errors: 0 },
+        { en: 'his', pt: 'seu', weight: 1, errors: 0 },
+        { en: 'they', pt: 'eles, elas', weight: 1, errors: 0 }
+    ];
+
+    let currentWord = null;
+    let lastWord = null;
+    let score = 0;
+    let totalAttempts = 0; // Nova variável para contar quantas vezes o usuário respondeu
+    let streak = 0;
+
+    function initGame() {
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        // Lógica de sorteio baseada em peso (frequência)
+        let pool = [];
+        dictionary.forEach(item => {
+            // Adiciona a palavra ao "pote" de sorteio conforme o peso
+            for(let i=0; i<item.weight; i++) pool.push(item);
+        });
+
+        // Evita repetição imediata
+        let filteredPool = pool.filter(w => w.en !== lastWord?.en);
+        currentWord = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+        lastWord = currentWord;
+
+        document.getElementById('current-en').innerText = currentWord.en;
+        generateOptions();
+        speak();
+    }
+
+    function generateOptions() {
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        
+        // Pega a resposta correta + 3 erradas aleatórias
+        let choices = [currentWord.pt];
+        let others = dictionary.filter(w => w.pt !== currentWord.pt).map(w => w.pt);
+        
+        // Embaralha e pega 3
+        others.sort(() => Math.random() - 0.5);
+        choices.push(...others.slice(0, 3));
+        
+        // Embaralha as 4 opções finais
+        choices.sort(() => Math.random() - 0.5);
+
+        choices.forEach(text => {
+            const btn = document.createElement('div');
+            btn.className = 'option';
+            btn.innerText = text;
+            btn.onclick = () => checkAnswer(text, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selected, element) {
+totalAttempts++; // Incrementa o total de respostas dadas (certas ou erradas)
+    const options = document.querySelectorAll('.option');
+        options.forEach(opt => opt.classList.add('disabled'));
+
+        if (selected === currentWord.pt) {
+            element.classList.add('correct');
+            score += 1;
+            streak++;
+            // Diminui peso (aparece menos)
+            if(currentWord.weight > 1) currentWord.weight--; 
+            
+            updateDisplay();
+            setTimeout(nextQuestion, 3000);
+        } else {
+            element.classList.add('wrong');
+            streak = 0;
+            // Aumenta peso (aparece mais)
+            currentWord.weight += 3; 
+            
+            // Mostra a correta
+            options.forEach(opt => {
+                if(opt.innerText === currentWord.pt) opt.classList.add('correct');
+            });
+            
+            updateDisplay();
+            setTimeout(nextQuestion, 5000);
+        }
+    }
+
+function updateDisplay() {
+    document.getElementById('total-score').innerText = score;
+    document.getElementById('streak').innerText = streak;
+
+    // Cálculo da nota
+    if (totalAttempts > 0) {
+        let grade = (score / totalAttempts) * 10;
+        const gradeElement = document.getElementById('current-grade');
+        const gradeContainer = document.getElementById('grade-display');
+
+        gradeElement.innerText = grade.toFixed(1);
+
+        // Lógica de cores e negrito
+        if (grade < 7) {
+            gradeContainer.style.color = "#ff4b4b"; // Vermelho
+            gradeContainer.style.fontWeight = "normal";
+        } else if (grade >= 7 && grade < 9) {
+            gradeContainer.style.color = "#ffa500"; // Laranja
+            gradeContainer.style.fontWeight = "normal";
+        } else {
+            gradeContainer.style.color = "#58cc02"; // Verde
+            gradeContainer.style.fontWeight = "bold"; // Negrito para notas >= 9
+        }
+    }
+}
+
+    function speak() {
+        const utterance = new SpeechSynthesisUtterance(currentWord.en);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    initGame();
+</script>
+
+</body>
+</html>

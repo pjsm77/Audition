@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Financeiro V6.1 - Estável</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .edit-field { border-bottom: 2px solid #3b82f6 !important; background-color: #eff6ff !important; padding: 2px 4px; border-radius: 4px; }
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #1d4ed8; font-weight: 900; }
+        input { background: transparent; border: none; outline: none; width: 100%; font-family: inherit; }
+        .glass { background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px); }
+        .transition-all-custom { transition: all 0.3s ease; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- SEÇÃO 1: COMPONENTES DE INTERFACE ---
+        const ProgressBar = ({ label, spent, budget, colorClass }) => {
+            const perc = budget > 0 ? (spent / budget) * 100 : 0;
+            return (
+                <div className="w-full mb-3">
+                    <div className="flex justify-between text-[10px] font-black uppercase mb-1 text-gray-400">
+                        <span>{label}</span>
+                        <span className={perc > 100 ? 'text-red-600' : ''}>{perc.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 h-3.5 rounded-full overflow-hidden">
+                        <div 
+                            className={`h-full transition-all duration-700 ${colorClass || (perc > 100 ? 'bg-red-500' : perc >= 100 ? 'bg-yellow-400' : 'bg-green-500')}`} 
+                            style={{ width: `${Math.min(perc, 110)}%` }} 
+                        />
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SEÇÃO 2: APP PRINCIPAL ---
+        const FinanceApp = () => {
+            const [activeTab, setActiveTab] = useState('despesas');
+            const [editMode, setEditMode] = useState(false);
+            const [currentMonthIdx, setCurrentMonthIdx] = useState(2);
+            const [expandedItems, setExpandedItems] = useState({});
+
+            const months = ["Janeiro 2026", "Fevereiro 2026", "Março 2026"];
+            const currentMonth = months[currentMonthIdx];
+
+            // Dados Iniciais Consolidados
+            const [allData, setAllData] = useState({
+                "Março 2026": {
+                    receitas: [
+                        { id: 1, dia: '05', desc: 'Salário', valor: 10000 },
+                        { id: 2, dia: '15', desc: 'Freelance', valor: 2500 }
+                    ],
+                    categorias: [
+                        { id: 'CASA', budget: 3000, color: '#3b82f6', sub: [
+                            { id: 's1', label: 'Luz', budget: 800, gastos: [{ id: 'g1', dia: '10', desc: 'CEEE', valor: 245.15, parc: '1/1' }] },
+                            { id: 's2', label: 'Internet', budget: 150, gastos: [{ id: 'g2', dia: '05', desc: 'Vivo', valor: 150, parc: '1/1' }] }
+                        ]},
+                        { id: 'CARRO', budget: 2000, color: '#f59e0b', sub: [
+                            { id: 's3', label: 'Combustível', budget: 400, gastos: [{ id: 'g3', dia: '02', desc: 'Ipiranga', valor: 220, parc: '1/1' }] }
+                        ]},
+                        { id: 'COLÉGIO', budget: 1500, color: '#10b981', sub: [
+                            { id: 's4', label: 'Mensalidade', budget: 1500, gastos: [{ id: 'g4', dia: '05', desc: 'Escola', valor: 1500, parc: '3/12' }] }
+                        ]}
+                    ]
+                }
+            });
+
+            // Cálculos Automáticos
+            const data = useMemo(() => allData[currentMonth] || { receitas: [], categorias: [] }, [allData, currentMonth]);
+            const totalReceita = useMemo(() => data.receitas.reduce((acc, r) => acc + r.valor, 0), [data]);
+            const totalGasto = useMemo(() => data.categorias.reduce((acc, c) => acc + c.sub.reduce((sAcc, s) => sAcc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0), 0), [data]);
+
+            // Handlers
+            const toggleItem = (id) => setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
+            
+            const expandAll = (val) => {
+                const newState = {};
+                if (val) {
+                    data.categorias.forEach(c => {
+                        newState[c.id] = true;
+                        c.sub.forEach(s => newState[s.id] = true);
+                    });
+                }
+                setExpandedItems(newState);
+            };
+
+            const updateValue = (path, value) => {
+                const updated = JSON.parse(JSON.stringify(allData));
+                const monthRef = updated[currentMonth];
+
+                if (path[0] === 'rec') monthRef.receitas[path[1]][path[2]] = path[2] === 'valor' ? parseFloat(value) || 0 : value;
+                else if (path.length === 2) monthRef.categorias[path[0]][path[1]] = path[1] === 'budget' ? parseFloat(value) || 0 : value;
+                else if (path.length === 3) monthRef.categorias[path[0]].sub[path[1]].label = value;
+                else if (path.length === 4) monthRef.categorias[path[0]].sub[path[1]].budget = parseFloat(value) || 0;
+                else if (path.length === 5) monthRef.categorias[path[0]].sub[path[1]].gastos[path[2]][path[3]] = path[3] === 'valor' ? parseFloat(value) || 0 : value;
+                
+                setAllData(updated);
+            };
+
+            // --- SEÇÃO 3: GRÁFICO ---
+            useEffect(() => {
+                const chartElement = document.querySelector("#chart");
+                if (activeTab === 'graficos' && chartElement && data.categorias.length > 0) {
+                    const seriesData = [];
+                    data.categorias.forEach(cat => {
+                        const catTotal = cat.sub.reduce((acc, s) => acc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0);
+                        const catPerc = totalGasto > 0 ? ((catTotal / totalGasto) * 100).toFixed(1) : 0;
+                        
+                        cat.sub.forEach(sub => {
+                            const subTotal = sub.gastos.reduce((acc, g) => acc + g.valor, 0);
+                            const subPerc = catTotal > 0 ? ((subTotal / catTotal) * 100).toFixed(1) : 0;
+                            if (subTotal > 0) {
+                                seriesData.push({
+                                    x: `${cat.id} (${catPerc}%) > ${sub.label} (${subPerc}%)`,
+                                    y: subTotal,
+                                    fillColor: cat.color
+                                });
+                            }
+                        });
+                    });
+
+                    const chart = new ApexCharts(chartElement, {
+                        series: [{ data: seriesData }],
+                        chart: { type: 'treemap', height: 400, toolbar: { show: false } },
+                        plotOptions: { treemap: { distributed: true, enableShades: false } },
+                        dataLabels: { style: { fontSize: '10px' } }
+                    });
+                    chart.render();
+                    return () => chart.destroy();
+                }
+            }, [activeTab, currentMonthIdx, allData]);
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen bg-white pb-32 shadow-xl border-x border-gray-100">
+                    {/* Header */}
+                    <div className="glass sticky top-0 z-50 border-b border-gray-100">
+                        <div className="flex justify-between items-center p-4">
+                            <button onClick={() => setCurrentMonthIdx(p => Math.max(0, p-1))} className="p-2 text-gray-300 font-bold">&lt;</button>
+                            <h1 className="text-xs font-black uppercase tracking-widest">{currentMonth}</h1>
+                            <button onClick={() => setCurrentMonthIdx(p => Math.min(months.length-1, p+1))} className="p-2 text-gray-300 font-bold">&gt;</button>
+                        </div>
+                        <div className="flex justify-around text-[10px] font-black uppercase tracking-tighter pb-2">
+                            {['despesas', 'receitas', 'graficos'].map(t => (
+                                <button key={t} onClick={() => setActiveTab(t)} className={`px-4 py-2 ${activeTab === t ? 'tab-active' : 'text-gray-400'}`}>{t}</button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Resumo */}
+                    <div className="bg-slate-50 p-6 border-b border-gray-100">
+                        <ProgressBar label="Consumo da Receita" spent={totalGasto} budget={totalReceita} />
+                        <div className="flex justify-between text-[9px] font-black uppercase text-gray-400">
+                            <span>Rec: <b className="text-green-600">R$ {totalReceita.toLocaleString('pt-BR')}</b></span>
+                            <span>Saldo: <b className={totalReceita-totalGasto < 0 ? 'text-red-500' : 'text-blue-600'}>R$ {(totalReceita-totalGasto).toLocaleString('pt-BR')}</b></span>
+                        </div>
+                    </div>
+
+                    <div className="px-6 mt-4">
+                        {activeTab === 'despesas' && (
+                            <>
+                                <div className="flex gap-2 mb-6">
+                                    <button onClick={() => expandAll(true)} className="text-[9px] font-black uppercase border px-3 py-1 rounded-full text-gray-400">Expandir</button>
+                                    <button onClick={() => expandAll(false)} className="text-[9px] font-black uppercase border px-3 py-1 rounded-full text-gray-400">Recolher</button>
+                                </div>
+                                {data.categorias.map((cat, cIdx) => {
+                                    const catSpent = cat.sub.reduce((acc, s) => acc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0);
+                                    const isOpen = expandedItems[cat.id] || editMode;
+                                    return (
+                                        <div key={cat.id} className="mb-6">
+                                            <div className="flex justify-between items-center mb-1 cursor-pointer" onClick={() => toggleItem(cat.id)}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-4 rounded-sm" style={{ backgroundColor: cat.color }}></div>
+                                                    <input disabled={!editMode} className={`text-xs font-black uppercase ${editMode ? 'edit-field' : ''}`} value={cat.id} onChange={e => updateValue([cIdx, 'id'], e.target.value)} />
+                                                </div>
+                                                <span className="text-[10px] font-bold text-gray-400 italic">R$ {catSpent.toLocaleString('pt-BR')}</span>
+                                            </div>
+                                            <ProgressBar spent={catSpent} budget={cat.budget} colorClass="bg-slate-800" label="" />
+                                            
+                                            {isOpen && (
+                                                <div className="ml-4 border-l-2 border-slate-50 pl-4 mt-2 space-y-4">
+                                                    {cat.sub.map((sub, sIdx) => {
+                                                        const subSpent = sub.gastos.reduce((acc, g) => acc + g.valor, 0);
+                                                        const isSubOpen = expandedItems[sub.id] || editMode;
+                                                        return (
+                                                            <div key={sub.id}>
+                                                                <div className="flex justify-between items-center cursor-pointer" onClick={() => toggleItem(sub.id)}>
+                                                                    <input disabled={!editMode} className={`text-[11px] font-bold text-gray-500 uppercase ${editMode ? 'edit-field' : ''}`} value={sub.label} onChange={e => updateValue([cIdx, sIdx], e.target.value)} />
+                                                                    <div className="text-[10px] font-bold text-gray-400">
+                                                                        <input type="number" disabled={!editMode} className={`w-14 text-right ${editMode ? 'edit-field text-blue-500' : ''}`} value={sub.budget} onChange={e => updateValue([cIdx, sIdx, 4], e.target.value)} />
+                                                                    </div>
+                                                                </div>
+                                                                <ProgressBar spent={subSpent} budget={sub.budget} label="" />
+                                                                {isSubOpen && (
+                                                                    <div className="bg-slate-50/50 rounded-lg p-2 space-y-1">
+                                                                        {sub.gastos.map((g, gIdx) => (
+                                                                            <div key={g.id} className="flex gap-1 text-[10px] items-center border-b border-white pb-1">
+                                                                                <input disabled={!editMode} className={`w-5 text-gray-400 font-bold ${editMode ? 'edit-field' : ''}`} value={g.dia} onChange={e => updateValue([cIdx, sIdx, gIdx, 'dia'], e.target.value)} />
+                                                                                <input disabled={!editMode} className={`flex-1 italic ${editMode ? 'edit-field' : ''}`} value={g.desc} onChange={e => updateValue([cIdx, sIdx, gIdx, 'desc'], e.target.value)} />
+                                                                                <input type="number" disabled={!editMode} className={`w-16 text-right font-black ${editMode ? 'edit-field' : ''}`} value={g.valor} onChange={e => updateValue([cIdx, sIdx, gIdx, 'valor'], e.target.value)} />
+                                                                                <input disabled={!editMode} className={`w-7 text-right text-blue-400 font-bold ${editMode ? 'edit-field' : ''}`} value={g.parc} onChange={e => updateValue([cIdx, sIdx, gIdx, 'parc'], e.target.value)} />
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        )}
+
+                        {activeTab === 'receitas' && data.receitas.map((r, rIdx) => (
+                            <div key={r.id} className="flex gap-2 p-3 bg-slate-50 rounded-xl mb-2 text-[11px] items-center border border-gray-100">
+                                <input disabled={!editMode} className={`w-6 font-bold text-gray-400 ${editMode ? 'edit-field' : ''}`} value={r.dia} onChange={e => updateValue(['rec', rIdx, 'dia'], e.target.value)} />
+                                <input disabled={!editMode} className={`flex-1 font-medium ${editMode ? 'edit-field' : ''}`} value={r.desc} onChange={e => updateValue(['rec', rIdx, 'desc'], e.target.value)} />
+                                <input type="number" disabled={!editMode} className={`w-20 text-right font-black ${editMode ? 'edit-field' : ''}`} value={r.valor} onChange={e => updateValue(['rec', rIdx, 'valor'], e.target.value)} />
+                            </div>
+                        ))}
+
+                        {activeTab === 'graficos' && <div id="chart" className="mt-4"></div>}
+                    </div>
+
+                    {/* FAB */}
+                    <button 
+                        onClick={() => setEditMode(!editMode)}
+                        className={`fixed bottom-8 right-8 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all-custom z-50 active:scale-95 ${editMode ? 'bg-green-600' : 'bg-slate-900'}`}
+                    >
+                        {editMode ? <span className="text-white text-xs font-black uppercase">Salvar</span> : <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>}
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<FinanceApp />);
+    </script>
+</body>
+</html>

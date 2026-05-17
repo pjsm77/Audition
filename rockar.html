@@ -1,0 +1,805 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #e0e0e0; padding: 40px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; position: relative; text-align: center; }
+        .novo { border: 2px solid #2ecc71; }
+        .badge { position: absolute; top: 10px; right: 10px; background: #2ecc71; color: #000; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
+        .artist-name { display: block; margin-bottom: 15px; font-weight: bold; }
+        .btn-deezer { background: #ef5464; color: white; text-decoration: none; padding: 8px 15px; border-radius: 20px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>Rock Argentino - Comparação Local</h1>
+    <div class="grid">
+
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Almafuerte</span>
+            <a href="https://www.deezer.com/artist/10910" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Almendra</span>
+            <a href="https://www.deezer.com/artist/355716" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Attaque 77</span>
+            <a href="https://www.deezer.com/artist/10594" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Lisandro Aristimuño</span>
+            <a href="https://www.deezer.com/artist/100387" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Auténticos Decadentes</span>
+            <a href="https://www.deezer.com/artist/5205" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Pedro Aznar</span>
+            <a href="https://www.deezer.com/artist/16149" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Babasónicos</span>
+            <a href="https://www.deezer.com/artist/4998" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Juan Carlos Baglietto</span>
+            <a href="https://www.deezer.com/artist/215718" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Bajofondo</span>
+            <a href="https://www.deezer.com/artist/79501" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Bandalos Chinos</span>
+            <a href="https://www.deezer.com/artist/7194304" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">La Beriso</span>
+            <a href="https://www.deezer.com/artist/4925904" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Bersuit Vergarabat</span>
+            <a href="https://www.deezer.com/artist/4903" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Marilina Bertoldi</span>
+            <a href="https://www.deezer.com/artist/7700722" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Boom Boom Kid</span>
+            <a href="https://www.deezer.com/artist/394266" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">El Bordo</span>
+            <a href="https://www.deezer.com/artist/265071" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Cadena Perpetua</span>
+            <a href="https://www.deezer.com/artist/116445" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Cafres</span>
+            <a href="https://www.deezer.com/artist/14523" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Andrés Calamaro</span>
+            <a href="https://www.deezer.com/artist/5838" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Callejeros</span>
+            <a href="https://www.deezer.com/artist/12134" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Fabiana Cantilo</span>
+            <a href="https://www.deezer.com/artist/10628" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Catupecu Machu</span>
+            <a href="https://www.deezer.com/artist/10908" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Gustavo Cerati</span>
+            <a href="https://www.deezer.com/artist/1374" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Ciro &amp; Los Persas</span>
+            <a href="https://www.deezer.com/artist/50221622" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Conociendo Rusia</span>
+            <a href="https://www.deezer.com/artist/14589669" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">El Cuarteto de Nos</span>
+            <a href="https://www.deezer.com/artist/15376" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Dancing Mood</span>
+            <a href="https://www.deezer.com/artist/1392021" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Divididos</span>
+            <a href="https://www.deezer.com/artist/10911" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Don Cornelio y la Zona</span>
+            <a href="https://www.deezer.com/artist/247587" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Don Osvaldo</span>
+            <a href="https://www.deezer.com/artist/9209776" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Dread Mar I</span>
+            <a href="https://www.deezer.com/artist/4278295" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Él Mató a un Policía Motorizado</span>
+            <a href="https://www.deezer.com/artist/469543" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Eruca Sativa</span>
+            <a href="https://www.deezer.com/artist/4073391" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Enanitos Verdes</span>
+            <a href="https://www.deezer.com/artist/133049" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Encargados</span>
+            <a href="https://www.deezer.com/artist/451944" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Ricky Espinosa</span>
+            <a href="https://www.deezer.com/artist/7555092" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Espíritus</span>
+            <a href="https://www.deezer.com/artist/1247644" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Estelares</span>
+            <a href="https://www.deezer.com/artist/122917" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Fabulosos Cadillacs</span>
+            <a href="https://www.deezer.com/artist/3491" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Fantasmagoria</span>
+            <a href="https://www.deezer.com/artist/451686" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Farolitos</span>
+            <a href="https://www.deezer.com/artist/50537802" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Gabo Ferro</span>
+            <a href="https://www.deezer.com/artist/902070" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Flema</span>
+            <a href="https://www.deezer.com/artist/4254198" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Charly García</span>
+            <a href="https://www.deezer.com/artist/4300" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Leo García</span>
+            <a href="https://www.deezer.com/artist/245099" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Gardelitos</span>
+            <a href="https://www.deezer.com/artist/575249" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Gatos</span>
+            <a href="https://www.deezer.com/artist/397726" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">León Gieco</span>
+            <a href="https://www.deezer.com/artist/107273" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">G.I.T.</span>
+            <a href="https://www.deezer.com/artist/8114447" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Zoe Gotusso</span>
+            <a href="https://www.deezer.com/artist/13668145" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Hermética</span>
+            <a href="https://www.deezer.com/artist/16613" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Heroicos Sobrevivientes</span>
+            <a href="https://www.deezer.com/artist/12630597" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Horcas</span>
+            <a href="https://www.deezer.com/artist/6578" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Illya Kuryaki &amp; The Valderramas</span>
+            <a href="https://www.deezer.com/artist/158700" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Intoxicados</span>
+            <a href="https://www.deezer.com/artist/7922" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Invisible</span>
+            <a href="https://www.deezer.com/artist/398655" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Ricardo Iorio</span>
+            <a href="https://www.deezer.com/artist/4269694" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Isla de Caras</span>
+            <a href="https://www.deezer.com/artist/10514391" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">JAF</span>
+            <a href="https://www.deezer.com/artist/1021321" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Kevin Johansen</span>
+            <a href="https://www.deezer.com/artist/4346" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Juana La Loca</span>
+            <a href="https://www.deezer.com/artist/98492" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Julio y Agosto</span>
+            <a href="https://www.deezer.com/artist/7204064" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Kameleba</span>
+            <a href="https://www.deezer.com/artist/2490021" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Kapanga</span>
+            <a href="https://www.deezer.com/artist/11074" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Karamelo Santo</span>
+            <a href="https://www.deezer.com/artist/83363" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">David Lebón</span>
+            <a href="https://www.deezer.com/artist/248529" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Leticia Lee</span>
+            <a href="https://www.deezer.com/artist/256554622" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Alejandro Lerner</span>
+            <a href="https://www.deezer.com/artist/8796" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Louta</span>
+            <a href="https://www.deezer.com/artist/11549549" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Paula Maffía</span>
+            <a href="https://www.deezer.com/artist/6642798" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Malón</span>
+            <a href="https://www.deezer.com/artist/7543848" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Manal</span>
+            <a href="https://www.deezer.com/artist/451940" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Las Manos de Filippi</span>
+            <a href="https://www.deezer.com/artist/4016595" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Massacre</span>
+            <a href="https://www.deezer.com/artist/7849774" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Daniel Melero</span>
+            <a href="https://www.deezer.com/artist/451948" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Memphis la Blusera</span>
+            <a href="https://www.deezer.com/artist/265862" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Sandra Mihanovich</span>
+            <a href="https://www.deezer.com/artist/79639" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Mimi Maura</span>
+            <a href="https://www.deezer.com/artist/94126" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Miranda!</span>
+            <a href="https://www.deezer.com/artist/4996" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">La Mississippi</span>
+            <a href="https://www.deezer.com/artist/98605" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Juana Molina</span>
+            <a href="https://www.deezer.com/artist/13900" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">La Mosca</span>
+            <a href="https://www.deezer.com/artist/449043" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Litto Nebbia</span>
+            <a href="https://www.deezer.com/artist/118223" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Fidel Nadal</span>
+            <a href="https://www.deezer.com/artist/471578" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">No Te Va Gustar</span>
+            <a href="https://www.deezer.com/artist/15779" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Nonpalidece</span>
+            <a href="https://www.deezer.com/artist/126980" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">O’Connor</span>
+            <a href="https://www.deezer.com/artist/2974" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Octafonic</span>
+            <a href="https://www.deezer.com/artist/7009061" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Onda Vaga</span>
+            <a href="https://www.deezer.com/artist/1203336" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">El Otro Yo</span>
+            <a href="https://www.deezer.com/artist/125263" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Fito Páez</span>
+            <a href="https://www.deezer.com/artist/4941" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Pappo</span>
+            <a href="https://www.deezer.com/artist/15033" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Pappo’s Blues</span>
+            <a href="https://www.deezer.com/artist/17002" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Las Pastillas del Abuelo</span>
+            <a href="https://www.deezer.com/artist/1456216" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Patricio Rey y sus Redonditos de Ricota</span>
+            <a href="https://www.deezer.com/artist/12135" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Pedro y Pablo</span>
+            <a href="https://www.deezer.com/artist/274359" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Las Pelotas</span>
+            <a href="https://www.deezer.com/artist/16252" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Pericos</span>
+            <a href="https://www.deezer.com/artist/6441" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Pescado Rabioso</span>
+            <a href="https://www.deezer.com/artist/1213173" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Piojos</span>
+            <a href="https://www.deezer.com/artist/13135" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Luca Prodan</span>
+            <a href="https://www.deezer.com/artist/4427354" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Ratones Paranoicos</span>
+            <a href="https://www.deezer.com/artist/112389" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Barbi Recanati</span>
+            <a href="https://www.deezer.com/artist/10634029" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">La Renga</span>
+            <a href="https://www.deezer.com/artist/12918" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">RIFF</span>
+            <a href="https://www.deezer.com/artist/202181547" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Sandro</span>
+            <a href="https://www.deezer.com/artist/13343803" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Gustavo Santaolalla</span>
+            <a href="https://www.deezer.com/artist/1509" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Seru Giran</span>
+            <a href="https://www.deezer.com/artist/103602" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Siete Delfines</span>
+            <a href="https://www.deezer.com/artist/5204574" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Eduardo Skay Beilinson</span>
+            <a href="#" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Soda Stereo</span>
+            <a href="https://www.deezer.com/artist/4345" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Carlos Indio Solari</span>
+            <a href="#" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">El Soldado</span>
+            <a href="https://www.deezer.com/artist/5552151" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Luis Alberto Spinetta</span>
+            <a href="https://www.deezer.com/artist/75041" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Spinetta Jade</span>
+            <a href="https://www.deezer.com/artist/75281" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Sui Generis</span>
+            <a href="https://www.deezer.com/artist/8355" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Sumo</span>
+            <a href="https://www.deezer.com/artist/11924" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Tan Biónica</span>
+            <a href="https://www.deezer.com/artist/1413553" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Tipitos</span>
+            <a href="https://www.deezer.com/artist/5375" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">La Torre</span>
+            <a href="https://www.deezer.com/artist/4748576" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Turf</span>
+            <a href="https://www.deezer.com/artist/7383" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Twist</span>
+            <a href="https://www.deezer.com/artist/245259" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Usted Señalemelo</span>
+            <a href="https://www.deezer.com/artist/5905066" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Utopians</span>
+            <a href="https://www.deezer.com/artist/1070650" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">La Vela Puerca</span>
+            <a href="https://www.deezer.com/artist/5954" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Viejas Locas</span>
+            <a href="https://www.deezer.com/artist/17186" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Los Violadores</span>
+            <a href="https://www.deezer.com/artist/201826" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Virus</span>
+            <a href="https://www.deezer.com/artist/15338825" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Vox Dei</span>
+            <a href="https://www.deezer.com/artist/82867" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">Zas</span>
+            <a href="https://www.deezer.com/artist/107331" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">107 Faunos</span>
+            <a href="https://www.deezer.com/artist/4957065" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    
+        <div class="card novo">
+            <span class="badge">NOVO</span>
+            <span class="artist-name">2 minutos</span>
+            <a href="https://www.deezer.com/artist/128418" target="_blank" class="btn-deezer">Deezer</a>
+        </div>
+    </div></body></html>

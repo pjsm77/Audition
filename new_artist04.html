@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro Artista</title>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #f8fafc;
+            --primary: #2dd4bf; --border: #334155;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg); color: var(--text);
+            margin: 0; display: flex; justify-content: center; align-items: flex-start;
+            min-height: 100vh; overflow-x: hidden;
+        }
+        .card {
+            background: var(--card); padding: 15px; border-radius: 8px;
+            width: 100%; max-width: 450px; /* Estreito para caber no mobile */
+            border: 1px solid var(--border); margin: 10px;
+        }
+        h2 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--primary); text-align: center; }
+        
+        /* Layout de uma coluna por linha */
+        .form-group { margin-bottom: 10px; display: flex; flex-direction: column; }
+        
+        label { font-size: 0.7rem; margin-bottom: 4px; color: #94a3b8; text-transform: uppercase; }
+        input, select {
+            background: #0f172a; border: 1px solid var(--border);
+            padding: 10px; border-radius: 4px; color: white; font-size: 0.9rem; 
+            outline: none; width: 100%; box-sizing: border-box;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .rating-container { display: flex; gap: 5px; }
+        .rating-btn {
+            flex: 1; padding: 10px; border: 1px solid var(--border);
+            background: #0f172a; color: white; cursor: pointer; border-radius: 4px;
+        }
+        .rating-btn.active { background: var(--primary); color: #0f172a; font-weight: bold; }
+
+        .hidden { display: none; }
+        button[type="submit"] {
+            width: 100%; padding: 12px; background: var(--primary);
+            border: none; border-radius: 4px; color: #0f172a;
+            font-weight: bold; cursor: pointer; margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Novo Artista</h2>
+    <form id="artistForm">
+        <div class="form-group">
+            <label>Nome do Artista</label>
+            <input type="text" id="name" required>
+        </div>
+        
+        <div class="form-group">
+            <label>ID Deezer</label>
+            <input type="text" id="deezer_id">
+        </div>
+
+        <div class="form-group">
+            <label>País</label>
+            <select id="id_country" required>
+                <option value="">Carregando países...</option>
+            </select>
+        </div>
+
+        <div id="stateGroup" class="form-group hidden">
+            <label>Estado</label>
+            <select id="id_state"></select>
+        </div>
+
+        <div class="form-group">
+            <label>Cidade</label>
+            <select id="id_city" required>
+                <option value="">Selecione o país primeiro</option>
+            </select>
+        </div>
+
+        <div id="newCityGroup" class="form-group hidden">
+            <label>Nome da Nova Cidade</label>
+            <input type="text" id="new_city_name">
+        </div>
+
+        <div class="form-group">
+            <label>Rating</label>
+            <div class="rating-container">
+                <button type="button" class="rating-btn" data-val="1">1</button>
+                <button type="button" class="rating-btn" data-val="2">2</button>
+                <button type="button" class="rating-btn" data-val="3">3</button>
+            </div>
+            <input type="hidden" id="rating_value">
+        </div>
+
+        <div class="form-group">
+            <label>Idioma (String de Cópia)</label>
+            <input type="text" id="language" placeholder="país_cidade_idioma">
+        </div>
+
+        <button type="submit">CADASTRAR</button>
+    </form>
+</div>
+
+<script>
+    const URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co'; 
+    const KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+
+    const headers = { 'apikey': KEY, 'Authorization': `Bearer ${KEY}`, 'Content-Type': 'application/json' };
+
+    const countrySel = document.getElementById('id_country');
+    const stateSel = document.getElementById('id_state');
+    const citySel = document.getElementById('id_city');
+
+    async function loadCountries() {
+        const res = await fetch(`${URL}/rest/v1/tbl_countries?select=id_country,portuguese_name&order=portuguese_name`, { headers });
+        const data = await res.json();
+        countrySel.innerHTML = '<option value="">Selecione o País</option>';
+        data.forEach(c => countrySel.add(new Option(c.portuguese_name, c.id_country)));
+    }
+
+    countrySel.onchange = async () => {
+        const cid = countrySel.value;
+        const isSpecial = ['25', '64'].includes(cid);
+        
+        document.getElementById('stateGroup').classList.toggle('hidden', !isSpecial);
+        stateSel.innerHTML = '<option value="">Selecione o Estado</option>';
+        citySel.innerHTML = '<option value="">Aguardando...</option>';
+
+        if (isSpecial) {
+            const res = await fetch(`${URL}/rest/v1/tbl_states?id_country=eq.${cid}&order=name`, { headers });
+            const states = await res.json();
+            states.forEach(s => stateSel.add(new Option(s.name, s.id_state)));
+        } else {
+            loadCities(cid, null);
+        }
+    };
+
+    stateSel.onchange = () => loadCities(countrySel.value, stateSel.value);
+
+    async function loadCities(cid, sid) {
+        citySel.innerHTML = '<option value="">Carregando cidades...</option>';
+        
+        // CORREÇÃO DA QUERY: Filtra por id_state se existir, senão id_country
+        let query = sid ? `id_state=eq.${sid}` : `id_country=eq.${cid}&id_state=is.null`;
+        
+        try {
+            const res = await fetch(`${URL}/rest/v1/tbl_cities?${query}&order=name`, { headers });
+            const data = await res.json();
+            
+            citySel.innerHTML = '<option value="">Selecione a Cidade</option>';
+            data.forEach(c => citySel.add(new Option(c.name, c.id_city)));
+            citySel.add(new Option("+ Cadastrar Nova", "NEW"));
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    citySel.onchange = () => {
+        document.getElementById('newCityGroup').classList.toggle('hidden', citySel.value !== "NEW");
+    };
+
+    document.querySelectorAll('.rating-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('rating_value').value = btn.dataset.val;
+        };
+    });
+
+    document.getElementById('artistForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const payload = {
+            p_name: document.getElementById('name').value,
+            p_deezer_id: document.getElementById('deezer_id').value || null,
+            p_id_city: citySel.value === "NEW" ? null : parseInt(citySel.value),
+            p_new_city_name: document.getElementById('new_city_name').value || null,
+            p_id_state: stateSel.value ? parseInt(stateSel.value) : null,
+            p_id_country: parseInt(countrySel.value),
+            p_language: document.getElementById('language').value,
+            p_rating: parseInt(document.getElementById('rating_value').value) || null
+        };
+
+        const res = await fetch(`${URL}/rest/v1/rpc/fn_save_artist_full`, {
+            method: 'POST', headers, body: JSON.stringify(payload)
+        });
+
+        if (res.ok) { alert("Artista salvo!"); location.reload(); }
+        else { const err = await res.json(); alert("Erro: " + err.message); }
+    };
+
+    loadCountries();
+</script>
+</body>
+</html>

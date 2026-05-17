@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ranking Dinâmico — Aba RAN Corrigida</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+:root { font-family: 'Bebas Neue', cursive; }
+body { background:#f7f9fb; }
+
+.ranking-card:hover{transform:scale(1.002)}
+</style>
+</head>
+
+<body class="p-4 min-h-screen">
+
+<div class="max-w-3xl mx-auto bg-white p-4 rounded-xl shadow">
+
+    <h1 class="mb-4 text-3xl text-center">?? Ranking de Artistas</h1>
+
+    <div id="sheet-nav" class="mb-4 flex justify-center gap-2"></div>
+
+    <div id="results-count" class="text-center mb-3 text-sm"></div>
+
+    <div id="status-message"
+         class="text-center p-3 mb-4 bg-yellow-50 rounded">
+        Carregando dados...
+    </div>
+
+    <div id="contact-list" class="space-y-3"></div>
+
+</div>
+
+<script>
+/* ===================================================== */
+/* CONFIG                                                */
+/* ===================================================== */
+
+const SHEET_ID = "1QCyU_zShDAWzsZm1G-8cMUamrMdUOvyc3AIXtnhfiUw";
+
+const SHEETS_CONFIG = [
+    { name: 'Ran', gid: '1085390429' }
+];
+
+let currentSheet = SHEETS_CONFIG[0];
+let allData = [];
+
+const sheetNav = document.getElementById("sheet-nav");
+const contactList = document.getElementById("contact-list");
+const statusMessage = document.getElementById("status-message");
+const resultsCount  = document.getElementById("results-count");
+
+const getSheetUrl = gid =>
+ `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+
+/* ===================================================== */
+/* UTIL                                                  */
+/* ===================================================== */
+
+function parseSheetData(jsonText){
+
+    const raw = JSON.parse(
+        jsonText.substring(
+            jsonText.indexOf("(")+1,
+            jsonText.lastIndexOf(")")
+        )
+    );
+
+    const headers =
+        raw.table.cols.map(c => c.label || c.id);
+
+    const rows=[];
+
+    raw.table.rows.forEach(row=>{
+        const obj={};
+        row.c.forEach((cell,i)=>{
+            obj[headers[i]] =
+                cell?.f ?? cell?.v ?? "";
+        });
+        rows.push(obj);
+    });
+
+    rows.shift(); // remove headers
+
+    return rows;
+}
+
+function getColumnKeyByIndex(idx){
+    if(!allData[0]) return null;
+    return Object.keys(allData[0])[idx];
+}
+
+
+/* ===================================================== */
+/* PROCESS RAN                                           */
+/* ===================================================== */
+
+function processRankingData(rows){
+
+    // --------- COLUNAS FIXAS -----------
+    const KEY_POS     = getColumnKeyByIndex(0); // A
+    const KEY_ARTIST = getColumnKeyByIndex(1); // B
+    const KEY_COUNTRY= getColumnKeyByIndex(2); // C
+    const KEY_POINTS = getColumnKeyByIndex(3); // D
+
+    console.log("Ranking -> chaves:",
+        KEY_POS,KEY_ARTIST,KEY_COUNTRY,KEY_POINTS);
+
+    // --- ORDENA PELA POSIÇÃO (COL A) ---
+    rows.sort((a,b)=>{
+        const pa = parseInt(a[KEY_POS]) || 9999;
+        const pb = parseInt(b[KEY_POS]) || 9999;
+        return pa - pb;
+    });
+
+    return rows;
+}
+
+
+/* ===================================================== */
+/* CARDS                                                 */
+/* ===================================================== */
+
+function createRankingCard(row){
+
+    const posKey = getColumnKeyByIndex(0);
+    const artKey = getColumnKeyByIndex(1);
+    const ctyKey = getColumnKeyByIndex(2);
+    const ptsKey = getColumnKeyByIndex(3);
+
+    const pos   = row[posKey]   || "—";
+    const name  = row[artKey]   || "ARTISTA";
+    const code  = String(row[ctyKey]||"").toLowerCase();
+    const pts   = parseFloat(row[ptsKey]||0).toLocaleString("pt-BR",{
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
+    });
+
+    const numPos = parseInt(pos);
+
+    let medal = "bg-gray-50 border-indigo-500 text-gray-700";
+
+    if(numPos===1) medal="bg-amber-100 border-amber-500 text-amber-700";
+    if(numPos===2) medal="bg-gray-200 border-gray-500 text-gray-700";
+    if(numPos===3) medal="bg-orange-100 border-orange-500 text-orange-700";
+
+    const flag = code.length>=2
+        ? `<img src="https://flagcdn.com/40x30/${code}.png"
+               class="w-10 h-7 rounded shadow border"
+               alt="${code}">`
+        : "";
+
+    const card = document.createElement("div");
+    card.className =
+      `ranking-card p-3 flex items-center bg-white 
+       rounded-xl shadow border-l-4 ${medal}`;
+
+    card.innerHTML = `
+        <div class="
+            w-14 text-center mr-4 font-extrabold text-3xl">
+            ${pos}
+        </div>
+
+        <div class="flex items-center gap-3 flex-grow">
+
+            ${flag}
+
+            <div>
+                <h2 class="text-2xl font-bold">${name.toUpperCase()}</h2>
+            </div>
+
+        </div>
+
+        <div class="
+            text-right ml-4 border-l pl-4">
+
+            <p class="text-xs text-gray-500">PONTOS</p>
+            <p class="text-xl font-extrabold text-indigo-600">
+                ${pts}
+            </p>
+
+        </div>
+    `;
+
+    return card;
+}
+
+
+/* ===================================================== */
+/* RENDER                                                */
+/* ===================================================== */
+
+function render(records){
+
+    contactList.innerHTML = "";
+
+    records.forEach(row=>{
+        contactList.appendChild(
+            createRankingCard(row)
+        );
+    });
+
+    resultsCount.textContent =
+        `${ records.length } participantes listados`;
+}
+
+
+/* ===================================================== */
+/* NAV + FETCH                                           */
+/* ===================================================== */
+
+function renderSheetNavigation(){
+
+    sheetNav.innerHTML="";
+
+    SHEETS_CONFIG.forEach(sheet=>{
+
+        const btn=document.createElement("button");
+
+        btn.textContent = sheet.name;
+        btn.className =
+            "bg-indigo-600 text-white px-3 py-1 rounded";
+
+        btn.onclick = ()=>{
+            currentSheet = sheet;
+            fetchData();
+        };
+
+        sheetNav.appendChild(btn);
+
+    });
+}
+
+async function fetchData(){
+
+    statusMessage.textContent="Carregando...";
+
+    const res = await fetch(getSheetUrl(currentSheet.gid));
+    const txt = await res.text();
+
+    allData = parseSheetData(txt);
+    allData = processRankingData(allData);
+
+    render(allData);
+
+    statusMessage.textContent="";
+}
+
+/* ===================================================== */
+
+renderSheetNavigation();
+fetchData();
+
+</script>
+</body>
+</html>

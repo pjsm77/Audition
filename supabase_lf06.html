@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Ranking Geral com Estatísticas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 1100px; margin: auto; }
+        .search-header { background: var(--surface); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        #globalSearch { width: 100%; padding: 12px; border-radius: 5px; border: 1px solid #333; background: #2a2a2a; color: white; box-sizing: border-box; }
+        .table-wrapper { background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #282828; padding: 15px; border-bottom: 2px solid var(--primary); text-align: left; font-size: 0.9em; }
+        td { padding: 12px; border-bottom: 1px solid #333; }
+        .rank-badge { background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: var(--primary); }
+        .days-late { color: #ff5555; font-size: 0.85em; } /* Cor para destaque de muitos dias */
+        a { color: var(--text); text-decoration: none; }
+        a:hover { color: var(--primary); text-decoration: underline; }
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #282828; }
+        .btn-pag { background: var(--primary); border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-header">
+        <input type="text" id="globalSearch" placeholder="Pesquisar artista no ranking...">
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Artista</th>
+                    <th>Início</th>
+                    <th>Dias</th>
+                    <th>Total Scrobbles</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+        <div class="pagination">
+            <button class="btn-pag" id="prevBtn">Anterior</button>
+            <span id="pageLabel">Página 1</span>
+            <button class="btn-pag" id="nextBtn">Próxima</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let offset = 0;
+    const limit = 50;
+    let searchTerm = "";
+
+    async function loadRanking() {
+        const tbody = document.getElementById('ranking-body');
+        const { data, error } = await _supabase.rpc('get_artist_ranking', { search_term: searchTerm });
+
+        if (error) return;
+
+        const totalItems = data.length;
+        const pagedData = data.slice(offset, offset + limit);
+
+        tbody.innerHTML = pagedData.map((item, index) => {
+            const dias = item.dias_ultimo;
+            const formatDias = dias === 0 ? 'Hoje' : (dias >= 365 ? `${(dias/365).toFixed(1)} anos atrás` : `${dias}`);
+            
+            return `
+                <tr>
+                    <td><span class="rank-badge">#${offset + index + 1}</span></td>
+                    <td>
+                        <a href="https://www.last.fm/music/${encodeURIComponent(item.artist).replace(/%20/g, '+')}" target="_blank">
+                            ${item.artist}
+                        </a>
+                    </td>
+                    <td>${item.primeiro_ano}</td>
+                    <td class="${dias > 365 ? 'days-late' : ''}">${formatDias}</td>
+                    <td><strong>${item.scrobbles.toLocaleString('pt-BR')}</strong></td>
+                </tr>
+            `;
+        }).join('');
+
+        document.getElementById('pageLabel').innerText = `Página ${(offset / limit) + 1} de ${Math.ceil(totalItems / limit)}`;
+        document.getElementById('prevBtn').disabled = offset === 0;
+        document.getElementById('nextBtn').disabled = (offset + limit) >= totalItems;
+    }
+
+    document.getElementById('nextBtn').onclick = () => { offset += limit; loadRanking(); };
+    document.getElementById('prevBtn').onclick = () => { offset -= limit; loadRanking(); };
+    document.getElementById('globalSearch').oninput = (e) => { 
+        searchTerm = e.target.value; offset = 0; loadRanking(); 
+    };
+
+    loadRanking();
+</script>
+</body>
+</html>

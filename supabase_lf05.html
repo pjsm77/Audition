@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Top 3 Artistas por Ano (desde 2014)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; }
+        
+        /* Grid de 4 colunas */
+        .grid-container { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 20px; 
+            max-width: 1400px; 
+            margin: auto; 
+        }
+
+        .year-card { 
+            background: var(--surface); 
+            border-radius: 8px; 
+            padding: 15px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border-top: 3px solid var(--primary);
+        }
+
+        h2 { text-align: center; margin-top: 0; color: var(--primary); font-size: 1.4em; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th { text-align: left; color: #888; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        td { padding: 8px 0; border-bottom: 1px solid #2a2a2a; }
+        
+        .rank { font-weight: bold; color: var(--primary); width: 20px; }
+        .scrobbles { text-align: right; color: #aaa; }
+        
+        a { color: var(--text); text-decoration: none; transition: 0.2s; }
+        a:hover { color: var(--primary); text-decoration: underline; }
+
+        @media (max-width: 1000px) { .grid-container { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px) { .grid-container { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<h1 style="text-align: center; margin-bottom: 40px;"> </h1>
+<div class="grid-container" id="years-grid">
+    </div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    async function loadYearlyTop() {
+        const grid = document.getElementById('years-grid');
+        
+        const { data, error } = await _supabase.rpc('get_top_artists_by_year');
+
+        if (error) {
+            console.error(error);
+            grid.innerHTML = "<p>Erro ao carregar dados.</p>";
+            return;
+        }
+
+        // Agrupar os dados por ano no JavaScript
+        const yearsData = {};
+        data.forEach(item => {
+            if (!yearsData[item.ano]) yearsData[item.ano] = [];
+            yearsData[item.ano].push(item);
+        });
+
+        // Gerar o HTML para cada ano
+        grid.innerHTML = Object.keys(yearsData).sort((a, b) => b - a).map(ano => `
+            <div class="year-card">
+                <h2>${ano}</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Artista</th>
+                            <th style="text-align:right">Scrobbles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${yearsData[ano].map(artist => `
+                            <tr>
+                                <td class="rank">${artist.posicao}</td>
+                                <td>
+                                    <a href="https://www.last.fm/music/${encodeURIComponent(artist.artist).replace(/%20/g, '+')}" target="_blank">
+                                        ${artist.artist}
+                                    </a>
+                                </td>
+                                <td class="scrobbles">${artist.scrobbles.toLocaleString('pt-BR')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `).join('');
+    }
+
+    loadYearlyTop();
+</script>
+</body>
+</html>

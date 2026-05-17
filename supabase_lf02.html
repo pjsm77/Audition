@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrobbles Explorer - Last.fm Style</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; --link: #1DB954; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        
+        .search-header { background: var(--surface); padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; }
+        #globalSearch { flex: 1; padding: 12px; border-radius: 5px; border: 1px solid #333; background: #2a2a2a; color: white; }
+
+        .table-wrapper { background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #282828; padding: 12px; border-bottom: 2px solid var(--primary); vertical-align: top; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #333; }
+        
+        .header-content { display: flex; flex-direction: column; gap: 5px; }
+        .sort-btns { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
+        .sort-btns button { background: none; border: none; color: #888; cursor: pointer; font-size: 10px; padding: 2px; }
+        .col-filter { padding: 6px; font-size: 11px; border-radius: 3px; border: 1px solid #444; background: #121212; color: white; width: 90%; }
+
+        a.music-link { color: var(--text); text-decoration: none; transition: color 0.2s; }
+        a.music-link:hover { color: var(--link); text-decoration: underline; }
+
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #282828; }
+        .btn-pag { background: var(--primary); border: none; padding: 8px 20px; border-radius: 4px; color: black; font-weight: bold; cursor: pointer; }
+        .btn-pag:disabled { background: #444; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-header">
+        <input type="text" id="globalSearch" placeholder="Pesquisar em todo o banco...">
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr id="header-row"></tr>
+            </thead>
+            <tbody id="data-body"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button class="btn-pag" id="prevPage">Anterior</button>
+            <span id="pageInfo">Página 1</span>
+            <button class="btn-pag" id="nextPage">Próxima</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentPage = 0;
+    const pageSize = 20;
+    let filters = {};
+    let sortCol = 'date';
+    let sortAsc = false;
+    let globalSearch = "";
+
+    const columns = [
+        { key: 'date', label: 'Data' },
+        { key: 'artist', label: 'Artista' },
+        { key: 'song', label: 'Música' },
+        { key: 'album', label: 'Álbum' }
+    ];
+
+    // Formata strings para o padrão de URL do Last.fm
+    function formatLastFm(base, artist, secondPart = null) {
+        if (!artist) return '#';
+        let url = `https://www.last.fm/music/${encodeURIComponent(artist).replace(/%20/g, '+')}`;
+        if (secondPart) {
+            url += `/${base}/${encodeURIComponent(secondPart).replace(/%20/g, '+')}`;
+        }
+        return url;
+    }
+
+    function initHeader() {
+        const headerRow = document.getElementById('header-row');
+        headerRow.innerHTML = columns.map(col => `
+            <th>
+                <div class="header-content">
+                    <div class="sort-btns">
+                        <span style="font-size:12px; color:var(--primary)">${col.label}</span>
+                        <button onclick="setSort('${col.key}', true)">▲</button>
+                        <button onclick="setSort('${col.key}', false)">▼</button>
+                    </div>
+                    <input type="text" class="col-filter" placeholder="Filtrar..." oninput="setFilter('${col.key}', this.value)">
+                </div>
+            </th>
+        `).join('');
+    }
+
+    async function fetchData() {
+        const tbody = document.getElementById('data-body');
+        const from = currentPage * pageSize;
+        const to = from + pageSize - 1;
+
+        let query = _supabase.from('scrobbles').select('*', { count: 'exact' });
+
+        if (globalSearch) {
+            query = query.or(`artist.ilike.%${globalSearch}%,song.ilike.%${globalSearch}%,album.ilike.%${globalSearch}%`);
+        }
+
+        Object.keys(filters).forEach(key => {
+            if (filters[key]) query = query.ilike(key, `%${filters[key]}%`);
+        });
+
+        const { data, count, error } = await query
+            .order(sortCol, { ascending: sortAsc })
+            .range(from, to);
+
+        if (error) return;
+
+        tbody.innerHTML = data.map(row => `
+            <tr>
+                <td style="font-size: 0.85em; color: #888;">${row.date ? new Date(row.date).toLocaleString('pt-BR') : '-'}</td>
+                <td><a class="music-link" href="${formatLastFm('', row.artist)}" target="_blank">${row.artist || '-'}</a></td>
+                <td><a class="music-link" href="${formatLastFm('_', row.artist, row.song)}" target="_blank">${row.song || '-'}</a></td>
+                <td><a class="music-link" href="${formatLastFm('', row.artist, row.album)}" target="_blank">${row.album || '-'}</a></td>
+            </tr>
+        `).join('');
+
+        document.getElementById('pageInfo').innerText = `Página ${currentPage + 1} de ${Math.ceil(count/pageSize)} (${count} total)`;
+        document.getElementById('prevPage').disabled = currentPage === 0;
+        document.getElementById('nextPage').disabled = to >= count;
+    }
+
+    function setSort(col, asc) { sortCol = col; sortAsc = asc; fetchData(); }
+
+    let filterTimeout;
+    function setFilter(col, value) {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => {
+            filters[col] = value;
+            currentPage = 0;
+            fetchData();
+        }, 500);
+    }
+
+    document.getElementById('globalSearch').oninput = (e) => {
+        globalSearch = e.target.value;
+        currentPage = 0;
+        fetchData();
+    };
+
+    document.getElementById('nextPage').onclick = () => { currentPage++; fetchData(); };
+    document.getElementById('prevPage').onclick = () => { currentPage--; fetchData(); };
+
+    initHeader();
+    fetchData();
+</script>
+</body>
+</html>

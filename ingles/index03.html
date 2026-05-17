@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Quest - Kids Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #58cc02;
+            --primary-dark: #46a302;
+            --wrong: #ff4b4b;
+            --correct: #58cc02;
+            --bg: #ffffff;
+            --text: #4b4b4b;
+            --timer-color: #58cc02;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text);
+        }
+
+        /* Timer Bar */
+        #timer-container {
+            width: 100%;
+            height: 6px;
+            background: #e5e5e5;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        #timer-bar {
+            width: 100%;
+            height: 100%;
+            background: var(--timer-color);
+            transition: width 0.1s linear, background 0.3s;
+        }
+
+        #app-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 0 #e5e5e5;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 2px solid #e5e5e5;
+            position: relative;
+        }
+
+        .score-board {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #afafaf;
+            gap: 10px;
+        }
+
+        #word-display {
+            font-size: 2.8rem;
+            margin: 15px 0;
+            color: #3c3c3c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .audio-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 var(--primary-dark);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .option {
+            padding: 12px;
+            border: 2px solid #e5e5e5;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 #e5e5e5;
+        }
+
+        .option.correct { background-color: #d7ffb8 !important; border-color: var(--correct) !important; box-shadow: 0 4px 0 var(--primary-dark); }
+        .option.wrong { background-color: #ffdfe0 !important; border-color: var(--wrong) !important; box-shadow: 0 4px 0 #e40000; }
+        .disabled { pointer-events: none; }
+
+        /* Config Styles */
+        #config-trigger {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            color: #ccc;
+            cursor: pointer;
+        }
+
+        #config-panel {
+            display: none;
+            position: fixed;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            z-index: 100;
+            width: 280px;
+        }
+
+        .config-item { margin-bottom: 15px; text-align: left; }
+        .config-item label { display: block; font-size: 0.8rem; margin-bottom: 5px; }
+        select, input { width: 100%; padding: 5px; border-radius: 5px; border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+
+<div id="timer-container"><div id="timer-bar"></div></div>
+
+<div id="app-container">
+    <div class="score-board">
+        <span>ACERTOS: <span id="total-score">0</span></span>
+        <span id="grade-display">NOTA: <span id="current-grade">0.0</span></span>
+        <span>🔥 <span id="streak">0</span></span>
+        <span>⌛ VAZIO: <span id="missed-count">0</span></span>
+    </div>
+
+    <div id="word-display">
+        <span id="current-en">...</span>
+        <button class="audio-btn" onclick="speak()"><i class="fas fa-volume-up"></i></button>
+    </div>
+
+    <div class="options-grid" id="options-container"></div>
+</div>
+
+<div id="config-trigger" onclick="openConfig()"><i class="fas fa-cog"></i></div>
+
+<div id="config-panel" id="panel">
+    <h3>Configurações</h3>
+    <div class="config-item">
+        <label>Lições Ativas:</label>
+        <select id="lesson-filter" onchange="restartGame()">
+            <option value="all">Todas</option>
+            <option value="1">Lição 1</option>
+            <option value="1,2">Lições 1 e 2</option>
+            <option value="2">Lição 2</option>
+            <option value="3">Lição 3</option>
+        </select>
+    </div>
+    <div class="config-item">
+        <label>Tempo Verde (ms):</label>
+        <input type="number" id="time-green" value="5000">
+    </div>
+    <div class="config-item">
+        <label>Tempo Amarelo (ms):</label>
+        <input type="number" id="time-yellow" value="10000">
+    </div>
+    <div class="config-item">
+        <label>Tempo Limite (ms):</label>
+        <input type="number" id="time-limit" value="15000">
+    </div>
+    <button onclick="closeConfig()" style="width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 5px;">Salvar e Fechar</button>
+</div>
+
+<script>
+    const dictionary = [
+        { en: 'the', pt: 'o,a', weight: 1, lesson: 1 },
+        { en: 'a', pt: 'um, uma', weight: 1, lesson: 1 },
+        { en: 'is', pt: 'é', weight: 1, lesson: 1 },
+        { en: 'it', pt: 'isso, isto', weight: 1, lesson: 1 },
+        { en: 'in', pt: 'em', weight: 1, lesson: 1 },
+        { en: 'of', pt: 'da, de, do', weight: 1, lesson: 1 },
+        { en: 'that', pt: 'aquilo, aquele, aquela', weight: 1, lesson: 1 },
+        { en: 'to', pt: 'para', weight: 1, lesson: 1 },
+        { en: 'and', pt: 'e', weight: 1, lesson: 1 },
+        { en: 'you', pt: 'você, tu', weight: 1, lesson: 1 },
+        { en: 'he', pt: 'ele', weight: 1, lesson: 2 },
+        { en: 'was', pt: 'foi, era', weight: 1, lesson: 2 },
+        { en: 'for', pt: 'para', weight: 1, lesson: 2 },
+        { en: 'am', pt: 'sou, estou', weight: 1, lesson: 2 },
+        { en: 'are', pt: 'são', weight: 1, lesson: 2 },
+        { en: 'with', pt: 'com', weight: 1, lesson: 2 },
+        { en: 'as', pt: 'como', weight: 1, lesson: 2 },
+        { en: 'I', pt: 'eu', weight: 1, lesson: 2 },
+        { en: 'his', pt: 'seu', weight: 1, lesson: 2 },
+        { en: 'they', pt: 'eles, elas', weight: 1, lesson: 2 },
+        { en: 'be', pt: 'ser, estar', weight: 1, lesson: 3 },
+        { en: 'at', pt: 'em, no, na', weight: 1, lesson: 3 },
+        { en: 'one', pt: 'um', weight: 1, lesson: 3 },
+        { en: 'have', pt: 'ter', weight: 1, lesson: 3 },
+        { en: 'this', pt: 'isto, isso', weight: 1, lesson: 3 },
+        { en: 'from', pt: 'de', weight: 1, lesson: 3 },
+        { en: 'or', pt: 'ou', weight: 1, lesson: 3 },
+        { en: 'had', pt: 'tinha, tive, teve', weight: 1, lesson: 3 },
+        { en: 'by', pt: 'por', weight: 1, lesson: 3 },
+        { en: 'hot', pt: 'quente', weight: 1, lesson: 3 }
+    ];
+
+    let currentWord, lastWord, score = 0, totalAttempts = 0, streak = 0, missedCount = 0;
+    let timerInterval, startTime;
+    let config = { green: 5000, yellow: 10000, limit: 15000 };
+
+    function restartGame() {
+        score = 0; totalAttempts = 0; streak = 0; missedCount = 0;
+        updateDisplay();
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        clearInterval(timerInterval);
+        const lessonVal = document.getElementById('lesson-filter').value;
+        const activeLessons = lessonVal === 'all' ? [1,2,3] : lessonVal.split(',').map(Number);
+        
+        let pool = [];
+        dictionary.filter(w => activeLessons.includes(w.lesson)).forEach(item => {
+            for(let i=0; i<item.weight; i++) pool.push(item);
+        });
+
+        if(pool.length === 0) return alert("Selecione ao menos uma lição!");
+
+        let filteredPool = pool.filter(w => w.en !== lastWord?.en);
+        currentWord = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+        lastWord = currentWord;
+
+        document.getElementById('current-en').innerText = currentWord.en;
+        document.getElementById('timer-bar').style.width = '100%';
+        document.getElementById('timer-bar').style.background = '#58cc02';
+        
+        generateOptions();
+        speak();
+        startTimer();
+    }
+
+    function startTimer() {
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            let elapsed = Date.now() - startTime;
+            let remaining = Math.max(0, config.limit - elapsed);
+            let percent = (remaining / config.limit) * 100;
+            
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = percent + '%';
+
+            if (elapsed < config.green) bar.style.background = '#58cc02';
+            else if (elapsed < config.yellow) bar.style.background = '#ffa500';
+            else bar.style.background = '#ff4b4b';
+
+            if (elapsed >= config.limit) {
+                timeUp();
+            }
+        }, 100);
+    }
+
+    function timeUp() {
+        clearInterval(timerInterval);
+        missedCount++;
+        streak = 0;
+        showCorrectAnswer();
+        updateDisplay();
+        setTimeout(nextQuestion, 4000);
+    }
+
+    function generateOptions() {
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        let choices = [currentWord.pt];
+        let others = dictionary.filter(w => w.pt !== currentWord.pt).map(w => w.pt).sort(() => Math.random() - 0.5);
+        choices.push(...others.slice(0, 3));
+        choices.sort(() => Math.random() - 0.5);
+
+        choices.forEach(text => {
+            const btn = document.createElement('div');
+            btn.className = 'option';
+            btn.innerText = text;
+            btn.onclick = () => checkAnswer(text, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selected, element) {
+        clearInterval(timerInterval);
+        let elapsed = Date.now() - startTime;
+        totalAttempts++;
+        const options = document.querySelectorAll('.option');
+        options.forEach(opt => opt.classList.add('disabled'));
+
+        if (selected === currentWord.pt) {
+            element.classList.add('correct');
+            streak++;
+            
+            // Pontuação por tempo
+            if (elapsed < config.green) {
+                score += 1;
+                if(currentWord.weight > 1) currentWord.weight--;
+            } else if (elapsed < config.yellow) {
+                score += 0.7;
+                currentWord.weight += 1; // Demorou, repete um pouco mais
+            } else {
+                score += 0.5;
+                currentWord.weight += 2; // Demorou muito
+            }
+            
+            updateDisplay();
+            setTimeout(nextQuestion, 2000);
+        } else {
+            element.classList.add('wrong');
+            streak = 0;
+            currentWord.weight += 5; 
+            showCorrectAnswer();
+            updateDisplay();
+            setTimeout(nextQuestion, 4000);
+        }
+    }
+
+    function showCorrectAnswer() {
+        document.querySelectorAll('.option').forEach(opt => {
+            if(opt.innerText === currentWord.pt) opt.classList.add('correct');
+            opt.classList.add('disabled');
+        });
+    }
+
+    function updateDisplay() {
+        document.getElementById('total-score').innerText = score.toFixed(0);
+        document.getElementById('streak').innerText = streak;
+        document.getElementById('missed-count').innerText = missedCount;
+
+        if (totalAttempts > 0) {
+            let grade = (score / totalAttempts) * 10;
+            const gradeElement = document.getElementById('current-grade');
+            const gc = document.getElementById('grade-display');
+            gradeElement.innerText = grade.toFixed(1);
+            
+            gc.style.color = grade < 7 ? "#ff4b4b" : (grade < 9 ? "#ffa500" : "#58cc02");
+            gc.style.fontWeight = grade >= 9 ? "bold" : "normal";
+        }
+    }
+
+    function speak() {
+        const utterance = new SpeechSynthesisUtterance(currentWord.en);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // Config Logic
+    function openConfig() {
+        const pass = prompt("Digite a senha:");
+        if(pass === "1234") {
+            document.getElementById('config-panel').style.display = 'block';
+        } else {
+            alert("Senha incorreta!");
+        }
+    }
+
+    function closeConfig() {
+        config.green = parseInt(document.getElementById('time-green').value);
+        config.yellow = parseInt(document.getElementById('time-yellow').value);
+        config.limit = parseInt(document.getElementById('time-limit').value);
+        document.getElementById('config-panel').style.display = 'none';
+    }
+
+    nextQuestion();
+</script>
+</body>
+</html>

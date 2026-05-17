@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Histórico Pro - Mobile Fit</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root { 
+            --primary: #1DB954; 
+            --bg: #ffffff; 
+            --row-even: #f8f8f8;
+            --text: #222;
+            --header-bg: #f1f1f1;
+            --border: #e0e0e0;
+        }
+
+        body { font-family: 'Bebas Neue', cursive; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; letter-spacing: 0.2px; overflow: hidden; }
+
+        .table-wrapper { 
+            width: 100%; 
+            height: 94vh; 
+            overflow: auto; 
+            border: 1px solid var(--border); 
+            position: relative; 
+            background: white; 
+        }
+
+        table { 
+            border-collapse: collapse; 
+            border-spacing: 0; 
+            width: 100%; 
+            font-size: 12px; 
+            min-width: 1000px; 
+        }
+
+        th { background: var(--header-bg); position: sticky; top: 0; z-index: 900; padding: 4px 1px !important; border-bottom: 2px solid #ddd; text-align: left; }
+        
+        /* Colunas Fixas */
+        th:nth-child(1), td:nth-child(1) { position: sticky; left: 0; z-index: 401; width: 28px; background: white; border-right: 1px solid #ddd; color: var(--primary); text-align: center; }
+        th:nth-child(2), td:nth-child(2) { position: sticky; left: 29px; z-index: 400; width: 28px; background: #fff; border-right: 1px solid #ddd; text-align: right; padding-right: 4px !important; }
+        th:nth-child(3), td:nth-child(3) { position: sticky; left: 58px; z-index: 400; width: 32px; background: #fff; border-right: 1px solid #ddd; text-align: center; }
+        th:nth-child(4), td:nth-child(4) { position: sticky; left: 91px; z-index: 400; width: 28px; background: #fff; border-right: 1px solid #ddd; text-align: center; } 
+        th:nth-child(5), td:nth-child(5) { position: sticky; left: 120px; z-index: 400; min-width: 90px; max-width: 140px; background: white; border-right: 2px solid #ccc; overflow: hidden; text-overflow: ellipsis; }
+
+        td { padding: 3px 1px !important; border-bottom: 1px solid var(--border); white-space: nowrap; text-align: left; line-height: 1.2; }
+        tbody tr:nth-child(even) td { background-color: var(--row-even); }
+
+        .footer-controls { height: 6vh; background: #f9f9f9; display: flex; align-items: center; justify-content: center; border-top: 1px solid #ddd; padding: 0 5px; gap: 10px; }
+        .btn-footer { background: none; border: none; font-size: 20px; cursor: pointer; padding: 2px 8px; display: flex; align-items: center; height: 100%; }
+        .pagination-select { font-family: 'Bebas Neue'; border-radius: 5px; padding: 1px; font-size: 16px; height: 28px; }
+
+        #search-overlay { display: none; position: fixed; bottom: 6vh; left: 0; width: 100%; background: white; padding: 10px 15px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 2000; }       
+        #globalSearch { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; font-family: sans-serif; }
+
+        #detail-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 3000; padding: 10px; box-sizing: border-box; overflow-y: auto; }
+        .tab-btn { background: #eee; border: none; padding: 10px 5px; font-family: 'Bebas Neue'; cursor: pointer; flex: 1; font-size: 14px; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        
+        .artist-box { display: flex; align-items: center; gap: 4px; }
+        .flag-icon { width: 16px; height: 12px; border: 0.5px solid #bbb; }
+        .puan-col { font-weight: bold; }
+        .clickable-title { color: #003399; cursor: pointer; }
+
+        .progress-container { display: inline-grid; grid-template-columns: repeat(6, 2px); gap: 1.5px; height: 10px; vertical-align: middle; }
+        .step { height: 100%; border-radius: 0.3px; background-color: #f2f2f2; }
+        .score-1 { background-color: #e97b78; }
+        .score-2 { background-color: #ff7d45; }
+        .score-3 { background-color: #ffc845; }
+        .score-4 { background-color: #e2ef4d; }
+        .score-5 { background-color: #a3e04d; }
+        .score-6 { background-color: #6dbe99; }
+
+        /* Modal de Avaliação */
+        #modal-rating { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 4000; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 80%; max-width: 300px; text-align: center; font-family: 'Roboto', sans-serif; }
+        .star-rating { display: flex; justify-content: center; gap: 15px; margin: 20px 0; font-size: 30px; }
+        .star { cursor: pointer; color: #ccc; }
+    </style>
+</head>
+
+<body>
+<div class="container" id="main-view">
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr id="table-header">
+                    <th onclick="setSort('scrobbles')">POS</th>
+                    <th onclick="setSort('scrobbles')">TOTAL</th>
+                    <th onclick="setSort('dias_ultimo')">DAYS</th>
+                    <th onclick="setSort('global_pos')">GR</th>
+                    <th style="min-width: 140px;">ARTIST</th>
+                    <th onclick="setSort('country')">PAÍS</th>
+                    <th onclick="setSort('city')">CIDADE</th>
+                    <th onclick="setSort('primeiro_ano')">INÍCIO</th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+    </div>
+
+    <div id="search-overlay">
+        <div style="display:flex; gap:10px; align-items:center;">
+            <input type="text" id="globalSearch" placeholder="BUSCAR ARTISTA...">
+            <button onclick="clearFilters()" style="background:#eee; border:none; padding:8px 12px; border-radius:5px; font-family:'Bebas Neue';">LIMPAR</button>
+        </div>
+    </div>
+
+    <div class="footer-controls">
+        <button class="btn-footer" id="prevBtn">«</button>
+        <select id="selectPage" class="pagination-select" onchange="goToPage(this.value)"></select>
+        <button class="btn-footer" id="nextBtn">»</button>
+        <button class="btn-footer" onclick="toggleSearch()">🔍</button>
+        <span id="total-artistas-count" style="font-family: 'Bebas Neue'; font-size: 14px; margin-left: 10px; color: #666;"></span>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2'; // Use sua SERVICE_ROLE_KEY se precisar de bypass em RLS
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let fullRawData = [], filteredData = [], offset = 0;
+    const limit = 50;
+    let sortCol = 'scrobbles', sortAsc = false;
+
+    // --- FUNÇÃO DE SALVAMENTO CORRIGIDA ---
+    async function saveToDatabase() {
+        const btn = document.getElementById('btn_save');
+        if (!btn) return;
+        const originalText = btn.innerText;
+        btn.disabled = true; 
+        btn.innerText = "⏳ GRAVANDO...";
+        
+        try {
+            const cityId = document.getElementById('id_city').value;
+            if (!cityId) {
+                alert("Selecione a cidade antes de salvar.");
+                btn.disabled = false;
+                btn.innerText = originalText;
+                return;
+            }
+
+            // Headers para chamadas REST (necessário se não usar o cliente supabase.js para inserts)
+            const headers = { 
+                'apikey': SUPABASE_KEY, 
+                'Authorization': `Bearer ${SUPABASE_KEY}`, 
+                'Content-Type': 'application/json', 
+                'Prefer': 'return=representation' 
+            };
+
+            // 1. ARTISTA (tbl_artists) - Nota: 'name' e 'deezer_id'
+            const artPayload = {
+                deezer_id: String(window.rawData.album.artist.id),
+                name: window.rawData.album.artist.name,
+                id_city: parseInt(cityId),
+                language: document.getElementById('language').value,
+                rating: parseInt(document.getElementById('art_rating').value),
+                deezer_photo: window.rawData.album.artist.picture_xl
+            };
+
+            const resArt = await fetch(`${SUPABASE_URL}/rest/v1/tbl_artists`, {
+                method: 'POST',
+                headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+                body: JSON.stringify(artPayload)
+            });
+            
+            const artData = await resArt.json();
+            if (!resArt.ok) throw new Error(`Erro Artista: ${artData.message}`);
+            const idArt = artData[0].id_artist;
+
+            // 2. ÁLBUM (tbl_albums) - Nota: coluna 'name', não 'title'
+            const albPayload = {
+                id_artist: idArt,
+                name: window.rawData.album.title, 
+                year: parseInt(window.rawData.album.release_year) || null,
+                deezer_id_album: String(window.rawData.album.id),
+                deezer_id_cover: window.rawData.album.deezer_id_cover
+            };
+
+            const resAlb = await fetch(`${SUPABASE_URL}/rest/v1/tbl_albums`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(albPayload)
+            });
+            
+            const albData = await resAlb.json();
+            if (!resAlb.ok) throw new Error(`Erro Álbum: ${albData.message}`);
+            const idAlb = albData[0].id_album;
+
+            // 3. TRACKS (tbl_tracks)
+            const tracks = window.rawData.tracks.map(t => ({
+                id_album: idAlb,
+                deezer_id_track: String(t.id),
+                title: t.title,
+                duration: t.duration,
+                track_position: t.track_position,
+                rating: parseInt(document.getElementById(`rate_${t.id}`).value)
+            }));
+
+            const resTracks = await fetch(`${SUPABASE_URL}/rest/v1/tbl_tracks`, {
+                method: 'POST',
+                headers: { ...headers, 'Prefer': '' },
+                body: JSON.stringify(tracks)
+            });
+
+            if (!resTracks.ok) {
+                const trackErr = await resTracks.json();
+                throw new Error(`Erro Faixas: ${trackErr.message}`);
+            }
+
+            alert("✅ Sincronização concluída com sucesso!");
+            location.reload();
+
+        } catch (e) { 
+            console.error(e);
+            alert(`❌ FALHA: ${e.message}`); 
+            btn.disabled = false; 
+            btn.innerText = "TENTAR NOVAMENTE"; 
+        }
+    }
+
+    async function fetchData() {
+        const [resRanking, resTblArtists] = await Promise.all([
+            _supabase.rpc('get_artist_ranking_full', { search_term: '' }),
+            _supabase.from('tbl_artists').select('name, rating')
+        ]);
+
+        if (!resRanking.error) { 
+            fullRawData = (resRanking.data || []).map(item => {
+                const dbArt = resTblArtists.data?.find(x => x.name === item.artist);
+                return { ...item, db_rating: dbArt ? dbArt.rating : null };
+            });
+            applyLogic(); 
+        }
+    }
+
+    function applyLogic() {
+        const gs = document.getElementById('globalSearch').value.toLowerCase();
+        filteredData = fullRawData.filter(item => item.artist.toLowerCase().includes(gs));
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('ranking-body');
+        const paged = filteredData.slice(offset, offset + limit);
+        document.getElementById('total-artistas-count').textContent = filteredData.length;
+
+        tbody.innerHTML = paged.map((item, index) => `
+            <tr>
+                <td>${offset + index + 1}</td>
+                <td class="puan-col">${item.scrobbles.toLocaleString('pt-BR')}</td>
+                <td>${item.dias_ultimo ?? '-'}</td>
+                <td>${item.global_pos || '-'}</td>
+                <td>${item.artist}</td>
+                <td>${item.country || '-'}</td>
+                <td>${item.city || '-'}</td>
+                <td>${item.primeiro_ano || '-'}</td>
+            </tr>`).join('');
+    }
+
+    fetchData();
+</script>
+</body>
+</html>

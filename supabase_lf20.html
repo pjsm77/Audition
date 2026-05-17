@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Biblioteca - Layout Denso</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #ba0000; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; --secondary-text: #888; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .container { max-width: 1000px; margin: auto; }
+        
+        /* Controles */
+        .controls { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+        input { background: #2a2a2a; border: 1px solid #444; color: white; padding: 10px; border-radius: 4px; flex: 1; min-width: 150px; }
+
+        /* Grid de Scrobbles */
+        .scrobble-list { background: var(--surface); border-radius: 8px; overflow: hidden; }
+        
+        .scrobble-row { 
+            display: flex; 
+            align-items: center; 
+            padding: 10px; 
+            border-bottom: 1px solid #2a2a2a;
+            gap: 15px;
+        }
+
+        /* Coluna da Capa */
+        .cover-wrapper { flex-shrink: 0; }
+        .album-cover { 
+            width: 64px; 
+            height: 64px; 
+            border-radius: 3px; 
+            object-fit: cover; 
+            display: block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+
+        /* Coluna de Dados (Música, Artista, Álbum) */
+        .info-wrapper { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+        .song-title { font-weight: bold; color: #fff; font-size: 1.05em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .artist-link { color: var(--text); text-decoration: none; font-size: 0.95em; }
+        .artist-link:hover { color: var(--primary); text-decoration: underline; }
+        .album-name { color: var(--secondary-text); font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Coluna da Data (Empilhada) */
+        .date-wrapper { 
+            flex-shrink: 0; 
+            text-align: right; 
+            font-size: 0.85em; 
+            color: var(--secondary-text); 
+            line-height: 1.2;
+            min-width: 80px;
+        }
+        .date-day { display: block; color: #bbb; font-weight: bold; }
+        .date-time { font-size: 0.9em; opacity: 0.8; }
+
+        /* Paginação */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; padding: 20px; }
+        .btn-pag { background: var(--primary); border: none; color: white; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .btn-pag:disabled { opacity: 0.2; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <input type="text" id="filterSong" placeholder="Filtrar música..." oninput="updateFilters()">
+        <input type="text" id="filterArtist" placeholder="Filtrar artista..." oninput="updateFilters()">
+    </div>
+
+    <div class="scrobble-list" id="scrobble-container">
+        </div>
+
+    <div class="pagination">
+        <button class="btn-pag" id="prevBtn" onclick="changePage(-1)">Anterior</button>
+        <span id="pageInfo">Página 1</span>
+        <button class="btn-pag" id="nextBtn" onclick="changePage(1)">Próxima</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentPage = 0;
+    const limit = 50;
+    let filters = { song: '', artist: '' };
+    let filterTimeout;
+
+    async function loadData() {
+        const start = currentPage * limit;
+        const end = start + limit - 1;
+
+        let query = _supabase.from('recent_scrobbles_view').select('*', { count: 'exact' });
+
+        if (filters.song) query = query.ilike('song', `%${filters.song}%`);
+        if (filters.artist) query = query.ilike('artist', `%${filters.artist}%`);
+
+        const { data, count, error } = await query
+            .order('date', { ascending: false })
+            .range(start, end);
+
+        if (error) return console.error(error);
+        renderList(data);
+        updateUI(count);
+    }
+
+    function renderList(data) {
+        const container = document.getElementById('scrobble-container');
+        const baseUrl = "https://www.last.fm/music/";
+
+        container.innerHTML = data.map(item => {
+            const scrobbleDate = new Date(item.date);
+            const dateStr = scrobbleDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+            const timeStr = scrobbleDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            // Lógica do Link do Álbum
+            let albumLink = item.album_link;
+            if (albumLink && !albumLink.startsWith('http')) {
+                albumLink = baseUrl + albumLink;
+            } else if (!albumLink) {
+                albumLink = baseUrl + encodeURIComponent(item.artist) + "/" + encodeURIComponent(item.album || '');
+            }
+
+            return `
+                <div class="scrobble-row">
+                    <div class="cover-wrapper">
+                        <a href="${albumLink}" target="_blank">
+                            <img src="${item.album_art || ''}" 
+                                 class="album-cover" 
+                                 onerror="this.src='https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'">
+                        </a>
+                    </div>
+                    
+                    <div class="info-wrapper">
+                        <div class="song-title">${item.song}</div>
+                        <a href="${baseUrl + encodeURIComponent(item.artist)}" class="artist-link" target="_blank">
+                            ${item.artist}
+                        </a>
+                        <div class="album-name">${item.album || '—'}</div>
+                    </div>
+
+                    <div class="date-wrapper">
+                        <span class="date-day">${dateStr}</span>
+                        <span class="date-time">${timeStr}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateUI(totalCount) {
+        document.getElementById('pageInfo').innerText = `Pág. ${currentPage + 1} de ${Math.ceil(totalCount / limit)}`;
+        document.getElementById('prevBtn').disabled = currentPage === 0;
+        document.getElementById('nextBtn').disabled = (currentPage + 1) * limit >= totalCount;
+    }
+
+    function changePage(delta) {
+        currentPage += delta;
+        window.scrollTo(0, 0);
+        loadData();
+    }
+
+    function updateFilters() {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(() => {
+            filters.song = document.getElementById('filterSong').value;
+            filters.artist = document.getElementById('filterArtist').value;
+            currentPage = 0;
+            loadData();
+        }, 400);
+    }
+
+    loadData();
+</script>
+</body>
+</html>

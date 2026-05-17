@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Financeiro V4 - Edição On-the-fly</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fff; -webkit-font-smoothing: antialiased; }
+        input { background: transparent; border: none; outline: none; width: 100%; font-family: inherit; }
+        .edit-field { border-bottom: 1px dashed #3b82f6; background-color: rgba(59, 130, 246, 0.05); border-radius: 2px; }
+        .transition-all-custom { transition: all 0.4s ease; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        const FinanceApp = () => {
+            const [editMode, setEditMode] = useState(false);
+            const [currentMonthIdx, setCurrentMonthIdx] = useState(2);
+            const [expandedCat, setExpandedCat] = useState(null);
+            const [expandedSub, setExpandedSub] = useState(null);
+
+            const months = ["Janeiro 2026", "Fevereiro 2026", "Março 2026"];
+
+            const [allData, setAllData] = useState({
+                "Março 2026": {
+                    receita: 12000,
+                    categorias: [
+                        { id: 'CASA', budget: 3000, sub: [
+                            { label: 'Luz', budget: 800, gastos: [{ dia: '10', desc: 'CEEE Equatorial', valor: 245.15, parc: '1/1' }] },
+                            { label: 'Internet', budget: 150, gastos: [{ dia: '05', desc: 'Vivo Fibra', valor: 150, parc: '1/1' }] }
+                        ]},
+                        { id: 'CARRO', budget: 2000, sub: [
+                            { label: 'Combustível', budget: 400, gastos: [{ dia: '02', desc: 'Posto Ipiranga', valor: 220, parc: '1/1' }] }
+                        ]}
+                    ]
+                }
+            });
+
+            const currentMonth = months[currentMonthIdx];
+            const currentData = allData[currentMonth] || { receita: 0, categorias: [] };
+
+            // Funções de Edição Genéricas
+            const updateField = (path, value) => {
+                const newData = { ...allData };
+                let target = newData[currentMonth];
+                
+                // Navega até o objeto correto baseado no path [catIdx, subIdx, gastoIdx]
+                if (path.length === 0) target.receita = parseFloat(value) || 0;
+                else if (path.length === 1) target.categorias[path[0]].id = value;
+                else if (path.length === 2) target.categorias[path[0]].sub[path[1]].label = value;
+                else if (path.length === 2.5) target.categorias[path[0]].sub[path[1]].budget = parseFloat(value) || 0;
+                else if (path.length === 4) {
+                    const [c, s, g, field] = path;
+                    const item = target.categorias[c].sub[s].gastos[g];
+                    if (field === 'valor') item.valor = parseFloat(value) || 0;
+                    else item[field] = value;
+                }
+                setAllData(newData);
+            };
+
+            const totalGasto = currentData.categorias.reduce((acc, cat) => 
+                acc + cat.sub.reduce((sAcc, s) => sAcc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0), 0
+            );
+
+            const getBarColor = (perc) => {
+                if (perc > 100) return 'bg-red-500';
+                if (perc >= 100) return 'bg-yellow-400';
+                return 'bg-green-500';
+            };
+
+            const EditableText = ({ value, onChange, className, type="text" }) => {
+                if (!editMode) return <span className={className}>{type === "number" ? `R$ ${value.toLocaleString('pt-BR', {minimumFractionDigits: 2})}` : value}</span>;
+                return <input type={type} value={value} onChange={e => onChange(e.target.value)} className={`${className} edit-field px-1`} />;
+            };
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen bg-white pb-24 relative shadow-xl border-x border-gray-100">
+                    {/* Header Navegação */}
+                    <div className="flex items-center justify-between p-6 sticky top-0 bg-white/95 backdrop-blur-sm z-30 border-b border-gray-50">
+                        <button onClick={() => setCurrentMonthIdx(prev => Math.max(0, prev - 1))} className="p-2 text-gray-300 font-bold">&lt;</button>
+                        <h1 className="text-sm font-black tracking-widest uppercase">{currentMonth}</h1>
+                        <button onClick={() => setCurrentMonthIdx(prev => Math.min(months.length - 1, prev + 1))} className="p-2 text-gray-300 font-bold">&gt;</button>
+                    </div>
+
+                    {/* Barra TOTAL */}
+                    <div className="bg-gray-50 p-6 mb-4 border-b border-gray-100">
+                        <div className="flex justify-between items-end mb-2 uppercase text-[10px] font-black text-gray-400">
+                            <span>Total Geral</span>
+                            <span>
+                                R$ {totalGasto.toLocaleString('pt-BR')} / 
+                                <EditableText value={currentData.receita} onChange={v => updateField([], v)} type="number" className="ml-1 text-blue-600" />
+                            </span>
+                        </div>
+                        <div className="w-full bg-gray-200 h-4 rounded-full overflow-hidden">
+                            <div className={`h-full transition-all-custom ${getBarColor((totalGasto/currentData.receita)*100)}`} style={{ width: `${Math.min((totalGasto/currentData.receita)*100, 110)}%` }} />
+                        </div>
+                    </div>
+
+                    {/* Categorias e Subcategorias */}
+                    <div className="px-6 space-y-4">
+                        {currentData.categorias.map((cat, cIdx) => {
+                            const catSpent = cat.sub.reduce((acc, s) => acc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0);
+                            const perc = (catSpent / cat.budget) * 100;
+
+                            return (
+                                <div key={cIdx} className="border-b border-gray-50 pb-2">
+                                    <div className="flex justify-between items-end mb-1 cursor-pointer" onClick={() => !editMode && setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
+                                        <EditableText value={cat.id} onChange={v => updateField([cIdx], v)} className="text-xs font-black text-gray-700 uppercase" />
+                                        <span className="text-[10px] font-bold text-gray-400 italic">R$ {catSpent.toLocaleString('pt-BR')} ({perc.toFixed(0)}%)</span>
+                                    </div>
+                                    <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden mb-2">
+                                        <div className={`h-full transition-all-custom ${getBarColor(perc)}`} style={{ width: `${Math.min(perc, 110)}%` }} />
+                                    </div>
+
+                                    {(expandedCat === cat.id || editMode) && (
+                                        <div className="ml-4 mt-4 space-y-4 border-l-2 border-gray-50 pl-4">
+                                            {cat.sub.map((sub, sIdx) => {
+                                                const subSpent = sub.gastos.reduce((acc, g) => acc + g.valor, 0);
+                                                const subPerc = (subSpent / sub.budget) * 100;
+
+                                                return (
+                                                    <div key={sIdx}>
+                                                        <div className="flex justify-between items-end mb-1 cursor-pointer" onClick={() => !editMode && setExpandedSub(expandedSub === sub.label ? null : sub.label)}>
+                                                            <EditableText value={sub.label} onChange={v => updateField([cIdx, sIdx], v)} className="text-[11px] font-bold text-gray-500 uppercase" />
+                                                            <div className="text-[10px] font-mono font-bold text-gray-400">
+                                                                R$ {subSpent.toLocaleString('pt-BR')} / 
+                                                                <EditableText value={sub.budget} onChange={v => updateField([cIdx, sIdx, 2.5], v)} type="number" className="ml-1 text-blue-500" />
+                                                            </div>
+                                                        </div>
+                                                        <div className="w-full bg-gray-50 h-2 rounded-full overflow-hidden">
+                                                            <div className={`h-full transition-all-custom ${getBarColor(subPerc)}`} style={{ width: `${Math.min(subPerc, 110)}%` }} />
+                                                        </div>
+
+                                                        {(expandedSub === sub.label || editMode) && (
+                                                            <div className="mt-2 bg-gray-50/50 rounded-lg p-2 space-y-2">
+                                                                {sub.gastos.map((g, gIdx) => (
+                                                                    <div key={gIdx} className="flex gap-2 items-center text-[10px]">
+                                                                        <EditableText value={g.dia} onChange={v => updateField([cIdx, sIdx, gIdx, 'dia'], v)} className="w-6 font-bold text-gray-400" />
+                                                                        <EditableText value={g.desc} onChange={v => updateField([cIdx, sIdx, gIdx, 'desc'], v)} className="flex-1 italic text-gray-600" />
+                                                                        <EditableText value={g.valor} onChange={v => updateField([cIdx, sIdx, gIdx, 'valor'], v)} type="number" className="w-16 text-right font-black" />
+                                                                        <EditableText value={g.parc} onChange={v => updateField([cIdx, sIdx, gIdx, 'parc'], v)} className="w-8 text-blue-400 text-right" />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* FAB - Modo Edição */}
+                    <button 
+                        onClick={() => setEditMode(!editMode)}
+                        className={`fixed bottom-8 right-8 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 z-50 active:scale-90 ${editMode ? 'bg-green-500 scale-110' : 'bg-blue-600'}`}
+                    >
+                        {editMode ? (
+                            <span className="text-white text-[11px] font-black uppercase tracking-widest">OK</span>
+                        ) : (
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        )}
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<FinanceApp />);
+    </script>
+</body>
+</html>

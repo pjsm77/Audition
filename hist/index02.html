@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Contatos - Catálogo Elegante</title>
+    <!-- Carrega a fonte Bebas Neue do Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <!-- Carrega o framework Tailwind CSS para estilização rápida e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Define a fonte principal para Bebas Neue */
+        :root {
+            font-family: 'Bebas Neue', cursive; 
+        }
+        /* Fundo muito leve, quase branco */
+        body {
+            background-color: #f7f9fb; 
+        }
+        /* Define um estilo elegante para o painel de detalhes */
+        .details-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        /* Abre o painel com uma transição suave */
+        .details-panel.open {
+            max-height: 1000px; 
+            transition: max-height 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        /* Estilos para o ícone de ordenação (?/?) */
+        #sort-icon {
+            display: inline-block;
+            width: 1.5rem; 
+            text-align: center;
+        }
+        /* Ajuste fino para o foco de elementos interativos */
+        input:focus, select:focus, button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.4); /* Anel índigo suave */
+        }
+        
+        /* Ajuste fino para o card no hover, mantendo a escala mínima */
+        .contact-card:hover, .ranking-card:hover {
+            transform: scale(1.002);
+        }
+        /* Esconde o botão de limpar filtro (X) */
+        .hidden-filter-btn {
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s linear;
+        }
+        /* Mostra o botão de limpar filtro (X) */
+        .visible-filter-btn {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-2 sm:p-4"> <!-- Margem externa reduzida (p-2 sm:p-4) -->
+
+    <div class="max-w-4xl mx-auto">
+        
+        <!-- Contêiner Principal Moderno (Padding interno REDUZIDO p-2 sm:p-3) -->
+        <div class="bg-white p-2 sm:p-3 rounded-2xl shadow-xl border border-gray-100">
+
+            <!-- Container para alternar abas (mb-3 reduzido) -->
+            <div id="sheet-nav" class="mb-3 flex flex-wrap gap-2 justify-center">
+                <!-- Botões das abas serão injetados aqui pelo JavaScript -->
+            </div>
+
+            <!-- Pesquisa, Filtro Rápido e Contagem (Escondido para a aba Ran) -->
+            <div id="search-controls-container">
+                <div class="mb-3"> <!-- Margem reduzida (mb-3) -->
+                    <div class="relative flex items-center">
+                        <!-- Campo de Pesquisa Minimalista -->
+                        <input type="text" id="search-input" placeholder="Pesquisar por artista, álbum, ano..." 
+                            class="w-full p-3 border border-gray-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-lg transition duration-150 shadow-inner pr-12">
+                        
+                        <!-- Botão de Limpar Filtro Rápido (X) -->
+                        <button id="clear-filter-btn" onclick="clearActiveFilter()" 
+                                class="absolute right-0 mr-2 p-1.5 h-9 w-9 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-600 transition duration-150 disabled:bg-gray-300 hidden-filter-btn"
+                                title="Limpar Filtro Ativo">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Controles de Ordenação (Sorter) (mb-3 reduzido) -->
+                <div id="sort-controls" class="mb-3 p-3 bg-gray-50 rounded-xl flex items-center justify-between space-x-2 border border-gray-200">
+                    <!-- Controles serão injetados aqui pelo JavaScript -->
+                </div>
+            </div> <!-- Fim search-controls-container -->
+            
+            <!-- Contagem de Resultados (mb-3 reduzido) -->
+            <div id="results-count" class="text-sm text-gray-500 mb-3 px-1">
+                <!-- A contagem será injetada aqui -->
+            </div>
+
+
+            <!-- Área de Status/Loading -->
+            <div id="status-message" class="text-center text-lg text-gray-600 p-4 rounded-xl bg-yellow-50 shadow-inner">
+                Carregando dados da Planilha...
+            </div>
+
+            <!-- Lista de Contatos/Ranking (Espaçamento entre cards REDUZIDO para space-y-1) -->
+            <div id="contact-list" class="space-y-1">
+                <!-- Os cartões de contato/ranking serão inseridos aqui -->
+            </div>
+            
+            <!-- Mensagem quando a pesquisa não encontra resultados -->
+            <div id="no-results" class="hidden text-center text-xl text-gray-400 p-10 bg-white rounded-xl shadow-lg mt-8">
+                <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p>Nenhum resultado encontrado.</p>
+            </div>
+
+        </div> <!-- Fim do Contêiner Principal -->
+    </div>
+
+    <script>
+        // =================================================================================
+        // CONFIGURAÇÃO CRUCIAL: SUBSTITUA O VALOR ABAIXO PELO ID DA SUA PLANILHA REAL
+        // O ID é a longa sequência de letras e números na URL do seu Google Sheets.
+        // =================================================================================
+        const TEST_SHEET_ID = '1QCyU_zShDAWzsZm1G-8cMUamrMdUOvyc3AIXtnhfiUw'; // ID de Planilha de Exemplo (para evitar 404 inicial)
+        const SHEET_ID = TEST_SHEET_ID; // Use o ID de teste inicialmente.
+        
+        // =================================================================================
+        // CONFIGURAÇÃO MULTI-ABA: GIDS da planilha (0, 1, 2, 3...)
+        // 'Ran' (Ranking) é a terceira aba, GID '2'.
+        // =================================================================================
+        const SHEETS_CONFIG = [
+            { name: 'Alb', gid: '0' },
+            { name: 'Art', gid: '1' }, 
+            { name: 'Ran', gid: '2' }, // << NOVA ABA DE RANKING
+            { name: 'Sta', gid: '3' } 
+        ];
+
+        let currentSheet = SHEETS_CONFIG[0]; 
+
+        // Função para construir a URL com o GID da aba atual
+        const getSheetUrl = (gid) => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+        // Variáveis globais de estado
+        let allData = []; 
+        let activeFilter = { 
+            key: null,          
+            value: null,        
+            columnName: null    
+        };
+        const contactList = document.getElementById('contact-list');
+        const statusMessage = document.getElementById('status-message');
+        const searchInput = document.getElementById('search-input');
+        const noResultsMessage = document.getElementById('no-results');
+        const sheetNav = document.getElementById('sheet-nav');
+        const sortControlsContainer = document.getElementById('sort-controls');
+        const resultsCountElement = document.getElementById('results-count');
+        const clearFilterBtn = document.getElementById('clear-filter-btn');
+        const searchControlsContainer = document.getElementById('search-controls-container');
+
+        // Função utilitária para pausar a execução
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        // =================================================================================
+        // MAPEAMENTO DE TÍTULOS E ÍNDICES (PARA ALBUM/GERAL)
+        // =================================================================================
+        
+        // Índices das colunas ordenáveis: 0(A), 1(B), C(2), D(3), E(4), F(5), J(9), BA(52)
+        const SORTABLE_INDICES = [0, 1, 2, 3, 4, 5, 9, 52];
+        
+        /**
+         * Mapeamento manual dos títulos amigáveis para os índices das colunas (Album/Geral).
+         */
+        const COLUMN_TITLES = {
+            0: 'album_id',      // Coluna A (Índice 0)
+            1: 'date',          // Coluna B (Índice 1)
+            2: 'artist',        // Coluna C (Índice 2)
+            3: 'artist_rating', // Coluna D (Índice 3) 
+            4: 'year',          // Coluna E (Índice 4)
+            5: 'album',         // Coluna F (Índice 5)
+            9: 'country',       // Coluna J (Índice 9) 
+            52: 'BA (Col 53)'   // Coluna BA (Índice 52)
+        };
+        
+        /**
+         * Encontra o nome da chave (header) dado o índice da coluna.
+         * @param {number} index - O índice da coluna (0-based).
+         * @returns {string|null} A chave do objeto de dados ou null.
+         */
+        function getColumnKeyByIndex(index) {
+            if (allData.length === 0) return null;
+            const allKeys = Object.keys(allData[0]);
+            // Retorna o nome da chave (cabeçalho) que está no índice `index`
+            return allKeys[index] || null;
+        }
+
+        // =================================================================================
+        // LÓGICA DE ORDENAÇÃO (Geral/Album)
+        // =================================================================================
+        
+        let sortState = {
+            columnKey: null, 
+            direction: 'asc', 
+        };
+        
+        function parseDDMMAADate(dateString) {
+            if (!dateString) return 0;
+            const parts = dateString.split('/');
+            if (parts.length !== 3) return 0;
+
+            let [day, month, year] = parts.map(p => parseInt(p.trim(), 10));
+
+            if (year >= 0 && year < 100) {
+                 year = year >= 70 ? year + 1900 : year + 2000;
+            }
+            const date = new Date(year, month - 1, day);
+            
+            return date.getTime(); 
+        }
+
+        /**
+         * Cria e injeta os controles de ordenação (select e botão de direção).
+         */
+        function createSortControls() {
+            // Esconde os controles de ordenação se a aba 'Ran' estiver ativa
+            if (currentSheet.name === 'Ran') {
+                sortControlsContainer.innerHTML = '';
+                searchControlsContainer.classList.add('hidden');
+                return;
+            }
+            searchControlsContainer.classList.remove('hidden');
+
+            if (allData.length === 0) {
+                sortControlsContainer.innerHTML = '';
+                return;
+            }
+            
+            const allKeys = Object.keys(allData[0]);
+            
+            const availableSortOptions = SORTABLE_INDICES
+                .filter(index => allKeys[index]) 
+                .map(index => ({
+                    key: allKeys[index], 
+                    label: (
+                        COLUMN_TITLES[index] === 'album_id' ? 'Album ID' : 
+                        (COLUMN_TITLES[index] === 'artist_rating' ? 'Rating' : 
+                        (COLUMN_TITLES[index] === 'date' ? 'Data' : 
+                        (COLUMN_TITLES[index] || allKeys[index])))
+                    )
+                }));
+            
+            const currentIcon = sortState.direction === 'asc' ? '?' : '?';
+            const currentTitle = sortState.direction === 'asc' ? 'Direção Ascendente' : 'Direção Descendente';
+            
+            const isDirectionBtnDisabled = !sortState.columnKey;
+
+            const selectHtml = availableSortOptions.length > 0 ? `
+                <label for="sort-column" class="text-gray-700 font-medium whitespace-nowrap mr-2 text-sm">Ordenar por:</label>
+                <select id="sort-column" class="p-2 border border-gray-300 rounded-lg flex-grow cursor-pointer bg-white transition duration-150">
+                    <option value="" disabled>${sortState.columnKey ? 'Título Selecionado' : '-- Selecione o Título --'}</option>
+                    ${availableSortOptions.map(opt => `<option value="${opt.key}">${opt.label}</option>`).join('')}
+                </select>
+            ` : `<p class="text-sm text-red-500">Sem colunas ordenáveis disponíveis.</p>`;
+
+            const directionButtonHtml = `
+                <button id="sort-direction-btn" class="p-2 bg-indigo-500 text-white rounded-lg shadow-md hover:bg-indigo-600 transition disabled:bg-gray-300 disabled:text-gray-500" ${isDirectionBtnDisabled ? 'disabled' : ''}>
+                    <span id="sort-icon" title="${currentTitle}">${currentIcon}</span>
+                </button>
+            `;
+
+            sortControlsContainer.innerHTML = `
+                <div class="flex items-center flex-grow space-x-2">
+                    ${selectHtml}
+                </div>
+                ${directionButtonHtml}
+            `;
+            
+            const sortSelect = document.getElementById('sort-column');
+            const sortDirectionBtn = document.getElementById('sort-direction-btn');
+            const sortIcon = document.getElementById('sort-icon');
+
+            if (sortSelect) {
+                if (sortState.columnKey) {
+                    sortSelect.value = sortState.columnKey;
+                }
+                
+                sortSelect.addEventListener('change', (e) => {
+                    const newKey = e.target.value;
+                    sortState.columnKey = newKey;
+                    sortState.direction = 'asc'; 
+                    
+                    if (sortDirectionBtn) {
+                        sortDirectionBtn.disabled = false;
+                    }
+                    if (sortIcon) {
+                        sortIcon.textContent = '?';
+                        sortIcon.title = 'Direção Ascendente';
+                    }
+                    applySortAndFilter();
+                });
+            }
+
+            if (sortDirectionBtn) {
+                sortDirectionBtn.addEventListener('click', () => {
+                    sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+                    if (sortIcon) {
+                        sortIcon.textContent = sortState.direction === 'asc' ? '?' : '?';
+                        sortIcon.title = sortState.direction === 'asc' ? 'Direção Ascendente' : 'Direção Descendente';
+                    }
+                    applySortAndFilter();
+                });
+            }
+        }
+        
+        /**
+         * Aplica a ordenação ao array allData (no local) - APENAS PARA ABAS NÃO-RANKING.
+         */
+        function sortData() {
+            if (currentSheet.name === 'Ran') return; // NADA a fazer para Ranking
+            
+            const { columnKey, direction } = sortState;
+
+            if (!columnKey || allData.length === 0) {
+                return;
+            }
+
+            allData.sort((a, b) => {
+                const valA = a[columnKey];
+                const valB = b[columnKey];
+
+                let comparison = 0;
+
+                if (columnKey === getColumnKeyByIndex(1)) { // Coluna B (Data)
+                    const timeA = parseDDMMAADate(valA);
+                    const timeB = parseDDMMAADate(valB);
+                    comparison = timeA - timeB;
+                } 
+                else {
+                    const isNumericKey = [0, 3, 4].includes(Object.keys(allData[0]).indexOf(columnKey)); 
+
+                    if (isNumericKey) {
+                        const numA = parseFloat(valA) || 0;
+                        const numB = parseFloat(valB) || 0;
+                        comparison = numA - numB;
+                    } else {
+                        const strA = String(valA).toLowerCase();
+                        const strB = String(valB).toLowerCase();
+
+                        if (strA === '' && strB !== '') comparison = 1;
+                        else if (strA !== '' && strB === '') comparison = -1;
+                        else if (strA > strB) comparison = 1;
+                        else if (strA < strB) comparison = -1;
+                    }
+                }
+                
+                return direction === 'asc' ? comparison : comparison * -1;
+            });
+        }
+
+        /**
+         * Aplica a ordenação e filtragem (Geral/Album).
+         */
+        function applySortAndFilter() {
+            if (currentSheet.name === 'Ran') {
+                // Para Ran, apenas renderiza os dados já processados
+                renderData(allData); 
+                return;
+            }
+            sortData();
+            filterContacts();
+            updateClearFilterButton(); 
+        }
+
+        // =================================================================================
+        // LÓGICA DE EXTRAÇÃO DE DADOS (PARSER)
+        // =================================================================================
+
+        /**
+         * Converte a resposta JSON da API do Google Sheets em um array de objetos simples.
+         */
+        function parseSheetData(jsonText) {
+            try {
+                const startIndex = jsonText.indexOf('(');
+                const endIndex = jsonText.lastIndexOf(')');
+                
+                if (startIndex === -1 || endIndex === -1) {
+                     throw new Error("Resposta do Sheets com formato inesperado.");
+                }
+
+                const jsonString = jsonText.substring(startIndex + 1, endIndex);
+                const json = JSON.parse(jsonString);
+                
+                if (!json.table || !json.table.rows) {
+                    throw new Error("Estrutura da planilha inválida ou vazia.");
+                }
+
+                const columns = json.table.cols.map(col => col.label || col.id);
+                console.log("[DEBUG - Headers da Planilha] Nomes das colunas obtidos: ", columns);
+                
+                const rows = json.table.rows;
+                const contacts = [];
+
+                rows.forEach(row => {
+                    const contact = {};
+                    row.c.forEach((cell, index) => {
+                        const key = columns[index];
+                        contact[key] = cell && (cell.f || cell.v) || '';
+                    });
+                    contacts.push(contact);
+                });
+
+                // Remove o cabeçalho (primeira linha)
+                if (contacts.length > 0) {
+                    contacts.shift();
+                }
+
+                return contacts;
+
+            } catch (error) {
+                console.error("Erro ao processar dados da planilha:", error);
+                statusMessage.textContent = "ERRO: Falha ao processar os dados da planilha. Verifique a estrutura da primeira aba.";
+                statusMessage.classList.add('text-red-600');
+                return [];
+            }
+        }
+
+        // =================================================================================
+        // LÓGICA ESPECÍFICA DO RANKING (ABA 'Ran')
+        // =================================================================================
+        
+        /**
+         * Processa os dados brutos para o Ranking: ordena pela Coluna L (Index 11) 
+         * e calcula o ranking.
+         * @param {Array} rawData - Dados brutos do Sheets.
+         * @returns {Array} - Dados com o campo 'calculated_rank' adicionado.
+         */
+        function processRankingData(rawData) {
+            if (rawData.length === 0) return [];
+            
+            // Coluna L (Index 11) é a coluna de pontuação para ordenação
+            const colLKey = getColumnKeyByIndex(11); 
+            
+            if (!colLKey) {
+                 console.warn("Coluna L (Index 11) não encontrada para ordenação. Usando dados brutos.");
+                 return rawData;
+            }
+
+            // 1. Ordena pela Coluna L em ordem decrescente (do maior para o menor)
+            rawData.sort((a, b) => {
+                const numA = parseFloat(a[colLKey]) || 0;
+                const numB = parseFloat(b[colLKey]) || 0;
+                return numB - numA;
+            });
+
+            // 2. Adiciona o ranking
+            return rawData.map((row, index) => ({
+                ...row,
+                calculated_rank: index + 1 // Adiciona a propriedade de ranking
+            }));
+        }
+
+        /**
+         * Cria o elemento HTML para um cartão de Ranking.
+         */
+        function createRankingCard(contact) {
+            const allKeys = Object.keys(contact);
+            
+            // Mapeamento dos índices para as chaves (cabeçalhos) do Sheets
+            const keyD = getColumnKeyByIndex(3);   // Coluna D (País)
+            const keyI = getColumnKeyByIndex(8);   // Coluna I
+            const keyJ = getColumnKeyByIndex(9);   // Coluna J
+            const keyL = getColumnKeyByIndex(11);  // Coluna L (Pontuação)
+            const keyG = getColumnKeyByIndex(6);   // Coluna G
+
+            const rank = contact.calculated_rank || 'N/A';
+            const countryCode = String(contact[keyD] || '').toLowerCase();
+            const colIValue = contact[keyI] || 'N/A';
+            const colJValue = contact[keyJ] || 'N/A';
+            const colLValue = (parseFloat(contact[keyL]) || 0).toLocaleString('pt-BR');
+            const colGValue = contact[keyG] || 'N/A';
+
+            const card = document.createElement('div');
+            // Ranking Card Style
+            card.className = 'ranking-card bg-white p-3 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.002] transition duration-300 cursor-default border-l-4 border-indigo-400 flex items-center justify-between';
+            
+            // Determina a cor de fundo do ranking (diferente para o Top 3)
+            let rankColor = 'text-gray-500';
+            if (rank <= 3) {
+                 rankColor = rank === 1 ? 'text-yellow-600' : (rank === 2 ? 'text-gray-500' : 'text-amber-700');
+                 card.classList.add('bg-yellow-50', 'border-yellow-500'); // Destaque Top 3
+            }
+
+
+            // HTML da Bandeira
+            let flagHtml = `<span class="text-xs text-gray-400">N/A</span>`;
+            if (countryCode && countryCode.length >= 2) {
+                // Usando flagsapi.com para as bandeiras
+                const flagUrl = `https://flagsapi.com/${countryCode.toUpperCase()}/flat/64.png`; 
+                flagHtml = `
+                    <img src="${flagUrl}" alt="Bandeira ${countryCode.toUpperCase()}" 
+                         class="w-10 h-7 object-cover rounded shadow-sm border border-gray-100" 
+                         onerror="this.onerror=null; this.src='https://placehold.co/40x28/CCCCCC/333333?text=N/A'"
+                    >
+                `;
+            }
+            
+            // Estrutura do Card de Ranking
+            card.innerHTML = `
+                <!-- Coluna 1: Ranking e Bandeira (Mobile: Destaque Topo) -->
+                <div class="flex items-center space-x-4 flex-shrink-0">
+                    <div class="text-center w-12 flex-shrink-0">
+                        <p class="text-2xl font-extrabold ${rankColor}">${rank}</p>
+                        <p class="text-xs font-normal text-gray-400 leading-none">RANK</p>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        ${flagHtml}
+                        <p class="text-xs text-gray-600 font-semibold mt-1">${countryCode.toUpperCase()}</p>
+                    </div>
+                </div>
+
+                <!-- Coluna 2: Dados Principais (L, I, J) -->
+                <div class="flex-grow min-w-0 px-2 space-y-1 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:gap-4">
+                    
+                    <!-- Pontuação L (Destaque Principal) -->
+                    <div class="flex justify-between sm:block flex-1 min-w-0">
+                        <span class="text-xs font-semibold text-gray-500 sm:hidden">L:</span>
+                        <p class="text-xl font-extrabold text-indigo-600 leading-none truncate">${colLValue}</p>
+                        <p class="text-xs text-gray-400 hidden sm:block">Pontuação (L)</p>
+                    </div>
+
+                    <!-- Coluna I/J -->
+                    <div class="flex justify-between sm:flex-col flex-1 min-w-0">
+                        <span class="text-xs font-semibold text-gray-500 block">I:</span>
+                        <p class="text-sm text-gray-700 font-normal truncate">${colIValue}</p>
+                    </div>
+                    <div class="flex justify-between sm:flex-col flex-1 min-w-0">
+                        <span class="text-xs font-semibold text-gray-500 block">J:</span>
+                        <p class="text-sm text-gray-700 font-normal truncate">${colJValue}</p>
+                    </div>
+                </div>
+                
+                <!-- Coluna 3: Coluna G (Detalhe Secundário) -->
+                <div class="ml-4 pl-4 border-l border-gray-100 hidden sm:block">
+                    <p class="text-xs font-semibold text-gray-500 leading-none">G:</p>
+                    <p class="text-sm text-gray-700 font-normal mt-1 w-24 truncate">${colGValue}</p>
+                </div>
+            `;
+            
+            return card;
+        }
+
+
+        // =================================================================================
+        // LÓGICA DE FILTROS RÁPIDOS
+        // =================================================================================
+        
+        function updateClearFilterButton() {
+            if (currentSheet.name === 'Ran') {
+                clearFilterBtn.classList.remove('visible-filter-btn');
+                clearFilterBtn.classList.add('hidden-filter-btn');
+                return;
+            }
+            
+            const hasQuickFilter = activeFilter.key !== null;
+            const hasSearchQuery = searchInput.value.trim() !== '';
+
+            if (hasQuickFilter || hasSearchQuery) {
+                clearFilterBtn.classList.remove('hidden-filter-btn');
+                clearFilterBtn.classList.add('visible-filter-btn');
+                
+                if (hasQuickFilter) {
+                     searchInput.placeholder = `Filtro Rápido Ativo: ${activeFilter.columnName} = ${activeFilter.value}`;
+                } else {
+                     searchInput.placeholder = "Pesquisar por artista, álbum, ano...";
+                }
+
+            } else {
+                clearFilterBtn.classList.remove('visible-filter-btn');
+                clearFilterBtn.classList.add('hidden-filter-btn');
+                searchInput.placeholder = "Pesquisar por artista, álbum, ano...";
+            }
+        }
+        
+        function filterByArtist(artistName, columnKey) {
+            activeFilter.key = columnKey;
+            activeFilter.value = artistName;
+            activeFilter.columnName = 'Artista';
+            searchInput.value = artistName; 
+            applySortAndFilter();
+        }
+
+        function filterByCountry(countryCode, columnKey) {
+            activeFilter.key = columnKey;
+            activeFilter.value = countryCode;
+            activeFilter.columnName = 'País';
+            searchInput.value = countryCode; 
+            applySortAndFilter();
+        }
+        
+        function clearActiveFilter() {
+            activeFilter.key = null;
+            activeFilter.value = null;
+            activeFilter.columnName = null;
+            searchInput.value = ''; 
+            applySortAndFilter(); 
+        }
+
+
+        // =================================================================================
+        // LÓGICA DE RENDERIZAÇÃO E INTERAÇÃO (Geral/Album)
+        // =================================================================================
+        
+        /**
+         * Cria o elemento HTML para um cartão de contato (Aba Album/Geral).
+         * (Conteúdo inalterado)
+         */
+        function createContactCard(contact, index) {
+            
+            const allKeys = Object.keys(contact);
+            const indexAlbum = 5; 
+            const indexYear = 4;  
+            const indexArtist = 2; 
+            const indexArtistRating = 3; 
+            const indexCountryCode = 9; 
+
+            const keyAlbum = allKeys[indexAlbum] || null;
+            const keyArtist = allKeys[indexArtist] || null;
+            const keyCountryCode = allKeys[indexCountryCode] || null; 
+
+            const valueYear = allKeys[indexYear] ? contact[allKeys[indexYear]] : ''; 
+            const valueAlbum = keyAlbum ? contact[keyAlbum] : 'N/A';
+            const valueArtist = keyArtist ? contact[keyArtist] : 'N/A';
+            const valueArtistRating = allKeys[indexArtistRating] ? String(contact[allKeys[indexArtistRating]]).trim() : '';
+            const valueCountryCode = keyCountryCode ? String(contact[keyCountryCode]).toLowerCase() : '';
+
+            const ratingColors = {
+                '3': '#6dbe99', 
+                '2': '#f8c039', 
+                '1': '#e97b78'  
+            };
+            
+            const artistColor = ratingColors[valueArtistRating] || '#4f46e5'; 
+            const artistStyle = `color: ${artistColor};`;
+            const displayArtist = String(valueArtist).toUpperCase();
+            
+            const albumTitle = valueAlbum;
+            const yearSuffix = valueYear ? ` (${valueYear})` : '';
+
+            const filterArtistAction = `event.stopPropagation(); filterByArtist('${displayArtist.replace(/'/g, "\\'")}', '${keyArtist}')`;
+            const filterCountryAction = `event.stopPropagation(); filterByCountry('${valueCountryCode.replace(/'/g, "\\'")}', '${keyCountryCode}')`;
+
+
+            let flagImageHtml = '';
+            const codeUpper = valueCountryCode.toUpperCase(); 
+
+            if (valueCountryCode && valueCountryCode.length >= 2 && valueCountryCode.length <= 3) {
+                const flagUrl = `https://flagcdn.com/40x30/${valueCountryCode}.png`;
+                
+                flagImageHtml = `
+                    <div onclick="${filterCountryAction}" 
+                         class="cursor-pointer hover:opacity-80 transition duration-150 relative mr-3 flex-shrink-0">
+                        <img src="${flagUrl}" alt="Bandeira de ${codeUpper}" 
+                             class="w-8 h-auto rounded-md shadow-sm" 
+                             onerror="this.style.opacity='0'; this.nextElementSibling.classList.remove('hidden');"
+                        >
+                        <span class="text-gray-400 text-xs hidden flex-shrink-0 absolute left-0 top-0 mt-1" title="Código de Bandeira Inválido">${codeUpper}</span>
+                    </div>
+                `;
+            } else if (valueCountryCode) {
+                 flagImageHtml = `<span onclick="${filterCountryAction}" class="text-gray-400 text-xs mr-3 flex-shrink-0 cursor-pointer hover:text-indigo-500" title="Código de País Inválido">${codeUpper}</span>`;
+            }
+
+            const card = document.createElement('div');
+            // ESTILO MINIMALISTA: p-2 (REDUZIDO), space-y-1 (espaçamento entre cards)
+            card.className = 'contact-card bg-white p-2 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.002] transition duration-300 cursor-pointer border-t border-gray-100';
+            card.setAttribute('data-index', index);
+            card.onclick = () => toggleDetails(card); 
+
+            let primaryContent = `
+                <div class="flex justify-between items-start relative"> 
+                    <div class="flex items-start mb-0 min-w-0 flex-grow">
+                        ${flagImageHtml} 
+                        <div class="min-w-0">
+                            <h2 class="text-lg font-semibold text-gray-800 leading-snug break-words">
+                                ${albumTitle}
+                                <span class="text-gray-400 font-normal ml-1">${yearSuffix}</span>
+                            </h2>
+                            <p class="text-base font-bold cursor-pointer hover:text-indigo-600 transition break-words" 
+                               style="${artistStyle}" 
+                               onclick="${filterArtistAction}">
+                                ${displayArtist}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Conteúdo de detalhes
+            let detailsContent = '<div class="mt-2 pt-2 border-t border-gray-100">'; 
+            
+            allKeys.forEach((key, keyIndex) => {
+                const value = contact[key];
+                
+                let friendlyTitle = COLUMN_TITLES[keyIndex] || key;
+                if (friendlyTitle === 'album_id') {
+                    friendlyTitle = 'Album ID';
+                } else if (friendlyTitle === 'artist_rating') {
+                    friendlyTitle = 'Rating do Artista';
+                } else if (friendlyTitle === 'date') {
+                    friendlyTitle = 'Data de Lançamento';
+                }
+
+                if (value) {
+                    detailsContent += `
+                        <p class="text-sm mb-1 flex justify-between items-start">
+                            <span class="font-normal text-gray-500">${friendlyTitle}:</span> 
+                            <span class="text-gray-700 font-medium ml-4 text-right">${value}</span>
+                        </p>
+                    `;
+                }
+            });
+            detailsContent += '</div>';
+
+            const detailsPanel = document.createElement('div');
+            detailsPanel.className = 'details-panel';
+            detailsPanel.innerHTML = detailsContent;
+
+            card.innerHTML = primaryContent;
+            card.appendChild(detailsPanel);
+            
+            return card;
+        }
+
+        /**
+         * Alterna a visibilidade do painel de detalhes e o ícone.
+         */
+        function toggleDetails(card) {
+            const detailsPanel = card.querySelector('.details-panel');
+            
+            const isOpen = detailsPanel.classList.toggle('open');
+            card.classList.toggle('bg-gray-50', isOpen); 
+            card.classList.toggle('shadow-lg', isOpen); 
+            card.classList.toggle('border-indigo-400', isOpen); 
+        }
+
+        /**
+         * FUNÇÃO DE RENDERIZAÇÃO CENTRAL: Renderiza o layout apropriado.
+         * RENOMEADA de renderContacts para renderData
+         */
+        function renderData(data) {
+            contactList.innerHTML = '';
+            const count = data.length;
+            
+            updateClearFilterButton(); 
+
+            if (count === 0) {
+                resultsCountElement.textContent = '0 resultados encontrados.';
+                noResultsMessage.classList.remove('hidden');
+            } else {
+                resultsCountElement.textContent = `${count} resultado${count > 1 ? 's' : ''} encontrado${count > 1 ? 's' : ''}.`;
+                noResultsMessage.classList.add('hidden');
+                
+                data.forEach((contact, index) => {
+                    if (currentSheet.name === 'Ran') {
+                        // Renderiza o cartão de Ranking
+                        contactList.appendChild(createRankingCard(contact));
+                    } else {
+                        // Renderiza o cartão de Contato/Album (padrão)
+                        contactList.appendChild(createContactCard(contact, index));
+                    }
+                });
+            }
+        }
+
+        // =================================================================================
+        // LÓGICA DE NAVEGAÇÃO ENTRE ABAS
+        // =================================================================================
+
+        function renderSheetNavigation() {
+            sheetNav.innerHTML = '';
+            SHEETS_CONFIG.forEach(sheet => {
+                const button = document.createElement('button');
+                button.textContent = sheet.name;
+                button.className = `px-3 py-1.5 rounded-lg font-medium transition duration-200 shadow-sm text-sm ${
+                    sheet.gid === currentSheet.gid 
+                        ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700' 
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`;
+                button.onclick = () => switchSheet(sheet.gid);
+                sheetNav.appendChild(button);
+            });
+        }
+
+        function switchSheet(gid) {
+            if (currentSheet.gid === gid) return;
+
+            const newSheet = SHEETS_CONFIG.find(s => s.gid === gid);
+            if (newSheet) {
+                currentSheet = newSheet;
+                contactList.innerHTML = '';
+                noResultsMessage.classList.add('hidden');
+                resultsCountElement.textContent = ''; 
+                
+                renderSheetNavigation(); 
+                
+                searchInput.value = '';
+                
+                // Reinicia o estado de ordenação apenas se não for a aba Ran
+                if (currentSheet.name !== 'Ran') {
+                    sortState.columnKey = null; 
+                    sortState.direction = 'asc'; 
+                }
+                
+                // Limpa o filtro rápido ao mudar de aba
+                activeFilter.key = null;
+                activeFilter.value = null;
+                activeFilter.columnName = null;
+                
+                // Recria os controles de ordenação (serão escondidos/mostrados conforme a aba)
+                createSortControls(); 
+                
+                fetchData();
+            }
+        }
+
+        // =================================================================================
+        // LÓGICA DE BUSCA E FILTRAGEM (Geral/Album)
+        // =================================================================================
+        
+        function filterContacts() {
+            if (currentSheet.name === 'Ran') return; // Sem filtragem para Ranking
+            
+            const dataToFilter = allData; 
+            const query = searchInput.value.toLowerCase().trim();
+            
+            if (activeFilter.key) {
+                const filteredData = dataToFilter.filter(contact => {
+                    const targetValue = String(contact[activeFilter.key]).toUpperCase();
+                    return targetValue === String(activeFilter.value).toUpperCase();
+                });
+                renderData(filteredData);
+                return;
+            }
+
+            if (query !== '') {
+                const filteredData = dataToFilter.filter(contact => {
+                    const contactString = Object.values(contact).map(String).join(' ').toLowerCase();
+                    return contactString.includes(query);
+                });
+                renderData(filteredData);
+                return;
+            }
+            
+            renderData(dataToFilter);
+        }
+        
+        searchInput.addEventListener('input', () => {
+             if (currentSheet.name === 'Ran') return; // Sem busca para Ranking
+             
+             const currentQuery = searchInput.value.toLowerCase().trim();
+             
+             if (activeFilter.key && currentQuery !== activeFilter.value.toLowerCase().trim()) {
+                 activeFilter.key = null;
+                 activeFilter.value = null;
+                 activeFilter.columnName = null;
+             }
+             
+             applySortAndFilter();
+        });
+
+
+        // =================================================================================
+        // INÍCIO DO APLICATIVO: BUSCAR DADOS
+        // =================================================================================
+        
+        async function fetchData() {
+            const MAX_RETRIES = 3;
+            let lastError = null;
+            const currentGid = currentSheet.gid;
+
+            resultsCountElement.textContent = ''; 
+
+            if (SHEET_ID === TEST_SHEET_ID) {
+                statusMessage.textContent = `Atenção: A carregar dados de DEMONSTRAÇÃO da aba "${currentSheet.name}". **Substitua 'SHEET_ID' pelo ID da sua planilha real.**`;
+                statusMessage.classList.remove('hidden', 'text-gray-600', 'text-red-600');
+                statusMessage.classList.add('text-orange-600', 'font-bold', 'bg-yellow-100');
+            } else {
+                statusMessage.textContent = `Carregando dados da aba: ${currentSheet.name}...`;
+                statusMessage.classList.remove('hidden', 'text-red-600', 'text-orange-600', 'font-bold', 'bg-yellow-100');
+                statusMessage.classList.add('text-gray-600', 'bg-gray-50');
+            }
+            
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        statusMessage.textContent = `Tentativa de busca de dados #${attempt + 1} para ${currentSheet.name}...`;
+                    }
+                    
+                    const response = await fetch(getSheetUrl(currentGid)); 
+                    
+                    if (!response.ok) {
+                        let errorMessage = `Erro de rede: ${response.status}.`;
+                        if (response.status === 404 || response.status === 400 || response.status === 403) {
+                            errorMessage += " Confirme se o SHEET_ID está correto E se a planilha foi **publicada na web** (Ficheiro > Partilhar > Publicar na web).";
+                        }
+                        throw new Error(errorMessage);
+                    }
+                    
+                    const text = await response.text();
+                    let data = parseSheetData(text);
+                    
+                    if (data.length === 0) {
+                        statusMessage.textContent = `A aba "${currentSheet.name}" está vazia ou falha na leitura dos dados.`;
+                        statusMessage.classList.add('text-red-600', 'bg-red-100');
+                        resultsCountElement.textContent = '0 resultados encontrados.';
+                        return;
+                    }
+                    
+                    if (currentSheet.name === 'Ran') {
+                        // NOVO: Processa e ordena o Ranking
+                        data = processRankingData(data);
+                    }
+
+                    allData = data;
+                    
+                    // Define ordenação padrão APENAS se não for Ranking
+                    if (currentSheet.name !== 'Ran') {
+                        const albumIdKey = getColumnKeyByIndex(0); 
+                        if (albumIdKey) {
+                            sortState.columnKey = albumIdKey; 
+                            sortState.direction = 'desc';
+                        }
+                    }
+
+                    createSortControls(); // Recria os controles (escondidos se for Ran)
+                    applySortAndFilter(); // Aplica a ordenação e filtro
+                    
+                    statusMessage.classList.add('hidden');
+                    return;
+
+                } catch (error) {
+                    lastError = error;
+                    console.error(`Erro na tentativa #${attempt + 1}:`, error);
+
+                    if (attempt === MAX_RETRIES - 1 || !(error instanceof TypeError || error.message.includes("Failed to fetch"))) {
+                        break;
+                    }
+
+                    const delay = Math.pow(2, attempt) * 1000;
+                    await sleep(delay);
+                }
+            }
+
+            statusMessage.textContent = `ERRO FINAL: Não foi possível carregar os dados da aba "${currentSheet.name}" após ${MAX_RETRIES} tentativas. Detalhe: ${lastError.message}`;
+            statusMessage.classList.remove('hidden', 'text-orange-600', 'font-bold', 'text-gray-600', 'bg-yellow-50');
+            statusMessage.classList.add('text-red-600', 'bg-red-100');
+        }
+
+        // Listener para autenticação (mantido para compatibilidade com o ambiente)
+        window.onload = function() {
+            // Este bloco simula a inicialização do Firebase se o ambiente não for Canvas
+            if (typeof firebaseConfig !== 'undefined' && Object.keys(firebaseConfig).length > 0) {
+                // Código Firebase real (omitido para manter o foco no frontend, mas a estrutura é mantida)
+            }
+        };
+
+        // Inicia a renderização da navegação e a busca de dados
+        renderSheetNavigation();
+        fetchData();
+
+    </script>
+</body>
+</html>

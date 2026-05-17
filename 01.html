@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gamified Task Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-body: #f0f2f5;
+            --status-none: #ffffff;
+            --status-check: #fff3cd; /* Amarelo claro - Meta mínima */
+            --status-done: #d4edda;  /* Verde claro - Meta recomendada */
+            --primary: #4a90e2;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); margin: 0; padding: 20px; }
+        
+        /* Topo: Histórico 7 Dias */
+        .chart-container { 
+            background: white; padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px;
+            height: 250px;
+        }
+
+        /* Grid de Programas */
+        .grid-programs {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+        }
+
+        .program-btn {
+            aspect-ratio: 1/1;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s, background 0.3s;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .program-btn:hover { transform: scale(1.05); }
+        .program-btn .sigla { font-weight: bold; font-size: 1.2rem; margin-bottom: 5px; }
+        .program-btn .value { font-size: 0.8rem; color: #666; }
+
+        /* Status de Cores */
+        .status-none { background: var(--status-none); }
+        .status-check { background: var(--status-check); border-color: #ffeeba; }
+        .status-done { background: var(--status-done); border-color: #c3e6cb; }
+
+        /* Modal Simples */
+        #modal {
+            display: none; position: fixed; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); background: white; 
+            padding: 30px; border-radius: 15px; box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            z-index: 100; min-width: 300px;
+        }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99; }
+        
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
+        button.save { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="chart-container">
+        <canvas id="weeklyChart"></canvas>
+    </div>
+
+    <div class="grid-programs" id="programGrid">
+        </div>
+
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div id="modal">
+        <h3 id="modalTitle">Nome do Programa</h3>
+        <div id="inputGroup">
+            </div>
+        <button class="save" onclick="saveData()">Registrar</button>
+    </div>
+
+    <script>
+        // Dados de Exemplo (Siglas de 3 caracteres)
+        const programs = [
+            { sigla: "LIS", nome: "Listening", tipo: "tempo", metaCheck: 15, metaDone: 60, atual: 0 },
+            { sigla: "GYM", nome: "Musculação", tipo: "sessao", metaCheck: 1, metaDone: 1, atual: 0 },
+            { sigla: "HYD", nome: "Hidratação", tipo: "unid", metaCheck: 4, metaDone: 8, atual: 0 },
+            { sigla: "REA", nome: "Leitura", tipo: "unid", metaCheck: 5, metaDone: 20, atual: 0 },
+            { sigla: "COD", nome: "Coding", tipo: "tempo", metaCheck: 30, metaDone: 120, atual: 0 },
+            { sigla: "MED", nome: "Meditação", tipo: "tempo", metaCheck: 5, metaDone: 15, atual: 0 },
+            { sigla: "STP", nome: "Passos", tipo: "unid", metaCheck: 5000, metaDone: 10000, atual: 0 },
+            { sigla: "ENG", nome: "Inglês", tipo: "tempo", metaCheck: 20, metaDone: 45, atual: 0 }
+            // Adicione os outros 42 conforme necessário
+        ];
+
+        // Adicionando mocks para completar 50 botões se desejar
+        for(let i=programs.length; i<50; i++) {
+            programs.push({ sigla: "PRG", nome: "Programa "+i, tipo: "unid", metaCheck: 10, metaDone: 20, atual: 0 });
+        }
+
+        let selectedProgram = null;
+
+        function renderGrid() {
+            const grid = document.getElementById('programGrid');
+            grid.innerHTML = '';
+            programs.forEach((p, index) => {
+                let statusClass = "status-none";
+                if(p.atual >= p.metaDone) statusClass = "status-done";
+                else if(p.atual >= p.metaCheck) statusClass = "status-check";
+
+                const btn = document.createElement('div');
+                btn.className = `program-btn ${statusClass}`;
+                btn.onclick = () => openModal(index);
+                btn.innerHTML = `
+                    <div class="sigla">${p.sigla}</div>
+                    <div class="value">${p.atual} ${p.tipo === 'tempo' ? 'min' : ''}</div>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        function openModal(index) {
+            selectedProgram = programs[index];
+            document.getElementById('modalTitle').innerText = selectedProgram.nome;
+            const group = document.getElementById('inputGroup');
+            
+            if(selectedProgram.tipo === 'tempo') {
+                group.innerHTML = `
+                    <label>Hora Início</label><input type="time" id="timeStart">
+                    <label>Hora Fim</label><input type="time" id="timeEnd">
+                `;
+            } else {
+                group.innerHTML = `<label>Quantidade</label><input type="number" id="qtyInput" placeholder="Ex: 5">`;
+            }
+            
+            document.getElementById('modal').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function saveData() {
+            if(selectedProgram.tipo === 'tempo') {
+                const start = document.getElementById('timeStart').value;
+                const end = document.getElementById('timeEnd').value;
+                if(start && end) {
+                    // Cálculo simples de diferença de minutos
+                    const [h1, m1] = start.split(':').map(Number);
+                    const [h2, m2] = end.split(':').map(Number);
+                    const diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+                    selectedProgram.atual += diff > 0 ? diff : 0;
+                }
+            } else {
+                const val = parseInt(document.getElementById('qtyInput').value) || 0;
+                selectedProgram.atual += val;
+            }
+            closeModal();
+            renderGrid();
+            updateChart();
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        // Gráfico de Barras (Chart.js)
+        const ctx = document.getElementById('weeklyChart').getContext('2d');
+        let myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+                datasets: [{
+                    label: 'Pontuação Geral de Performance',
+                    data: [65, 59, 80, 81, 56, 40, 95], // Dados simulados
+                    backgroundColor: '#4a90e2'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, max: 100 } }
+            }
+        });
+
+        function updateChart() {
+            // Lógica para atualizar o gráfico conforme os checks do dia
+            myChart.data.datasets[0].data[6] += 2; // Simula crescimento no dia atual
+            myChart.update();
+        }
+
+        renderGrid();
+    </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Deezer Master Collector</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #fff; padding: 40px; text-align: center; }
+        textarea { width: 100%; max-width: 800px; height: 150px; background: #1a1a1a; color: #00ff00; border: 1px solid #333; padding: 15px; border-radius: 8px; font-family: monospace; }
+        .btn { background: #ef5464; color: white; border: none; padding: 15px 40px; border-radius: 30px; cursor: pointer; font-weight: bold; font-size: 1rem; margin-top: 20px; transition: 0.3s; }
+        .btn:hover { background: #ff6b7a; transform: scale(1.05); }
+        #status { margin: 20px; color: #00d2ff; font-weight: bold; font-size: 1.2rem; }
+        #log { width: 100%; max-width: 800px; margin: 0 auto; text-align: left; background: #000; padding: 15px; height: 250px; overflow-y: scroll; font-family: monospace; font-size: 11px; border: 1px solid #333; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h2>?? Deezer Master Data Collector</h2>
+    <p>Gera o banco de dados completo com Minutos, Gênero e Links</p>
+    <textarea id="idsInput" placeholder="Cole os IDs dos álbuns aqui (um por linha)..."></textarea><br>
+    <button class="btn" onclick="startCollection()">Processar e Baixar JSON</button>
+    <div id="status">Aguardando início...</div>
+    <div id="log"></div>
+
+    <script>
+        const resultados = [];
+        let ids = [];
+        let index = 0;
+
+        function startCollection() {
+            const input = document.getElementById('idsInput').value;
+            ids = input.split('\n').map(id => id.trim()).filter(id => id !== "");
+            if(ids.length === 0) return alert("Por favor, cole os IDs dos álbuns!");
+            
+            resultados.length = 0;
+            index = 0;
+            document.getElementById('log').innerHTML = "Iniciando motores...<br>";
+            processNext();
+        }
+
+        function processNext() {
+            if (index >= ids.length) {
+                finish();
+                return;
+            }
+
+            document.getElementById('status').innerText = `Processando: ${index + 1} de ${ids.length}`;
+            const script = document.createElement('script');
+            // JSONP contorna o erro de CORS
+            script.src = `https://api.deezer.com/album/${ids[index]}?output=jsonp&callback=handleResponse`;
+            script.id = "deezer-call";
+            document.body.appendChild(script);
+        }
+
+        function handleResponse(data) {
+            const log = document.getElementById('log');
+            
+            if (data && !data.error) {
+                const genero = data.genres && data.genres.data.length > 0 ? data.genres.data[0].name : "Rock";
+                const duracaoMinutos = Math.floor(data.duration / 60);
+
+                resultados.push({
+                    id_alb: data.id,
+                    titulo: data.title,
+                    id_art: data.artist.id,
+                    artista: data.artist.name,
+                    link_art: `https://www.deezer.com/artist/${data.artist.id}`, // Link do artista
+                    genero: genero,
+                    capa_sm: data.cover_small,
+                    capa_xl: data.cover_xl,
+                    fas: data.fans,
+                    musicas: data.nb_tracks,
+                    duracao: duracaoMinutos, // Minutos do álbum
+                    ano: data.release_date ? data.release_date.split('-')[0] : "N/A",
+                    link_alb: data.link
+                });
+                log.innerHTML += `<span style="color:#0f0">? OK: ${data.artist.name} - ${data.title}</span><br>`;
+            } else {
+                log.innerHTML += `<span style="color:#f00">? Erro no ID ${ids[index]}</span><br>`;
+            }
+
+            const oldScript = document.getElementById('deezer-call');
+            if(oldScript) oldScript.remove();
+            
+            index++;
+            log.scrollTop = log.scrollHeight;
+            setTimeout(processNext, 80); // Pequeno delay para estabilidade
+        }
+
+        function finish() {
+            document.getElementById('status').innerText = "?? Processo concluído!";
+            const blob = new Blob([JSON.stringify(resultados, null, 2)], {type: 'application/json'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'meu_catalogo_musical.json';
+            a.click();
+        }
+    </script>
+</body>
+</html>

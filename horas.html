@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Horas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        input::placeholder { color: #94a3b8; font-weight: normal; opacity: 0.6; }
+        @media (max-height: 700px) {
+            .container-main { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            .header-section { margin-bottom: 0.75rem; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-2">
+
+    <div class="bg-white shadow-xl rounded-[1.5rem] p-5 w-full max-w-md border border-gray-200 container-main">
+        <div class="flex justify-between items-start mb-4 header-section">
+            <div>
+                <h1 class="text-xl font-bold text-gray-800 tracking-tight leading-none">Horas</h1>
+                <div class="text-[10px] text-gray-500 font-bold uppercase mt-1">
+                    <span id="data-extenso"></span>
+                </div>
+            </div>
+            <div class="bg-slate-800 text-white px-3 py-1.5 rounded-lg shadow-md">
+                <span id="relogio" class="mono text-base font-bold">00:00:00</span>
+            </div>
+        </div>
+
+        <div class="space-y-2">
+            <div class="grid grid-cols-2 gap-x-3 gap-y-2">
+                <div>
+                    <label class="text-[9px] font-bold text-emerald-600 uppercase ml-1">Entrada 1</label>
+                    <input type="text" id="e1" inputmode="numeric" placeholder="00:00" class="time-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-center font-bold text-sm">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-red-500 uppercase ml-1">Saída 1</label>
+                    <input type="text" id="s1" inputmode="numeric" placeholder="Sugerido" class="time-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-400 outline-none text-center font-bold text-sm">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-emerald-600 uppercase ml-1">Entrada 2</label>
+                    <input type="text" id="e2" inputmode="numeric" placeholder="Sugerido" class="time-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-center font-bold text-sm">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-red-500 uppercase ml-1">Saída 2</label>
+                    <input type="text" id="s2" inputmode="numeric" placeholder="Sugerido" class="time-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-400 outline-none text-center font-bold text-sm">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-emerald-600 uppercase ml-1">Entrada 3</label>
+                    <input type="text" id="e3" inputmode="numeric" placeholder="Sugerido" class="time-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-center font-bold text-sm">
+                </div>
+                <div>
+                    <label class="text-[9px] font-bold text-red-500 uppercase ml-1">Saída 3</label>
+                    <input type="text" id="s3" inputmode="numeric" placeholder="Sugerido" class="time-input w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-400 outline-none text-center font-bold text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="salvarDados()" class="bg-emerald-600 text-white font-bold py-2 rounded-lg text-[10px] uppercase shadow-sm active:bg-emerald-700">Salvar</button>
+                <button onclick="limparDados()" class="bg-gray-200 text-gray-600 font-bold py-2 rounded-lg text-[10px] uppercase active:bg-gray-300">Limpar</button>
+            </div>
+
+            <div class="bg-slate-900 rounded-2xl p-4 text-white space-y-2 shadow-lg mt-2">
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-gray-400 italic">Total Trabalhado</span>
+                    <span id="res-total" class="font-bold mono text-base">00:00</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-sky-400 italic">Extra (08:48)</span>
+                    <span id="res-extra" class="font-bold mono text-base text-sky-400">00:00</span>
+                </div>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-amber-500 italic">Falta (Tolerância 10m)</span>
+                    <span id="res-falta" class="font-bold mono text-base text-amber-500">00:00</span>
+                </div>
+                <div class="pt-2 border-t border-slate-700 flex justify-between items-center">
+                    <span class="text-emerald-400 font-bold text-[10px] uppercase">Restante p/ 09:59</span>
+                    <span id="res-restante" class="text-xl font-bold text-emerald-400 mono">00:00</span>
+                </div>
+            </div>
+
+            <div class="text-center pt-2 space-y-1">
+                <p class="text-[9px] text-gray-500 font-bold uppercase">
+                    Saída mín p/ 08:38: <span id="saida-min-838" class="text-gray-800">--:--</span>
+                </p>
+                <div class="flex justify-center gap-3 text-[8px] font-bold text-gray-400 uppercase">
+                    <span>Meta: 08:48</span>
+                    <span>Meta + 11m: 08:59</span>
+                    <span>Max: 09:59</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputs = Array.from(document.querySelectorAll('.time-input'));
+        const META_DIARIA = 8 * 60 + 48; 
+        const META_11MIN = 8 * 60 + 59;
+        const META_838 = 8 * 60 + 38;
+        const META_MAXIMA = 9 * 60 + 59;
+
+        function atualizarDataHora() {
+            const agora = new Date();
+            document.getElementById('relogio').innerText = agora.toLocaleTimeString('pt-br');
+            const dias = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const dataFmt = agora.toLocaleDateString('pt-br', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
+            document.getElementById('data-extenso').innerText = `${dias[agora.getDay()]}, ${dataFmt}`;
+        }
+        setInterval(atualizarDataHora, 1000);
+        atualizarDataHora();
+
+        const fromMinutes = (m) => `${String(Math.floor(Math.abs(m)/60)).padStart(2,'0')}:${String(Math.abs(m)%60).padStart(2,'0')}`;
+        const toMinutes = (s) => (s && s.includes(':')) ? s.split(':').reduce((h, m) => h * 60 + +m) : null;
+
+        function aplicarSugestoes() {
+            const e1 = toMinutes(document.getElementById('e1').value);
+            const s1 = toMinutes(document.getElementById('s1').value) || (e1 ? e1 + 360 : null);
+            const e2 = toMinutes(document.getElementById('e2').value) || (e1 ? e1 + 420 : null);
+            const s2Input = document.getElementById('s2');
+            const e3Input = document.getElementById('e3');
+            const s3Input = document.getElementById('s3');
+
+            document.getElementById('s1').placeholder = e1 ? fromMinutes(e1 + 360) : "Sugerido";
+            document.getElementById('e2').placeholder = e1 ? fromMinutes(e1 + 420) : "Sugerido";
+
+            if (e1 && s1 && e2 && !s2Input.value) {
+                s2Input.placeholder = fromMinutes(e2 + (META_11MIN - (s1 - e1)));
+            }
+            const s2 = toMinutes(s2Input.value) || toMinutes(s2Input.placeholder);
+            if (s2 && !e3Input.value) e3Input.placeholder = fromMinutes(s2 + 60);
+            
+            const e3 = toMinutes(e3Input.value) || toMinutes(e3Input.placeholder);
+            if (e1 && s1 && e2 && s2 && e3 && !s3Input.value) {
+                s3Input.placeholder = fromMinutes(e3 + (META_MAXIMA - ((s1 - e1) + (s2 - e2))));
+            }
+
+            const smLabel = document.getElementById('saida-min-838');
+            if (e1 && s1 && e2) {
+                const turno1 = s1 - e1;
+                const e3Val = toMinutes(e3Input.value);
+                smLabel.innerText = e3Val ? fromMinutes(e3Val + (META_838 - (turno1 + (s2 - e2)))) : fromMinutes(e2 + (META_838 - turno1));
+            } else smLabel.innerText = "--:--";
+        }
+
+        function calcular() {
+            aplicarSugestoes();
+            let total = 0;
+            const vals = inputs.map(i => toMinutes(i.value));
+            for(let i=0; i<6; i+=2) if(vals[i] && vals[i+1]) total += (vals[i+1] - vals[i]);
+
+            const extra = total > META_DIARIA ? total - META_DIARIA : 0;
+            const diffFalta = META_DIARIA - total;
+            // Regra: se faltou mais de 10 min, informa o tempo. Se faltou 10 ou menos, informa 0.
+            const falta = (total < META_DIARIA && diffFalta > 10) ? diffFalta : 0;
+            const restante = total < META_MAXIMA ? META_MAXIMA - total : 0;
+
+            document.getElementById('res-total').innerText = fromMinutes(total);
+            document.getElementById('res-extra').innerText = fromMinutes(extra);
+            document.getElementById('res-falta').innerText = fromMinutes(falta);
+            document.getElementById('res-restante').innerText = fromMinutes(restante);
+        }
+
+        inputs.forEach((input, index) => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!input.value && input.placeholder.includes(':')) input.value = input.placeholder;
+                    const next = inputs[index + 1];
+                    next ? next.focus() : input.blur();
+                    calcular();
+                    salvarDados(true); // Salva silenciosamente ao mudar de campo
+                }
+            });
+            input.addEventListener('blur', function() {
+                if (this.value) {
+                    let v = this.value.replace(/\D/g, '');
+                    if (v.length <= 2) v = v.padStart(2, '0') + '00';
+                    if (v.length === 3) v = '0' + v;
+                    this.value = `${v.substring(0, 2)}:${v.substring(2, 4)}`;
+                    calcular();
+                    salvarDados(true);
+                }
+            });
+        });
+
+        function salvarDados(silent = false) {
+            localStorage.setItem('horas_v3', JSON.stringify(inputs.map(i => i.value)));
+            if(!silent) {
+                const btn = event.target;
+                const originalText = btn.innerText;
+                btn.innerText = "SALVO!";
+                setTimeout(() => btn.innerText = originalText, 1000);
+            }
+        }
+
+        function limparDados() {
+            if(confirm('Limpar todos os horários?')) {
+                inputs.forEach(i => i.value = '');
+                localStorage.removeItem('horas_v3');
+                calcular();
+            }
+        }
+
+        window.onload = () => {
+            const salvo = localStorage.getItem('horas_v3');
+            if(salvo) {
+                const dados = JSON.parse(salvo);
+                inputs.forEach((input, i) => input.value = dados[i] || '');
+                calcular();
+            }
+        };
+    </script>
+</body>
+</html>

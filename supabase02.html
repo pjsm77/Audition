@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor de Artistas - Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #3ecf8e; color: white; }
+        input { padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 90%; }
+        .btn-save { background: #3ecf8e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; transition: 0.3s; }
+        .btn-save:hover { background: #2eb875; }
+        .loading { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gerenciar Artistas</h1>
+    <div id="msg"></div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>País</th>
+                <th>Rating (0-5)</th>
+                <th>Ação</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            <tr><td colspan="4" class="loading">Carregando artistas...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // Função para carregar dados
+    async function loadArtists() {
+        const { data, error } = await _supabase
+            .from('Artist')
+            .select('id, name, country, rating')
+            .order('name');
+
+        if (error) {
+            document.getElementById('msg').innerHTML = `<p style="color:red">Erro: ${error.message}</p>`;
+            return;
+        }
+
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        data.forEach(artist => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" value="${artist.name || ''}" id="name-${artist.id}"></td>
+                <td><input type="text" value="${artist.country || ''}" id="country-${artist.id}"></td>
+                <td><input type="number" min="0" max="5" value="${artist.rating || 0}" id="rating-${artist.id}" style="width:50px"></td>
+                <td><button class="btn-save" onclick="saveArtist(${artist.id})">Salvar</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Função para salvar as alterações
+    async function saveArtist(id) {
+        const newName = document.getElementById(`name-${id}`).value;
+        const newCountry = document.getElementById(`country-${id}`).value;
+        const newRating = document.getElementById(`rating-${id}`).value;
+
+        const { error } = await _supabase
+            .from('Artist')
+            .update({ 
+                name: newName, 
+                country: newCountry, 
+                rating: parseInt(newRating) 
+            })
+            .eq('id', id);
+
+        if (error) {
+            alert("Erro ao salvar: " + error.message);
+        } else {
+            const msg = document.getElementById('msg');
+            msg.innerHTML = '<p style="color:green">Atualizado com sucesso!</p>';
+            setTimeout(() => msg.innerHTML = '', 3000);
+        }
+    }
+
+    loadArtists();
+</script>
+</body>
+</html>

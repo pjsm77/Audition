@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Lista de Contatos e Ranking Dinâmico</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+:root { font-family: 'Bebas Neue', cursive; }
+body { background-color:#f7f9fb; }
+
+.details-panel {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.25,0.8,0.25,1);
+}
+.details-panel.open {
+    max-height: 1000px;
+    transition: max-height 0.6s cubic-bezier(0.25,0.8,0.25,1);
+}
+
+.contact-card:hover,
+.ranking-card:hover,
+.sta-card:hover {
+    transform: scale(1.002);
+}
+
+.hidden-filter-btn { visibility:hidden; opacity:0; }
+.visible-filter-btn { visibility:visible; opacity:1; }
+
+/* ===== AJUSTES EXCLUSIVOS ABA RAN/ART ===== */
+.ran-card {
+    background:#ffffff;
+    padding:6px 8px;
+    margin:4px 0;
+    border-radius:6px;
+    border:1px solid #f0f0f0;
+}
+.ran-name { font-size:13px; line-height:1.1; }
+.ran-flag { width:32px; height:24px; cursor:pointer; object-fit:cover; }
+
+/* compact layout adjustments for all small cards */
+.contact-card, .ranking-card, .sta-card {
+    padding: 6px 8px;
+    margin: 4px 0;
+    border-radius: 8px;
+}
+</style>
+</head>
+<body class="min-h-screen p-2 sm:p-4">
+<div class="max-w-4xl mx-auto">
+<div class="bg-white p-2 sm:p-3 rounded-2xl shadow-xl border border-gray-100">
+
+    <div id="sheet-nav" class="mb-3 flex flex-wrap gap-2 justify-center"></div>
+
+    <div id="search-controls-container">
+        <div class="mb-3">
+            <div class="relative flex items-center">
+                <input type="text" id="search-input" placeholder="Pesquisar por artista, álbum, ano..."
+                       class="w-full p-3 border border-gray-200 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 text-lg transition duration-150 shadow-inner pr-12">
+                <button id="clear-filter-btn" onclick="clearActiveFilter()"
+                        class="absolute right-0 mr-2 p-1.5 h-9 w-9 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-600 transition duration-150 disabled:bg-gray-300 hidden-filter-btn"
+                        title="Limpar Filtro Ativo">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="sort-controls" class="mb-3 p-3 bg-gray-50 rounded-xl flex items-center justify-between space-x-2 border border-gray-200"></div>
+    </div>
+
+    <div id="results-count" class="text-sm text-gray-500 mb-3 px-1"></div>
+
+    <div id="status-message" class="text-center text-lg text-gray-600 p-4 rounded-xl bg-yellow-50 shadow-inner">
+        Carregando dados...
+    </div>
+
+    <div id="contact-list" class="space-y-1"></div>
+
+    <div id="no-results" class="hidden text-center text-xl text-gray-400 p-10 bg-white rounded-xl shadow-lg mt-8">
+        <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p>Nenhum resultado encontrado.</p>
+    </div>
+
+</div>
+</div>
+
+<script>
+/* =====================================================
+   CONFIGURAÇÃO
+=====================================================*/
+const TEST_SHEET_ID = '1QCyU_zShDAWzsZm1G-8cMUamrMdUOvyc3AIXtnhfiUw';
+const SHEET_ID = TEST_SHEET_ID;
+
+const SHEETS_CONFIG = [
+    { name: 'Alb', gid: '0' },
+    { name: 'Art', gid: '1085390429' }, // Renomeado de 'Ran' para 'Art' (aba 'Artists' removida)
+    { name: 'Sta', gid: '45947330' }
+];
+
+const STA_TARGET_INDICES = [0,1,2,3,4,5,6,7];
+
+let currentSheet = SHEETS_CONFIG[0];
+let allData = [];
+let activeFilter = { key: null, value: null, columnName: null };
+let sortState = { columnKey: null, direction: 'asc' };
+let activeCountryFilter = null;
+
+const contactList = document.getElementById('contact-list');
+const statusMessage = document.getElementById('status-message');
+const searchInput = document.getElementById('search-input');
+const noResultsMessage = document.getElementById('no-results');
+const sheetNav = document.getElementById('sheet-nav');
+const sortControlsContainer = document.getElementById('sort-controls');
+const resultsCountElement = document.getElementById('results-count');
+const clearFilterBtn = document.getElementById('clear-filter-btn');
+const searchControlsContainer = document.getElementById('search-controls-container');
+
+/* Colunas ordenáveis padrão para Alb */
+const SORTABLE_INDICES = [0,1,2,3,4,5,9,52];
+const COLUMN_TITLES = {
+    0: 'album_id',
+    1: 'date',
+    2: 'artist',
+    3: 'artist_rating',
+    4: 'year',
+    5: 'album',
+    9: 'country',
+    52: 'BA (Col 53)'
+};
+
+const getSheetUrl = gid => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function parseDDMMAADate(dateString){
+    if(!dateString) return 0;
+    const parts = dateString.split('/');
+    if(parts.length !== 3) return 0;
+    let [day,month,year] = parts.map(p=>parseInt(p.trim(),10));
+    if(year >=0 && year < 100) year = year >=70 ? year+1900 : year+2000;
+    return new Date(year, month-1, day).getTime();
+}
+
+function getColumnKeyByIndex(index){
+    if(allData.length === 0 || !allData[0]) return null;
+    const allKeys = Object.keys(allData[0]);
+    return allKeys[index] || null;
+}
+
+/* =====================================================
+   CONTROLES DE ORDENAÇÃO (Alb)
+=====================================================*/
+function isFullFeatureSheet(){ return currentSheet.name === 'Alb'; }
+
+function createSortControls(){
+    if(!isFullFeatureSheet()){
+        sortControlsContainer.innerHTML = '';
+        searchControlsContainer.classList.add('hidden');
+        return;
+    }
+    searchControlsContainer.classList.remove('hidden');
+
+    if(allData.length === 0){ sortControlsContainer.innerHTML = ''; return; }
+
+    const allKeys = Object.keys(allData[0]);
+    const availableSortOptions = SORTABLE_INDICES
+        .filter(index => allKeys[index])
+        .map(index => ({
+            key: allKeys[index],
+            label: (COLUMN_TITLES[index] === 'album_id' ? 'Album ID' :
+                   (COLUMN_TITLES[index] === 'artist_rating' ? 'Rating' :
+                   (COLUMN_TITLES[index] === 'date' ? 'Data' : (COLUMN_TITLES[index] || allKeys[index]))))
+        }));
+
+    const currentIcon = sortState.direction === 'asc' ? '?' : '?';
+    const currentTitle = sortState.direction === 'asc' ? 'Direção Ascendente' : 'Direção Descendente';
+    const isDirectionBtnDisabled = !sortState.columnKey;
+
+    const selectHtml = availableSortOptions.length > 0 ? `
+        <label for="sort-column" class="text-gray-700 font-medium whitespace-nowrap mr-2 text-sm">Ordenar por:</label>
+        <select id="sort-column" class="p-2 border border-gray-300 rounded-lg flex-grow cursor-pointer bg-white transition duration-150">
+            <option value="" disabled>${sortState.columnKey ? 'Título Selecionado' : '-- Selecione o Título --'}</option>
+            ${availableSortOptions.map(opt=>`<option value="${opt.key}">${opt.label}</option>`).join('')}
+        </select>
+    ` : `<p class="text-sm text-red-500">Sem colunas ordenáveis disponíveis.</p>`;
+
+    const directionButtonHtml = `
+        <button id="sort-direction-btn" class="p-2 bg-indigo-500 text-white rounded-lg shadow-md hover:bg-indigo-600 transition disabled:bg-gray-300 disabled:text-gray-500" ${isDirectionBtnDisabled ? 'disabled' : ''}>
+            <span id="sort-icon" title="${currentTitle}">${currentIcon}</span>
+        </button>
+    `;
+
+    sortControlsContainer.innerHTML = `
+        <div class="flex items-center flex-grow space-x-2">
+            ${selectHtml}
+        </div>
+        ${directionButtonHtml}
+    `;
+
+    const sortSelect = document.getElementById('sort-column');
+    const sortDirectionBtn = document.getElementById('sort-direction-btn');
+    const sortIcon = document.getElementById('sort-icon');
+
+    if(sortSelect){
+        if(sortState.columnKey) sortSelect.value = sortState.columnKey;
+        sortSelect.addEventListener('change', (e)=>{
+            sortState.columnKey = e.target.value;
+            sortState.direction = 'asc';
+            if(sortDirectionBtn) sortDirectionBtn.disabled = false;
+            if(sortIcon){ sortIcon.textContent = '?'; sortIcon.title = 'Direção Ascendente'; }
+            applySortAndFilter();
+        });
+    }
+
+    if(sortDirectionBtn){
+        sortDirectionBtn.addEventListener('click', ()=>{
+            sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+            if(sortIcon) sortIcon.textContent = sortState.direction === 'asc' ? '?' : '?';
+            applySortAndFilter();
+        });
+    }
+}
+
+/* =====================================================
+   ORDENAÇÃO (Alb)
+=====================================================*/
+function sortData(){
+    if(!isFullFeatureSheet()) return;
+    const { columnKey, direction } = sortState;
+    if(!columnKey || allData.length === 0) return;
+
+    allData.sort((a,b)=>{
+        const valA = a[columnKey];
+        const valB = b[columnKey];
+        let comparison = 0;
+        if(columnKey === getColumnKeyByIndex(1)){
+            const timeA = parseDDMMAADate(valA);
+            const timeB = parseDDMMAADate(valB);
+            comparison = timeA - timeB;
+        } else {
+            const isNumericKey = [0,3,4].includes(Object.keys(allData[0]).indexOf(columnKey));
+            if(isNumericKey){
+                const numA = parseFloat(valA) || 0;
+                const numB = parseFloat(valB) || 0;
+                comparison = numA - numB;
+            } else {
+                const strA = String(valA).toLowerCase();
+                const strB = String(valB).toLowerCase();
+                if(strA === '' && strB !== '') comparison = 1;
+                else if(strA !== '' && strB === '') comparison = -1;
+                else if(strA > strB) comparison = 1;
+                else if(strA < strB) comparison = -1;
+            }
+        }
+        return direction === 'asc' ? comparison : comparison * -1;
+    });
+}
+
+function applySortAndFilter(){
+    if(!isFullFeatureSheet()){
+        renderData(allData);
+        return;
+    }
+    sortData();
+    filterContacts();
+    updateClearFilterButton();
+}
+
+/* =====================================================
+   PARSER
+=====================================================*/
+function parseSheetData(jsonText) {
+    try {
+        const startIndex = jsonText.indexOf('(');
+        const endIndex = jsonText.lastIndexOf(')');
+        if(startIndex === -1 || endIndex === -1) throw new Error("Resposta do Sheets com formato inesperado.");
+        const jsonString = jsonText.substring(startIndex+1, endIndex);
+        const json = JSON.parse(jsonString);
+        if(!json.table || !json.table.rows) throw new Error("Estrutura da planilha inválida ou vazia.");
+        const columns = json.table.cols.map(col => col.label || col.id);
+        const rows = json.table.rows;
+        const contacts = [];
+        rows.forEach(row=>{
+            const contact = {};
+            row.c.forEach((cell,index)=>{
+                const key = columns[index];
+                contact[key] = cell && (cell.f || cell.v) || '';
+            });
+            contacts.push(contact);
+        });
+        if(contacts.length > 0) contacts.shift();
+        return contacts;
+    } catch (error) {
+        console.error("Erro ao processar dados da planilha:", error);
+        statusMessage.textContent = "ERRO: Falha ao processar os dados da planilha. Verifique a estrutura da aba.";
+        statusMessage.classList.add('text-red-600');
+        return [];
+    }
+}
+
+/* =====================================================
+   RANKING PROCESS / Art
+=====================================================*/
+function processRankingData(rawData){
+    if(rawData.length === 0) return [];
+
+    if(currentSheet.name === 'Art'){ // Anteriormente 'Ran'
+        const colAKey = getColumnKeyByIndex(0);
+        if(!colAKey){
+            console.error('[ERRO Art] Coluna A não encontrada.');
+            return rawData;
+        }
+        // MODIFICAÇÃO SOLICITADA AQUI: Ordenar pela Coluna A (Ranking)
+        rawData.sort((a,b)=>{
+            const valA = String(a[colAKey]).trim();
+            const valB = String(b[colAKey]).trim();
+            
+            const numA = parseInt(valA, 10);
+            const numB = parseInt(valB, 10);
+            
+            const isNaN_A = isNaN(numA) || valA === '';
+            const isNaN_B = isNaN(numB) || valB === '';
+            
+            if(isNaN_A && isNaN_B) return 0;
+            if(isNaN_A) return 1; // Coloca não numéricos (Infinity) no final
+            if(isNaN_B) return -1; // Coloca não numéricos (Infinity) no final
+
+            return numA - numB; // Ordena numericamente
+        });
+        return rawData;
+    }
+    // A aba 'Artists' foi removida da SHEETS_CONFIG, o trecho abaixo é redundante mas mantido por segurança.
+    /* else if(currentSheet.name === 'Artists'){
+        const colLKey = getColumnKeyByIndex(11);
+        if(!colLKey){
+            console.error('[DEBUG Artists] Coluna L não encontrada.');
+            return rawData;
+        }
+        rawData.sort((a,b)=>{
+            const numA = parseFloat(String(a[colLKey]).replace(',', '.')) || 0;
+            const numB = parseFloat(String(b[colLKey]).replace(',', '.')) || 0;
+            return numB - numA;
+        });
+        return rawData.map((row, index)=>({...row, calculated_rank: index+1}));
+    } */
+    return rawData;
+}
+
+/* =====================================================
+   CARDS (Alb, Art, Sta)
+=====================================================*/
+
+/* Helper: color by artist rating using same tones as Alb */
+function ratingColorClassFromValue(ratingValue){
+    // mapping used in Alb: '3': '#6dbe99', '2': '#f8c039', '1': '#e97b78'
+    if(ratingValue === '3' || ratingValue === 3) return '#6dbe99';
+    if(ratingValue === '2' || ratingValue === 2) return '#f8c039';
+    return '#e97b78'; // default 1 or others
+}
+
+/* Contact/Album card (collapsed by default; expands on click) */
+function createContactCard(contact, index){
+    const allKeys = Object.keys(contact);
+    const indexAlbum = 5;
+    const indexYear = 4;
+    const indexArtist = 2;
+    const indexArtistRating = 3;
+    const indexCountryCode = 9;
+
+    const keyAlbum = allKeys[indexAlbum] || null;
+    const keyArtist = allKeys[indexArtist] || null;
+    const keyCountryCode = allKeys[indexCountryCode] || null;
+
+    const valueYear = allKeys[indexYear] ? contact[allKeys[indexYear]] : '';
+    const valueAlbum = keyAlbum ? contact[keyAlbum] : 'N/A';
+    const valueArtist = keyArtist ? contact[keyArtist] : 'N/A';
+    const valueArtistRating = allKeys[indexArtistRating] ? String(contact[allKeys[indexArtistRating]]).trim() : '';
+    const valueCountryCode = keyCountryCode ? String(contact[keyCountryCode]).toLowerCase() : '';
+
+    const ratingColors = {
+        '3': '#6dbe99',
+        '2': '#f8c039',
+        '1': '#e97b78'
+    };
+
+    const artistColor = ratingColors[valueArtistRating] || '#4f46e5';
+    const artistStyle = `color: ${artistColor};`;
+    const displayArtist = String(valueArtist).toUpperCase();
+
+    const albumTitle = valueAlbum;
+    const yearSuffix = valueYear ? ` (${valueYear})` : '';
+
+    const filterArtistAction = `event.stopPropagation(); filterByArtist('${displayArtist.replace(/'/g,"\\'")}', '${keyArtist}')`;
+    const filterCountryAction = `event.stopPropagation(); filterByCountry('${valueCountryCode.replace(/'/g,"\\'")}', '${keyCountryCode}')`;
+
+    let flagImageHtml = '';
+    const codeUpper = valueCountryCode.toUpperCase();
+
+    if (valueCountryCode && valueCountryCode.length >= 2 && valueCountryCode.length <= 3) {
+        const flagUrl = `https://flagcdn.com/40x30/${valueCountryCode}.png`;
+
+        flagImageHtml = `
+            <div onclick="${filterCountryAction}"
+                 class="cursor-pointer hover:opacity-80 transition duration-150 relative mr-3 flex-shrink-0">
+                <img src="${flagUrl}" alt="Bandeira de ${codeUpper}"
+                     class="w-8 h-auto rounded-md shadow-sm"
+                     onerror="this.style.opacity='0'; this.nextElementSibling.classList.remove('hidden');">
+                <span class="text-gray-400 text-xs hidden flex-shrink-0 absolute left-0 top-0 mt-1" title="Código de Bandeira Inválido">${codeUpper}</span>
+            </div>
+        `;
+    } else if (valueCountryCode) {
+        flagImageHtml = `<span onclick="${filterCountryAction}" class="text-gray-400 text-xs mr-3 flex-shrink-0 cursor-pointer hover:text-indigo-500" title="Código de País Inválido">${codeUpper}</span>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'contact-card bg-white p-2 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.002] transition duration-300 cursor-pointer border-t border-gray-100';
+    card.setAttribute('data-index', index);
+    card.onclick = () => toggleDetails(card);
+
+    let primaryContent = `
+        <div class="flex justify-between items-start relative">
+            <div class="flex items-start mb-0 min-w-0 flex-grow">
+                ${flagImageHtml}
+                <div class="min-w-0">
+                    <h2 class="text-lg font-semibold text-gray-800 leading-snug break-words">
+                        ${albumTitle}
+                        <span class="text-gray-400 font-normal ml-1">${yearSuffix}</span>
+                    </h2>
+                    <p class="text-base font-bold cursor-pointer hover:text-indigo-600 transition break-words"
+                       style="${artistStyle}"
+                       onclick="${filterArtistAction}">
+                        ${displayArtist}
+                    </p>
+                </div>
+            </div>
+        </div>
+    `;
+
+    let detailsContent = '<div class="mt-2 pt-2 border-t border-gray-100">';
+    allKeys.forEach((key, keyIndex) => {
+        const value = contact[key];
+        let friendlyTitle = COLUMN_TITLES[keyIndex] || key;
+        if (friendlyTitle === 'album_id') friendlyTitle = 'Album ID';
+        else if (friendlyTitle === 'artist_rating') friendlyTitle = 'Rating do Artista';
+        else if (friendlyTitle === 'date') friendlyTitle = 'Data de Lançamento';
+        if (value) {
+            detailsContent += `
+                <p class="text-sm mb-1 flex justify-between items-start">
+                    <span class="font-normal text-gray-500">${friendlyTitle}:</span>
+                    <span class="text-gray-700 font-medium ml-4 text-right">${value}</span>
+                </p>
+            `;
+        }
+    });
+    detailsContent += '</div>';
+
+    const detailsPanel = document.createElement('div');
+    detailsPanel.className = 'details-panel'; // closed by default
+    detailsPanel.innerHTML = detailsContent;
+
+    card.innerHTML = primaryContent;
+    card.appendChild(detailsPanel);
+
+    return card;
+}
+
+/* Explicit Ranking Card (Art) - compact */ // Anteriormente 'Ran'
+function createExplicitRankingCard(contact){
+    const keyPos = getColumnKeyByIndex(0);
+    const keyArtist = getColumnKeyByIndex(1);
+    const keyCountryCode = getColumnKeyByIndex(2);
+    const keyScore = getColumnKeyByIndex(3);
+    const keyArtistRating = getColumnKeyByIndex(6); // G
+
+    const rank = contact[keyPos] || 'N/A';
+    const artistName = contact[keyArtist] || 'Artista Desconhecido';
+    const countryCode = String(contact[keyCountryCode] || '').toLowerCase();
+    const scoreValueRaw = parseFloat(String(contact[keyScore]).replace(',', '.')) || 0;
+    const scoreValue = scoreValueRaw.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const artistRatingVal = String(contact[keyArtistRating] || '').trim();
+
+    const ratingColors = {
+        '3': '#6dbe99',
+        '2': '#f8c039',
+        '1': '#e97b78'
+    };
+    const artistColor = ratingColors[artistRatingVal] || '#4f46e5';
+    const artistStyle = `color: ${artistColor};`;
+
+    let flagHtml = '';
+    if(countryCode && countryCode.length >= 2){
+        const flagUrl = `https://flagcdn.com/40x30/${countryCode}.png`;
+        flagHtml = `<img src="${flagUrl}" alt="Bandeira ${countryCode.toUpperCase()}" class="w-10 h-7 object-cover rounded shadow-sm border border-gray-100 flex-shrink-0 ran-flag" onclick="applyCountryFilter('${countryCode}')"
+            onerror="this.onerror=null; this.src='https://placehold.co/40x28/CCCCCC/333333?text=${countryCode.toUpperCase()}'">`;
+    } else {
+        flagHtml = `<span class="text-xs text-gray-400 w-10 h-7 flex items-center justify-center border rounded">N/A</span>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'ranking-card ran-card flex items-center justify-between';
+
+    card.innerHTML = `
+        <div class="flex items-center space-x-3">
+            <div class="text-center w-10 p-1 rounded ${ (parseInt(rank)===1) ? 'bg-amber-100' : 'bg-white' }">
+                <p class="text-2xl font-extrabold ${ (parseInt(rank)===1) ? 'text-amber-600' : 'text-gray-600' } leading-none">${rank}</p>
+            </div>
+
+            ${flagHtml}
+
+            <div class="min-w-0">
+                <h2 class="text-sm font-extrabold leading-snug truncate" style="${artistStyle}">${artistName.toUpperCase()}</h2>
+            </div>
+        </div>
+
+        <div class="ml-4 pl-4 border-l border-gray-100 text-right">
+            <p class="text-xs font-semibold text-gray-500 leading-none">PONTOS</p>
+            <p class="text-sm font-extrabold text-indigo-600 mt-1 leading-none">${scoreValue}</p>
+        </div>
+    `;
+
+    return card;
+}
+
+/* Sta card */
+function createStaCard(contact, index){
+    const keyColA = getColumnKeyByIndex(0);
+    const keyColB = getColumnKeyByIndex(1);
+    const label = String(contact[keyColA] || 'N/A').toLowerCase();
+    const value = String(contact[keyColB] || 'N/A');
+    const originalDataIndex = STA_TARGET_INDICES[index];
+    const cellNumber = originalDataIndex + 2;
+    const cellReference = `A${cellNumber}`;
+
+    const card = document.createElement('div');
+    card.className = 'sta-card bg-white p-3 rounded-xl shadow-md hover:shadow-lg hover:scale-[1.002] transition duration-300 cursor-default border-l-4 border-teal-500';
+
+    card.innerHTML = `
+        <div class="flex justify-between items-center space-x-4">
+            <p class="text-xl font-bold text-gray-600 capitalize">${label}</p>
+            <p class="text-2xl font-extrabold text-teal-600">${value}</p>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">Dados da célula ${cellReference} (${label.toUpperCase()})</p>
+    `;
+    return card;
+}
+
+/* =====================================================
+   FILTROS RÁPIDOS
+=====================================================*/
+function updateClearFilterButton(){
+    if(!isFullFeatureSheet()){
+        clearFilterBtn.classList.remove('visible-filter-btn');
+        clearFilterBtn.classList.add('hidden-filter-btn');
+        return;
+    }
+    const hasQuickFilter = activeFilter.key !== null;
+    const hasSearchQuery = searchInput.value.trim() !== '';
+
+    if(hasQuickFilter || hasSearchQuery){
+        clearFilterBtn.classList.remove('hidden-filter-btn');
+        clearFilterBtn.classList.add('visible-filter-btn');
+        if(hasQuickFilter){
+            searchInput.placeholder = `Filtro Rápido Ativo: ${activeFilter.columnName} = ${activeFilter.value}`;
+        } else {
+            searchInput.placeholder = "Pesquisar por artista, álbum, ano...";
+        }
+    } else {
+        clearFilterBtn.classList.remove('visible-filter-btn');
+        clearFilterBtn.classList.add('hidden-filter-btn');
+        searchInput.placeholder = "Pesquisar por artista, álbum, ano...";
+    }
+}
+
+function filterByArtist(artistName, columnKey){
+    activeFilter.key = columnKey;
+    activeFilter.value = artistName;
+    activeFilter.columnName = 'Artista';
+    searchInput.value = artistName;
+    applySortAndFilter();
+}
+
+function filterByCountry(countryCode, columnKey){
+    activeFilter.key = columnKey;
+    activeFilter.value = countryCode;
+    activeFilter.columnName = 'País';
+    searchInput.value = countryCode;
+    applySortAndFilter();
+}
+
+function clearActiveFilter(){
+    activeFilter.key = null;
+    activeFilter.value = null;
+    activeFilter.columnName = null;
+    searchInput.value = '';
+    applySortAndFilter();
+}
+
+/* =====================================================
+   RENDERIZAÇÃO CENTRAL
+=====================================================*/
+function toggleDetails(card){
+    const detailsPanel = card.querySelector('.details-panel');
+    const isOpen = detailsPanel.classList.toggle('open');
+    card.classList.toggle('bg-gray-50', isOpen);
+    card.classList.toggle('shadow-lg', isOpen);
+    card.classList.toggle('border-indigo-400', isOpen);
+}
+
+function renderData(data){
+    contactList.innerHTML = '';
+
+    let dataToRender = data;
+
+    if(currentSheet.name === 'Sta'){
+        dataToRender = data.filter((_,index)=> STA_TARGET_INDICES.includes(index));
+    }
+
+    // Apply active country filter for Art (se houver)
+    if(currentSheet.name === 'Art' && activeCountryFilter){
+        const keyCountry = getColumnKeyByIndex(2);
+        dataToRender = dataToRender.filter(row => String(row[keyCountry]||'').toLowerCase() === activeCountryFilter);
+        const clearBtn = document.createElement('button');
+        clearBtn.textContent = "?? Mostrar todos";
+        clearBtn.className = "mb-2 px-3 py-1 rounded text-xs bg-gray-200 hover:bg-gray-300";
+        clearBtn.onclick = clearCountryFilter;
+        contactList.appendChild(clearBtn);
+    }
+
+    const count = dataToRender.length;
+    updateClearFilterButton();
+
+    if(count === 0){
+        resultsCountElement.textContent = '0 resultados encontrados.';
+        noResultsMessage.classList.remove('hidden');
+        // more specific error for rank or sta
+        const isRankOrSta = currentSheet.name === 'Art' || currentSheet.name === 'Sta';
+        if(isRankOrSta && allData.length > 0 && contactList.innerHTML === ''){
+            const failedCol = currentSheet.name === 'Art' ? 'A (Posição)' : 'A/B (Dados)';
+            statusMessage.textContent = `Os dados brutos foram carregados na aba ${currentSheet.name}, mas não foi possível processá-los. Verifique se as colunas ${failedCol} têm dados válidos nas linhas A2-A9.`;
+            statusMessage.classList.remove('hidden');
+            statusMessage.classList.add('text-red-600','bg-red-100');
+        } else {
+            statusMessage.classList.add('hidden');
+        }
+        return;
+    } else {
+        resultsCountElement.textContent = `${count} resultado${count>1?'s':''} encontrado${count>1?'s':''}%.`;
+        noResultsMessage.classList.add('hidden');
+        statusMessage.classList.add('hidden');
+
+        dataToRender.forEach((contact, index)=>{
+            if(currentSheet.name === 'Art'){
+                contactList.appendChild(createExplicitRankingCard(contact));
+            } else if(currentSheet.name === 'Sta'){
+                contactList.appendChild(createStaCard(contact, index));
+            } else {
+                contactList.appendChild(createContactCard(contact, index));
+            }
+        });
+    }
+}
+
+/* =====================================================
+   NAVEGAÇÃO ENTRE ABAS
+=====================================================*/
+function renderSheetNavigation(){
+    sheetNav.innerHTML = '';
+    SHEETS_CONFIG.forEach(sheet=>{
+        const button = document.createElement('button');
+        button.textContent = sheet.name;
+        button.className = `px-3 py-1.5 rounded-lg font-medium transition duration-200 shadow-sm text-sm ${
+            sheet.gid === currentSheet.gid
+                ? 'bg-indigo-600 text-white shadow-lg hover:bg-indigo-700'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+        }`;
+        button.onclick = () => switchSheet(sheet.gid);
+        sheetNav.appendChild(button);
+    });
+}
+
+function switchSheet(gid){
+    if(currentSheet.gid === gid) return;
+    const newSheet = SHEETS_CONFIG.find(s=>s.gid === gid);
+    if(newSheet){
+        currentSheet = newSheet;
+        contactList.innerHTML = '';
+        noResultsMessage.classList.add('hidden');
+        resultsCountElement.textContent = '';
+        renderSheetNavigation();
+        searchInput.value = '';
+        if(isFullFeatureSheet()){
+            sortState.columnKey = null;
+            sortState.direction = 'asc';
+            activeFilter.key = null;
+            activeFilter.value = null;
+            activeFilter.columnName = null;
+        }
+        createSortControls();
+        fetchData();
+    }
+}
+
+/* =====================================================
+   BUSCA & FILTROS (Alb)
+=====================================================*/
+function filterContacts(){
+    if(!isFullFeatureSheet()) return;
+    const dataToFilter = allData;
+    const query = searchInput.value.toLowerCase().trim();
+
+    if(activeFilter.key){
+        const filteredData = dataToFilter.filter(contact=>{
+            const targetValue = String(contact[activeFilter.key]).toUpperCase();
+            return targetValue === String(activeFilter.value).toUpperCase();
+        });
+        renderData(filteredData);
+        return;
+    }
+
+    if(query !== ''){
+        const filteredData = dataToFilter.filter(contact=>{
+            const contactString = Object.values(contact).map(String).join(' ').toLowerCase();
+            return contactString.includes(query);
+        });
+        renderData(filteredData);
+        return;
+    }
+
+    renderData(dataToFilter);
+}
+
+searchInput.addEventListener('input', ()=>{
+    if(!isFullFeatureSheet()) return;
+    const currentQuery = searchInput.value.toLowerCase().trim();
+    if(activeFilter.key && currentQuery !== activeFilter.value.toLowerCase().trim()){
+        activeFilter.key = null;
+        activeFilter.value = null;
+        activeFilter.columnName = null;
+    }
+    applySortAndFilter();
+});
+
+/* =====================================================
+   FETCH & START
+=====================================================*/
+async function fetchData(){
+    const MAX_RETRIES = 3;
+    let lastError = null;
+    const currentGid = currentSheet.gid;
+
+    resultsCountElement.textContent = '';
+    statusMessage.classList.remove('hidden','text-red-600','bg-red-100','text-orange-600','font-bold','bg-yellow-100');
+    statusMessage.classList.add('text-gray-600','bg-gray-50');
+
+    if(SHEET_ID === TEST_SHEET_ID){
+        statusMessage.textContent = `Carregando dados...`; // <-- ALTERAÇÃO SOLICITADA AQUI
+        statusMessage.classList.remove('text-gray-600','bg-gray-50');
+        statusMessage.classList.add('text-orange-600','font-bold','bg-yellow-100');
+    } else {
+        statusMessage.textContent = `Carregando dados da aba: ${currentSheet.name}...`;
+    }
+
+    for(let attempt=0; attempt<MAX_RETRIES; attempt++){
+        try {
+            if(attempt>0) statusMessage.textContent = `Tentativa de busca de dados #${attempt+1} para ${currentSheet.name}...`;
+            const response = await fetch(getSheetUrl(currentGid));
+            if(!response.ok){
+                let errorMessage = `Erro de rede: ${response.status}.`;
+                if(response.status === 404 || response.status === 400 || response.status === 403){
+                    errorMessage += " Confirme se o SHEET_ID está correto E se a planilha foi **publicada na web** (Ficheiro > Partilhar > Publicar na web).";
+                }
+                throw new Error(errorMessage);
+            }
+            const text = await response.text();
+            let data = parseSheetData(text);
+
+            if(currentSheet.name === 'Sta'){
+                console.log(`[DEBUG Sta] Total de linhas de dados brutas (após remoção do cabeçalho) na aba Sta: ${data.length}`);
+            }
+
+            if(data.length === 0){
+                statusMessage.textContent = `A aba "${currentSheet.name}" está vazia ou falha na leitura dos dados.`;
+                statusMessage.classList.remove('hidden');
+                statusMessage.classList.add('text-red-600','bg-red-100');
+                resultsCountElement.textContent = '0 resultados encontrados.';
+                return;
+            }
+
+            if(!isFullFeatureSheet() && currentSheet.name !== 'Sta'){
+                data = processRankingData(data);
+            }
+
+            allData = data;
+
+            if(isFullFeatureSheet()){
+                const albumIdKey = getColumnKeyByIndex(0);
+                if(albumIdKey){ sortState.columnKey = albumIdKey; sortState.direction = 'desc'; }
+            }
+
+            createSortControls();
+            applySortAndFilter();
+
+            statusMessage.classList.add('hidden');
+            return;
+        } catch(error){
+            lastError = error;
+            console.error(`Erro na tentativa #${attempt+1}:`, error);
+            if(attempt === MAX_RETRIES - 1 || !(error instanceof TypeError || error.message.includes("Failed to fetch"))) break;
+            const delay = Math.pow(2, attempt) * 1000;
+            await sleep(delay);
+        }
+    }
+
+    statusMessage.textContent = `ERRO FINAL: Não foi possível carregar os dados da aba "${currentSheet.name}" após ${MAX_RETRIES} tentativas. Detalhe: ${lastError?.message || 'error desconhecido'}`;
+    statusMessage.classList.remove('hidden','text-orange-600','font-bold','text-gray-600','bg-yellow-50');
+    statusMessage.classList.add('text-red-600','bg-red-100');
+}
+
+/* =====================================================
+   FILTRO PAÍS (Art)
+=====================================================*/
+function applyCountryFilter(country){
+    activeCountryFilter = String(country).toLowerCase();
+    renderData(allData);
+}
+function clearCountryFilter(){
+    activeCountryFilter = null;
+    renderData(allData);
+}
+
+/* =====================================================
+   INICIALIZAÇÃO
+=====================================================*/
+window.onload = function(){
+    // compatibility hook
+    if(typeof firebaseConfig !== 'undefined' && Object.keys(firebaseConfig).length > 0){
+        // firebase init omitted
+    }
+};
+
+renderSheetNavigation();
+fetchData();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Deezer Data Collector</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; text-align: center; }
+        textarea { width: 80%; height: 150px; background: #222; color: #0f0; padding: 10px; border-radius: 5px; }
+        button { background: #ef5464; color: white; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        #log { width: 80%; margin: 20px auto; text-align: left; background: #000; padding: 10px; height: 200px; overflow-y: scroll; font-size: 12px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h2>Coletor de Dados Deezer</h2>
+    <p>Cole os IDs dos álbuns (um por linha):</p>
+    <textarea id="idsInput" placeholder="Ex: 302127"></textarea><br>
+    <button onclick="collectDeezerData()">Gerar JSON de Capas</button>
+    <div id="log">Aguardando...</div>
+
+    <script>
+        async function collectDeezerData() {
+            const input = document.getElementById('idsInput').value;
+            const ids = input.split('\n').map(id => id.trim()).filter(id => id !== "");
+            const log = document.getElementById('log');
+            const resultados = [];
+            
+            // Proxy para contornar o CORS
+            const proxy = "https://api.allorigins.win/raw?url=";
+
+            for (let id of ids) {
+                log.innerHTML += `Processando ID: ${id}... `;
+                try {
+                    const response = await fetch(`${proxy}${encodeURIComponent('https://api.deezer.com/album/' + id)}`);
+                    const data = await response.json();
+
+                    if (data && !data.error) {
+                        // O Deezer fornece a URL da capa assim: ".../images/cover/HASH/250x250-000000-80-0-0.jpg"
+                        // Vamos limpar para pegar apenas a base
+                        const coverBase = data.cover.replace('250x250', '{size}');
+
+                        resultados.push({
+                            id: data.id,
+                            t: data.title,
+                            a: data.artist.name,
+                            u: coverBase, // URL com placeholder de tamanho
+                            d: Math.floor(data.duration / 60), // Duração em minutos
+                            l: data.link
+                        });
+                        log.innerHTML += `<span style="color:#0f0">Sucesso!</span><br>`;
+                    } else {
+                        log.innerHTML += `<span style="color:#f00">Erro: Álbum não encontrado.</span><br>`;
+                    }
+                } catch (e) {
+                    log.innerHTML += `<span style="color:#ff0">Erro de conexão.</span><br>`;
+                }
+                log.scrollTop = log.scrollHeight;
+                await new Promise(r => setTimeout(r, 200)); // Delay para evitar bloqueio
+            }
+
+            // Download do JSON
+            const blob = new Blob([JSON.stringify(resultados)], {type: 'application/json'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'deezer_database.json';
+            a.click();
+            log.innerHTML += "<strong>CONCLUÍDO! Arquivo gerado.</strong>";
+        }
+    </script>
+</body>
+</html>

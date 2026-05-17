@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- ===================================================== -->
+    <!-- ===================== METADATA ====================== -->
+    <!-- ===================================================== -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LPG - Life Programs Game V16</title>
+
+    <!-- Chart.js para gráfico de performance -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- ===================================================== -->
+    <!-- ======================== CSS ======================== -->
+    <!-- ===================================================== -->
+    <style>
+
+        /* =====================================================
+           VARIÁVEIS GLOBAIS DE COR
+        ====================================================== */
+        :root {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --text: #ffffff;
+            --score-red: #ff4d4d;
+            --score-yellow: #ffff4d;
+            --score-green: #4dff88;
+        }
+
+        /* =====================================================
+           ESTILO BASE DA PÁGINA
+        ====================================================== */
+        body {
+            font-family: 'Segoe UI', system-ui;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            touch-action: pan-y;
+            overflow-x: hidden;
+        }
+
+        /* =====================================================
+           HEADER (DATA + BOTÃO DO GRÁFICO)
+        ====================================================== */
+        .header-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            margin: 10px 0;
+        }
+
+        .date-display {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #4a90e2;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .toggle-chart {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        /* =====================================================
+           CARD DO GRÁFICO
+        ====================================================== */
+        .chart-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 15px;
+            height: 260px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .chart-card.hidden {
+            height: 0;
+            padding: 0;
+            margin-bottom: 0;
+            opacity: 0;
+        }
+
+        /* =====================================================
+           TOOLBAR (FILTROS E ORDENAÇÃO)
+        ====================================================== */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .toolbar select {
+            background: #2d2d2d;
+            border: 1px solid #444;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            flex: 1;
+            font-size: 0.85rem;
+        }
+
+        /* =====================================================
+           GRID DE PROGRAMAS
+        ====================================================== */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+            gap: 12px;
+        }
+
+        .prog-btn {
+            aspect-ratio: 1/1;
+            border-radius: 18px;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.2s;
+            cursor: pointer;
+            color: white;
+            padding: 5px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+        }
+
+        /* Estados visuais */
+        .st-none { opacity: 0.45; filter: grayscale(0.3); }
+        .st-active { opacity: 1; filter: none; }
+        .st-inactive { opacity: 0.3; border: 2px dashed #666; }
+
+        /* =====================================================
+           MODAL (ADICIONAR XP)
+        ====================================================== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 380px;
+            background: #252525;
+            border-radius: 20px;
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 999;
+        }
+
+    </style>
+</head>
+
+<body id="swipeArea">
+
+<!-- ========================================================= -->
+<!-- ======================== HEADER ========================= -->
+<!-- ========================================================= -->
+
+<div class="header-row">
+    <div id="dateDisplay" class="date-display"></div>
+    <button class="toggle-chart" onclick="toggleChart()">
+        <i id="eyeIcon" class="fa-solid fa-eye"></i>
+    </button>
+</div>
+
+<!-- ========================================================= -->
+<!-- ======================== GRÁFICO ======================== -->
+<!-- ========================================================= -->
+
+<div id="chartContainer" class="chart-card">
+    <canvas id="perfChart"></canvas>
+</div>
+
+<!-- ========================================================= -->
+<!-- ======================== TOOLBAR ======================== -->
+<!-- ========================================================= -->
+
+<div class="toolbar">
+    <select id="sortFilter" onchange="renderGrid()">
+        <option value="prio">Sort: Priority</option>
+        <option value="sigla">Sort: Alphabetical</option>
+        <option value="score">Sort: Performance</option>
+    </select>
+
+    <select id="statusFilter" onchange="renderGrid()">
+        <option value="active">Show: Active Only</option>
+        <option value="inactive">Show: Inactive Only</option>
+        <option value="all">Show: All Programs</option>
+    </select>
+
+    <select id="periodFilter" onchange="initDashboard()">
+        <option value="7">View: 7 Days</option>
+        <option value="15">View: 15 Days</option>
+        <option value="30">View: 30 Days</option>
+    </select>
+</div>
+
+<!-- GRID -->
+<div class="grid" id="mainGrid"></div>
+
+<!-- ========================================================= -->
+<!-- ========================= MODAL ========================= -->
+<!-- ========================================================= -->
+
+<div class="overlay" id="overlay" onclick="closeModal()"></div>
+
+<div id="modal" class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 id="mTitle" style="margin:0"></h3>
+        <button onclick="closeModal()" style="background:none;border:none;color:red;font-size:1.5rem;">&times;</button>
+    </div>
+
+    <input type="number" id="valInput"
+           style="width:100%;background:#333;color:white;padding:12px;border:none;border-radius:10px;text-align:center;font-size:1.5rem;"
+           placeholder="Enter XP">
+</div>
+
+<!-- ========================================================= -->
+<!-- ======================= JAVASCRIPT ====================== -->
+<!-- ========================================================= -->
+
+<script>
+
+/* ============================================================
+   1️⃣ CONFIGURAÇÕES GLOBAIS
+============================================================ */
+
+const COLORS = ["#F87171","#FB923C","#FBBF24","#FACC15","#EAB308","#D9F99D","#BEF264","#84CC16","#4ADE80","#22C55E"];
+
+const CATS = {
+    SAUDE: "#40c057",
+    ESTUDOS: "#228be6",
+    PROF: "#fab005",
+    MENTAL: "#be4bdb",
+    SOCIAL: "#fd7e14",
+    FINAN: "#12b886",
+    LEISURE: "#495057"
+};
+
+/* ============================================================
+   2️⃣ ESTRUTURA DOS PROGRAMAS (DATABASE ESTÁTICA)
+============================================================ */
+
+const programs = [
+    { s:"LIS", n:"Listening", c:"ESTUDOS", mk:5, md:10, prio:1, freq:"D", icon:"fa-headphones", type:"VOLUME", startDate:"2024-01-01", active:true },
+    { s:"GYM", n:"Gym", c:"SAUDE", mk:1, md:1, prio:1, freq:"U", icon:"fa-dumbbell", type:"CONSISTENCY", startDate:"2024-01-01", active:true }
+];
+
+/* ============================================================
+   3️⃣ BANCO DE DADOS LOCAL (localStorage)
+============================================================ */
+
+let db = JSON.parse(localStorage.getItem('life_v12_db')) || { logs: [] };
+let activeDate = new Date().toISOString().split('T')[0];
+let chartInstance = null;
+
+/* ============================================================
+   4️⃣ FUNÇÕES DE CÁLCULO
+============================================================ */
+
+// Total feito no dia
+function getDayTotal(sigla, date) {
+    return db.logs
+        .filter(l => l.s === sigla && l.d === date)
+        .reduce((a,b)=>a+b.v,0);
+}
+
+// XP total acumulado
+function getXP(sigla) {
+    return db.logs
+        .filter(l=>l.s===sigla)
+        .reduce((a,b)=>a+b.v,0);
+}
+
+/* ============================================================
+   5️⃣ RENDERIZAÇÃO DO GRID
+============================================================ */
+
+function renderGrid() {
+    const grid = document.getElementById('mainGrid');
+    grid.innerHTML = '';
+
+    programs.forEach(p=>{
+        const val = getDayTotal(p.s, activeDate);
+
+        grid.innerHTML += `
+            <div class="prog-btn"
+                 style="background:${CATS[p.c]}"
+                 onclick="openManageModal('${p.s}')">
+                <span>${p.s}</span>
+                <span>${val}</span>
+            </div>`;
+    });
+}
+
+/* ============================================================
+   6️⃣ GRÁFICO DE PERFORMANCE
+============================================================ */
+
+function renderChart() {
+
+    const ctx = document.getElementById('perfChart').getContext('2d');
+
+    if(chartInstance) chartInstance.destroy();
+
+    chartInstance = new Chart(ctx,{
+        type:'bar',
+        data:{
+            labels:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],
+            datasets:[{ data:[50,60,70,80,90,40,75] }]
+        },
+        options:{ plugins:{ legend:{ display:false } } }
+    });
+}
+
+/* ============================================================
+   7️⃣ MODAL (ADICIONAR XP)
+============================================================ */
+
+function openManageModal(sigla){
+    document.getElementById('mTitle').innerText = sigla;
+    document.getElementById('modal').style.display='block';
+    document.getElementById('overlay').style.display='block';
+}
+
+function closeModal(){
+    document.getElementById('modal').style.display='none';
+    document.getElementById('overlay').style.display='none';
+}
+
+/* ============================================================
+   8️⃣ SWIPE PARA TROCAR DIA
+============================================================ */
+
+let tsX = 0;
+
+document.getElementById('swipeArea').addEventListener('touchstart',
+    e=>tsX=e.changedTouches[0].screenX);
+
+document.getElementById('swipeArea').addEventListener('touchend',
+    e=>{
+        let teX = e.changedTouches[0].screenX;
+        let d = new Date(activeDate);
+
+        if(teX < tsX - 80) d.setDate(d.getDate()+1);
+        if(teX > tsX + 80) d.setDate(d.getDate()-1);
+
+        activeDate = d.toISOString().split('T')[0];
+        renderGrid();
+});
+
+/* ============================================================
+   9️⃣ INICIALIZAÇÃO
+============================================================ */
+
+renderGrid();
+renderChart();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Life Tracker V5 - Oficial</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --text: #ffffff;
+            /* Escala de Cores Versão 3 (Solicitada) */
+            --c1: #ff6b6b; --c2: #ff8787; --c3: #ffa8a8; --c4: #ffc9c9; --c5: #ffe3e3;
+            --c6: #d3f9d8; --c7: #b2f2bb; --c8: #8ce99a; --c9: #69db7c; --c10: #40c057;
+        }
+
+        body { font-family: 'Segoe UI', system-ui; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
+
+        /* Cabeçalho e Filtros */
+        .header-controls { margin-bottom: 20px; }
+        .date-header { font-size: 1.1rem; color: #4a90e2; font-weight: bold; text-align: center; margin-bottom: 15px; text-transform: capitalize; }
+        
+        .filters-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+        .filters-row select, .filters-row input { 
+            background: #2d2d2d; border: 1px solid #444; color: white; padding: 10px; border-radius: 8px; flex: 1;
+        }
+
+        /* Chart */
+        .chart-card { background: var(--card-bg); padding: 15px; border-radius: 15px; height: 230px; margin-bottom: 20px; }
+
+        /* Grid de Programas */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 10px; }
+
+        .prog-btn {
+            aspect-ratio: 1/1; border-radius: 14px; border: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            position: relative; transition: all 0.2s; cursor: pointer; color: white;
+        }
+
+        /* Lógica de Opacidade e Status */
+        .st-none { opacity: 0.15; filter: grayscale(0.6); }
+        .st-check { opacity: 1; filter: none; }
+        .st-done { opacity: 1; filter: none; box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+
+        /* Labels internas */
+        .val-badge { position: absolute; top: 6px; left: 8px; font-size: 0.8rem; font-weight: bold; }
+        .status-icon { position: absolute; top: 6px; right: 8px; font-size: 0.75rem; }
+        .sigla { font-size: 1.1rem; font-weight: 900; }
+        .metas-label { font-size: 0.7rem; margin-top: 4px; font-weight: 500; opacity: 0.8; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; bottom: 0; left: 0; width: 100%; background: #252525; 
+                  border-radius: 20px 20px 0 0; padding: 30px; box-sizing: border-box; z-index: 1000; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 999; }
+        .modal-input { width: 100%; background: #333; border: 2px solid #444; color: white; padding: 15px; border-radius: 12px; font-size: 1.5rem; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div class="header-controls">
+        <div id="dateDisplay" class="date-header"></div>
+        
+        <div class="chart-card">
+            <canvas id="performanceChart"></canvas>
+        </div>
+
+        <div class="filters-row">
+            <select id="periodFilter" onchange="updateDashboard()">
+                <option value="7">7 Dias</option>
+                <option value="15">15 Dias</option>
+                <option value="30">30 Dias</option>
+            </select>
+            <input type="text" id="searchFilter" placeholder="Buscar sigla..." onkeyup="renderGrid()">
+        </div>
+    </div>
+
+    <div class="grid" id="programGrid"></div>
+
+    <div class="overlay" id="overlay" onclick="closeModal()"></div>
+    <div class="modal" id="modal">
+        <h2 id="mTitle" style="margin-top:0; text-align:center"></h2>
+        <input type="number" id="valInput" class="modal-input" placeholder="Digite o valor">
+        <p style="text-align:center; color:#888; margin-top:10px;">Aperte Enter para salvar</p>
+    </div>
+
+<script>
+    // Cores Versão 3
+    const SCALE_COLORS = ["#ff6b6b", "#ff8787", "#ffa8a8", "#ffc9c9", "#ffe3e3", "#d3f9d8", "#b2f2bb", "#8ce99a", "#69db7c", "#40c057"];
+    const CAT_COLORS = { SAUDE: "#40c057", ESTUDOS: "#228be6", PROF: "#fab005", MENTAL: "#be4bdb", SOCIAL: "#fd7e14", FINAN: "#12b886", FAMIL: "#fa5252" };
+
+    let db = JSON.parse(localStorage.getItem('life_v5_db')) || { logs: [] };
+    let activeDate = new Date().toISOString().split('T')[0];
+    let chartInstance = null;
+
+    // Gerar 50 programas (Sigla 3 caracteres)
+    const programDefs = [];
+    const categories = Object.keys(CAT_COLORS);
+    const mockSiglas = ["LIS","GYM","H2O","COD","REA","MED","STP","MON","RUN","SLP","WRT","MAT","ENG","YOG","OFF","CON","INV","ORG","NET","STU"];
+    
+    for(let i=0; i<50; i++) {
+        programDefs.push({
+            s: mockSiglas[i % mockSiglas.length] + (i > 19 ? i : ""), // Garante sigla curta
+            n: "Tarefa " + (i+1),
+            c: categories[i % categories.length],
+            mk: 5, // Meta Check
+            md: 10 // Meta Recomendada (Estrela)
+        });
+    }
+
+    // Cortar siglas para 3 chars conforme solicitado
+    programDefs.forEach(p => p.s = p.s.substring(0,3).toUpperCase());
+
+    function updateDashboard() {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('dateDisplay').innerText = new Date(activeDate + "T12:00:00").toLocaleDateString('pt-BR', options);
+        renderGrid();
+        renderChart();
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('programGrid');
+        const search = document.getElementById('searchFilter').value.toUpperCase();
+        
+        grid.innerHTML = '';
+        programDefs.filter(p => p.s.includes(search)).forEach(p => {
+            const val = getDayTotal(p.s, activeDate);
+            let status = "st-none";
+            let icon = "";
+            
+            if(val >= p.md) { status = "st-done"; icon = '<i class="fa-solid fa-star status-icon"></i>'; }
+            else if(val >= p.mk) { status = "st-check"; icon = '<i class="fa-solid fa-check status-icon"></i>'; }
+
+            grid.innerHTML += `
+                <div class="prog-btn ${status}" style="background-color: ${CAT_COLORS[p.c]}" onclick="openModal('${p.s}')">
+                    <span class="val-badge">${val > 0 ? val : ''}</span>
+                    ${icon}
+                    <span class="sigla">${p.s}</span>
+                    <span class="metas-label">${p.mk}/${p.md}</span>
+                </div>`;
+        });
+    }
+
+    function openModal(sigla) {
+        const p = programDefs.find(x => x.s === sigla);
+        document.getElementById('mTitle').innerText = p.n;
+        const input = document.getElementById('valInput');
+        input.value = '';
+        input.onkeypress = (e) => { if(e.key === 'Enter') saveValue(sigla, input.value); };
+        document.getElementById('modal').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+        input.focus();
+    }
+
+    function saveValue(sigla, val) {
+        if(val !== "") {
+            db.logs.push({ s: sigla, d: activeDate, v: parseFloat(val) });
+            localStorage.setItem('life_v5_db', JSON.stringify(db));
+            closeModal();
+            updateDashboard();
+        }
+    }
+
+    function closeModal() {
+        document.querySelectorAll('.modal, .overlay').forEach(el => el.style.display = 'none');
+    }
+
+    function getDayTotal(sigla, date) {
+        return db.logs.filter(l => l.s === sigla && l.d === date).reduce((acc, curr) => acc + curr.v, 0);
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        const period = parseInt(document.getElementById('periodFilter').value);
+        const labels = [];
+        const data = [];
+        const bgColors = [];
+
+        for(let i = period - 1; i >= 0; i--) {
+            let d = new Date();
+            d.setDate(d.getDate() - i);
+            let dStr = d.toISOString().split('T')[0];
+            labels.push(dStr.split('-')[2]); // Dia do mês
+
+            let score = 0;
+            programDefs.forEach(p => {
+                const total = getDayTotal(p.s, dStr);
+                score += Math.min(1, total / p.md);
+            });
+            let pct = Math.round((score / 50) * 100);
+            data.push(pct);
+            bgColors.push(SCALE_COLORS[Math.min(9, Math.floor(pct/10))]);
+        }
+
+        if(chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [{ data, backgroundColor: bgColors, borderRadius: 5 }] },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { display: false, max: 100 }, 
+                    x: { grid: { display: false }, ticks: { color: '#888', font: { size: 10 } } } 
+                },
+                onClick: (e, el) => {
+                    if(el.length > 0) {
+                        const idx = el[0].index;
+                        let targetDate = new Date();
+                        targetDate.setDate(targetDate.getDate() - (period - 1 - idx));
+                        activeDate = targetDate.toISOString().split('T')[0];
+                        updateDashboard();
+                    }
+                }
+            }
+        });
+    }
+
+    // Inicialização
+    updateDashboard();
+</script>
+</body>
+</html>

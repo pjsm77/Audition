@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ranking Completo de Artistas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #1DB954; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 900px; margin: auto; }
+        
+        .search-header { background: var(--surface); padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        #globalSearch { flex: 1; padding: 12px; border-radius: 5px; border: 1px solid #333; background: #2a2a2a; color: white; }
+
+        .table-wrapper { background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #282828; padding: 15px; border-bottom: 2px solid var(--primary); text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #333; }
+        
+        .sort-btns { display: flex; align-items: center; gap: 10px; }
+        .sort-btns button { background: none; border: none; color: #888; cursor: pointer; font-size: 12px; }
+        
+        a { color: var(--text); text-decoration: none; transition: 0.2s; }
+        a:hover { color: var(--primary); text-decoration: underline; }
+
+        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #282828; }
+        .btn-pag { background: var(--primary); border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .btn-pag:disabled { background: #444; cursor: not-allowed; }
+        .rank-badge { background: #333; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: var(--primary); min-width: 40px; display: inline-block; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="search-header">
+        <input type="text" id="globalSearch" placeholder="Pesquisar artista no ranking total...">
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 100px;">Rank</th>
+                    <th>
+                        <div class="sort-btns">
+                            <span>Artista</span>
+                            <button onclick="changeSort('artist', true)">▲</button>
+                            <button onclick="changeSort('artist', false)">▼</button>
+                        </div>
+                    </th>
+                    <th>
+                        <div class="sort-btns">
+                            <span>Scrobbles</span>
+                            <button onclick="changeSort('scrobbles', true)">▲</button>
+                            <button onclick="changeSort('scrobbles', false)">▼</button>
+                        </div>
+                    </th>
+                </tr>
+            </thead>
+            <tbody id="ranking-body"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button class="btn-pag" id="prevBtn">Anterior</button>
+            <span id="pageLabel">Página 1</span>
+            <button class="btn-pag" id="nextBtn">Próxima</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let offset = 0;
+    const limit = 50;
+    let sortCol = 'scrobbles';
+    let sortAsc = false;
+    let searchTerm = "";
+
+    async function loadRanking() {
+        const tbody = document.getElementById('ranking-body');
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center">Carregando todos os artistas...</td></tr>';
+
+        // Chamamos a função RPC. 
+        // Importante: para pegar TODOS, não passamos limit no RPC, filtramos no JS ou usamos paginação do Supabase
+        let { data, error } = await _supabase
+            .rpc('get_artist_ranking', { search_term: searchTerm });
+
+        if (error) {
+            console.error(error);
+            tbody.innerHTML = '<tr><td colspan="3">Erro ao carregar dados.</td></tr>';
+            return;
+        }
+
+        // Ordenação Global antes da paginação
+        data.sort((a, b) => {
+            let vA = a[sortCol], vB = b[sortCol];
+            if (typeof vA === 'string') return sortAsc ? vA.localeCompare(vB) : vB.localeCompare(vA);
+            return sortAsc ? vA - vB : vB - vA;
+        });
+
+        // Paginação Manual (Slice) para garantir que navegamos por todos os dados carregados
+        const totalItems = data.length;
+        const pagedData = data.slice(offset, offset + limit);
+
+        tbody.innerHTML = pagedData.map((item, index) => {
+            const actualRank = offset + index + 1;
+            return `
+                <tr>
+                    <td><span class="rank-badge">#${actualRank}</span></td>
+                    <td>
+                        <a href="https://www.last.fm/music/${encodeURIComponent(item.artist).replace(/%20/g, '+')}" target="_blank">
+                            ${item.artist || 'Desconhecido'}
+                        </a>
+                    </td>
+                    <td>${parseInt(item.scrobbles).toLocaleString('pt-BR')}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Atualiza Controles
+        document.getElementById('pageLabel').innerText = `Página ${(offset / limit) + 1} de ${Math.ceil(totalItems / limit)} (${totalItems} artistas)`;
+        document.getElementById('prevBtn').disabled = offset === 0;
+        document.getElementById('nextBtn').disabled = (offset + limit) >= totalItems;
+    }
+
+    function changeSort(col, asc) {
+        sortCol = col;
+        sortAsc = asc;
+        offset = 0; // Reseta para primeira página ao mudar ordem
+        loadRanking();
+    }
+
+    document.getElementById('nextBtn').onclick = () => { offset += limit; loadRanking(); };
+    document.getElementById('prevBtn').onclick = () => { offset -= limit; loadRanking(); };
+
+    let timer;
+    document.getElementById('globalSearch').oninput = (e) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            searchTerm = e.target.value;
+            offset = 0;
+            loadRanking();
+        }, 500);
+    };
+
+    loadRanking();
+</script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Curadoria Pro - Sincronização</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #2dd4bf; --border: #334155; --accent: #818cf8; --error: #f43f5e; --warning: #fbbf24; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; display: flex; justify-content: center; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); box-sizing: border-box; position: relative; }
+        .form-group { margin-bottom: 15px; display: flex; flex-direction: column; }
+        label { font-size: 0.7rem; margin-bottom: 5px; color: #94a3b8; text-transform: uppercase; font-weight: bold; }
+        input, select { background: #0f172a; border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: white; font-size: 1rem; width: 100%; box-sizing: border-box; }
+        .btn-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-action { flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; font-size: 0.8rem; font-weight: bold; color: white; background: #334155; }
+        .btn-clear { background: var(--error); border: none; }
+        .btn-paste { background: var(--accent); border: none; }
+        #review-panel { margin-top: 20px; display: none; }
+        .alert { padding: 10px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 15px; display: none; }
+        .alert-error { background: rgba(244, 63, 94, 0.2); border: 1px solid var(--error); color: #fda4af; }
+        .alert-warning { background: rgba(251, 191, 36, 0.2); border: 1px solid var(--warning); color: #fde68a; }
+        .rating-container { display: flex; gap: 8px; }
+        .rating-btn { flex: 1; padding: 12px; border: 1px solid var(--border); background: #1e293b; color: white; cursor: pointer; border-radius: 6px; }
+        .rating-btn.active { background: var(--primary); color: #0f172a; font-weight: bold; }
+        .btn-final { width: 100%; padding: 16px; background: var(--primary); border: none; border-radius: 8px; color: #0f172a; font-weight: 800; cursor: pointer; margin-top: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 style="text-align: center; color: var(--primary); margin: 0 0 15px 0;">Sincronização Musical</h2>
+
+    <div class="btn-row">
+        <button class="btn-action btn-paste" onclick="pasteFromClipboard()">📋 Colar Link</button>
+        <button class="btn-action btn-clear" onclick="clearForm()">🗑️ Limpar</button>
+    </div>
+
+    <div class="form-group">
+        <label>Link do Álbum (Deezer)</label>
+        <input type="text" id="deezer_url" placeholder="Aguardando link..." oninput="processUrl(this.value)">
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <div id="review-panel">
+        <div style="display: flex; gap: 15px; align-items: center; background: #020617; padding: 10px; border-radius: 8px;">
+            <img id="view_cover" style="width: 70px; height: 70px; border-radius: 4px;">
+            <div>
+                <div id="view_album" style="font-weight: bold; font-size: 0.9rem;"></div>
+                <div id="view_artist" style="color: var(--primary); font-size: 0.8rem;"></div>
+                <a id="search_link" target="_blank" style="font-size: 0.7rem; color: var(--accent); text-decoration: none;">🔍 Pesquisar Origem</a>
+            </div>
+        </div>
+
+        <div id="manual-validation" style="margin-top: 20px;">
+            <div class="form-group">
+                <label>País</label>
+                <select id="country_id"></select>
+            </div>
+
+            <div id="state_group" class="form-group hidden">
+                <label>Estado</label>
+                <select id="state_id"></select>
+            </div>
+
+            <div id="city_group" class="form-group hidden">
+                <label>Cidade</label>
+                <select id="city_id" onchange="checkNewCity(this.value)"></select>
+                <input type="text" id="new_city_name" class="hidden" placeholder="Nome da nova cidade..." style="margin-top:8px;">
+            </div>
+
+            <div class="form-group">
+                <label>Idioma Principal</label>
+                <select id="lang_id" onchange="checkOtherLang(this.value)">
+                    <option value="ingles">Inglês</option><option value="portugues">Português</option>
+                    <option value="espanhol">Espanhol</option><option value="frances">Francês</option>
+                    <option value="alemao">Alemão</option><option value="italiano">Italiano</option>
+                    <option value="japones">Japonês</option><option value="coreano">Coreano</option>
+                    <option value="chines">Chinês</option><option value="russo">Russo</option>
+                    <option value="arabe">Árabe</option><option value="holandes">Holandês</option>
+                    <option value="polones">Polonês</option><option value="sueco">Sueco</option>
+                    <option value="turco">Turco</option><option value="grego">Grego</option>
+                    <option value="hebraico">Hebraico</option><option value="hindi">Hindi</option>
+                    <option value="tailandes">Tailandês</option><option value="vietnamita">Vietnamita</option>
+                    <option value="finlandes">Finlandês</option><option value="noruegues">Norueguês</option>
+                    <option value="dinamarques">Dinamarquês</option><option value="islandes">Islandês</option>
+                    <option value="irlandes">Irlandês</option><option value="latim">Latim</option>
+                    <option value="persa">Persa</option><option value="africano">Africano</option>
+                    <option value="instrumental">Instrumental</option>
+                    <option value="OTHER">Outro...</option>
+                </select>
+                <input type="text" id="other_lang_name" class="hidden" placeholder="Qual idioma?" style="margin-top:8px;">
+            </div>
+
+            <div class="form-group">
+                <label>Avaliação</label>
+                <div class="rating-container">
+                    <button class="rating-btn" onclick="setRate(1)">1</button>
+                    <button class="rating-btn" onclick="setRate(2)">2</button>
+                    <button class="rating-btn" onclick="setRate(3)">3</button>
+                </div>
+                <input type="hidden" id="rate_val" value="1">
+            </div>
+
+            <button id="btn-submit" class="btn-final" onclick="generatePayload()">FINALIZAR CADASTRO</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const URL_SB = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const KEY_SB = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    let tempAlbum = null;
+
+    // --- UTILITÁRIOS ---
+    async function pasteFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            document.getElementById('deezer_url').value = text;
+            processUrl(text);
+        } catch (err) { alert("Erro ao acessar área de transferência."); }
+    }
+
+    function clearForm() { location.reload(); }
+
+    function showAlert(msg, type = 'error') {
+        const box = document.getElementById('alert-box');
+        box.innerText = msg;
+        box.className = `alert alert-${type}`;
+        box.style.display = 'block';
+    }
+
+    // --- CAPTURA E VALIDAÇÃO DE DUPLICATAS ---
+    async function processUrl(url) {
+        const idMatch = url.match(/album\/(\d+)/);
+        if (!idMatch) return;
+        const albumId = idMatch[1];
+
+        // 1. Checar se o álbum já existe no Supabase
+        const checkAlb = await fetch(`${URL_SB}/rest/v1/tbl_albums?id_deezer=eq.${albumId}&select=id_album`, { headers: { apikey: KEY_SB } });
+        const albRes = await checkAlb.json();
+        
+        if (albRes.length > 0) {
+            showAlert("Este álbum já está cadastrado no banco!", "error");
+            document.getElementById('btn-submit').disabled = true;
+            return;
+        }
+
+        // 2. Se não existe, busca no Deezer
+        const oldScript = document.getElementById('deezer-jsonp');
+        if (oldScript) oldScript.remove();
+        const script = document.createElement('script');
+        script.id = 'deezer-jsonp';
+        script.src = `https://api.deezer.com/album/${albumId}?output=jsonp&callback=handleDeezerResponse`;
+        document.body.appendChild(script);
+    }
+
+    async function handleDeezerResponse(data) {
+        if (data.error) return showAlert("Erro no Deezer.");
+        tempAlbum = data;
+
+        // 3. Checar se artista já existe
+        const checkArt = await fetch(`${URL_SB}/rest/v1/tbl_artists?id_deezer=eq.${data.artist.id}&select=id_artist,name`, { headers: { apikey: KEY_SB } });
+        const artRes = await checkArt.json();
+        
+        if (artRes.length > 0) {
+            showAlert(`Artista "${artRes[0].name}" já cadastrado. Vinculando novo álbum...`, "warning");
+        }
+
+        document.getElementById('review-panel').style.display = 'block';
+        document.getElementById('view_cover').src = data.cover_medium;
+        document.getElementById('view_album').innerText = data.title;
+        document.getElementById('view_artist').innerText = data.artist.name;
+        document.getElementById('search_link').href = `https://www.google.com/search?q=${encodeURIComponent(`Cidade e país de origem do artista ${data.artist.name}, que lançou o álbum ${data.title}`)}`;
+
+        loadCountries();
+    }
+
+    // --- LÓGICA GEOGRÁFICA ---
+    async function loadCountries() {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_countries?select=id_country,portuguese_name&order=portuguese_name`, { headers: { apikey: KEY_SB } });
+        const countries = await res.json();
+        const sel = document.getElementById('country_id');
+        sel.innerHTML = '<option value="">Selecione...</option>';
+        countries.forEach(c => sel.add(new Option(c.portuguese_name, c.id_country)));
+        
+        sel.onchange = () => {
+            const needsState = ['25', '64'].includes(sel.value); // Brasil=25, EUA=64 (ajuste conforme seu banco)
+            document.getElementById('state_group').classList.toggle('hidden', !needsState);
+            document.getElementById('city_group').classList.add('hidden');
+            if(needsState) loadStates(sel.value);
+            else loadCities(sel.value, null);
+        };
+    }
+
+    async function loadStates(countryId) {
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_states?id_country=eq.${countryId}&order=name`, { headers: { apikey: KEY_SB } });
+        const states = await res.json();
+        const sel = document.getElementById('state_id');
+        sel.innerHTML = '<option value="">Selecione o Estado...</option>';
+        states.forEach(s => sel.add(new Option(s.name, s.id_state)));
+        sel.onchange = () => loadCities(countryId, sel.value);
+    }
+
+    async function loadCities(countryId, stateId) {
+        let url = `${URL_SB}/rest/v1/tbl_cities?id_country=eq.${countryId}&order=name`;
+        if(stateId) url += `&id_state=eq.${stateId}`;
+        
+        const res = await fetch(url, { headers: { apikey: KEY_SB } });
+        const cities = await res.json();
+        
+        const sel = document.getElementById('city_id');
+        document.getElementById('city_group').classList.remove('hidden');
+        sel.innerHTML = '';
+        sel.add(new Option('. (Ponto)', '.'));
+        cities.forEach(c => sel.add(new Option(c.name, c.id_city)));
+        sel.add(new Option('+ Adicionar nova...', 'NEW'));
+    }
+
+    // --- INTERFACE ---
+    function checkNewCity(v) { document.getElementById('new_city_name').classList.toggle('hidden', v !== 'NEW'); }
+    function checkOtherLang(v) { document.getElementById('other_lang_name').classList.toggle('hidden', v !== 'OTHER'); }
+    function setRate(v) {
+        document.querySelectorAll('.rating-btn').forEach((b, i) => b.classList.toggle('active', i === v-1));
+        document.getElementById('rate_val').value = v;
+    }
+
+    function generatePayload() {
+        const lang = document.getElementById('lang_id').value === 'OTHER' ? document.getElementById('other_lang_name').value : document.getElementById('lang_id').value;
+        const cityName = document.getElementById('city_id').value === 'NEW' ? document.getElementById('new_city_name').value : 
+                        (document.getElementById('city_id').value === '.' ? '.' : document.getElementById('city_id').options[document.getElementById('city_id').selectedIndex].text);
+        
+        // Pega o nome do país selecionado para a string
+        const countryName = document.getElementById('country_id').options[document.getElementById('country_id').selectedIndex].text;
+        
+        const payload = {
+            album_id: tempAlbum.id,
+            artist_name: tempAlbum.artist.name,
+            copy_string: `${countryName}_${cityName}_${lang}`.replace(/\s+/g, '')
+        };
+        
+        console.log("Payload:", payload);
+        alert(`Validado!\nString de cópia: ${payload.copy_string}`);
+    }
+</script>
+<script id="deezer-jsonp"></script>
+</body>
+</html>

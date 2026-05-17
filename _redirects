@@ -1,0 +1,2 @@
+/deezer/albums https://api.deezer.com/artist/255643792/albums 200
+/deezer/album-details/:id https://api.deezer.com/album/:id 200

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro Artista</title>
+    <style>
+        :root {
+            --bg: #0f172a; --card: #1e293b; --text: #f8fafc;
+            --primary: #2dd4bf; --border: #334155;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg); color: var(--text);
+            margin: 0; display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden; /* Evita scroll na página */
+        }
+        .card {
+            background: var(--card); padding: 15px 25px; border-radius: 8px;
+            width: 100%; max-width: 550px; border: 1px solid var(--border);
+        }
+        h2 { margin: 0 0 15px 0; font-size: 1.2rem; color: var(--primary); display: flex; justify-content: space-between; }
+        
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group { margin-bottom: 10px; display: flex; flex-direction: column; }
+        .full-width { grid-column: span 2; }
+        
+        label { font-size: 0.75rem; margin-bottom: 4px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, select {
+            background: #0f172a; border: 1px solid var(--border);
+            padding: 8px; border-radius: 4px; color: white; font-size: 0.9rem; outline: none;
+        }
+        input:focus { border-color: var(--primary); }
+
+        .rating-container { display: flex; gap: 5px; }
+        .rating-btn {
+            flex: 1; padding: 6px; border: 1px solid var(--border);
+            background: #0f172a; color: white; cursor: pointer; border-radius: 4px; font-size: 0.8rem;
+        }
+        .rating-btn.active { background: var(--primary); color: #0f172a; font-weight: bold; }
+
+        .hidden { display: none; }
+        button[type="submit"] {
+            width: 100%; padding: 10px; background: var(--primary);
+            border: none; border-radius: 4px; color: #0f172a;
+            font-weight: bold; cursor: pointer; margin-top: 5px;
+        }
+        #status { font-size: 0.7rem; color: #2dd4bf; margin-top: 5px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Novo Artista <span id="status"></span></h2>
+    <form id="artistForm">
+        <div class="form-row">
+            <div class="form-group full-width">
+                <label>Nome do Artista</label>
+                <input type="text" id="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label>ID Deezer</label>
+                <input type="text" id="deezer_id">
+            </div>
+
+            <div class="form-group">
+                <label>País</label>
+                <select id="id_country" required>
+                    <option value="">Carregando...</option>
+                </select>
+            </div>
+
+            <div id="stateGroup" class="form-group hidden">
+                <label>Estado</label>
+                <select id="id_state"></select>
+            </div>
+
+            <div id="cityGroup" class="form-group">
+                <label>Cidade</label>
+                <select id="id_city" required>
+                    <option value="">Aguardando país...</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="newCityGroup" class="form-group hidden">
+            <label>Nome da Nova Cidade</label>
+            <input type="text" id="new_city_name">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Rating</label>
+                <div class="rating-container">
+                    <button type="button" class="rating-btn" data-val="1">1</button>
+                    <button type="button" class="rating-btn" data-val="2">2</button>
+                    <button type="button" class="rating-btn" data-val="3">3</button>
+                </div>
+                <input type="hidden" id="rating_value">
+            </div>
+
+            <div class="form-group">
+                <label>String de Cópia (Idioma)</label>
+                <input type="text" id="language">
+            </div>
+        </div>
+
+        <button type="submit">CADASTRAR ARTISTA</button>
+    </form>
+</div>
+
+<script>
+    const URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co'; 
+    const KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+
+    // Headers simplificados para evitar bloqueios
+    const getHeaders = () => ({
+        'apikey': KEY,
+        'Authorization': `Bearer ${KEY}`,
+        'Content-Type': 'application/json'
+    });
+
+    const countrySel = document.getElementById('id_country');
+    const stateSel = document.getElementById('id_state');
+    const citySel = document.getElementById('id_city');
+    const status = document.getElementById('status');
+
+    // 1. CARREGAR PAÍSES - Ajustado para debug
+    async function init() {
+        try {
+            status.innerText = "Conectando...";
+            const res = await fetch(`${URL}/rest/v1/tbl_countries?select=id_country,portuguese_name&order=portuguese_name`, {
+                headers: getHeaders()
+            });
+            const data = await res.json();
+            
+            if (data.error) throw data.error;
+
+            countrySel.innerHTML = '<option value="">Selecione...</option>';
+            data.forEach(c => countrySel.add(new Option(c.portuguese_name, c.id_country)));
+            status.innerText = "Online";
+        } catch (e) {
+            console.error("Erro Supabase:", e);
+            status.innerText = "Erro ao carregar";
+            countrySel.innerHTML = '<option value="">Erro na conexão</option>';
+        }
+    }
+
+    countrySel.onchange = async () => {
+        const cid = countrySel.value;
+        const isSpecial = ['25', '64'].includes(cid);
+        
+        document.getElementById('stateGroup').classList.toggle('hidden', !isSpecial);
+        citySel.innerHTML = '<option value="">Carregando...</option>';
+
+        if (isSpecial) {
+            const res = await fetch(`${URL}/rest/v1/tbl_states?id_country=eq.${cid}&order=name`, { headers: getHeaders() });
+            const data = await res.json();
+            stateSel.innerHTML = '<option value="">Estado...</option>';
+            data.forEach(s => stateSel.add(new Option(s.name, s.id_state)));
+        }
+        loadCities(cid, null);
+    };
+
+    stateSel.onchange = () => loadCities(countrySel.value, stateSel.value);
+
+    async function loadCities(cid, sid) {
+        let endpoint = `${URL}/rest/v1/tbl_cities?id_country=eq.${cid}&order=name`;
+        if (sid) endpoint += `&id_state=eq.${sid}`; else endpoint += `&id_state=is.null`;
+
+        const res = await fetch(endpoint, { headers: getHeaders() });
+        const data = await res.json();
+        citySel.innerHTML = '<option value="">Selecione...</option>';
+        data.forEach(c => citySel.add(new Option(c.name, c.id_city)));
+        citySel.add(new Option("+ Nova Cidade", "NEW"));
+    }
+
+    citySel.onchange = () => {
+        document.getElementById('newCityGroup').classList.toggle('hidden', citySel.value !== "NEW");
+    };
+
+    // Rating
+    document.querySelectorAll('.rating-btn').forEach(btn => {
+        btn.onclick = () => {
+            document.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('rating_value').value = btn.dataset.val;
+        };
+    });
+
+    // Envio
+    document.getElementById('artistForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const payload = {
+            p_name: document.getElementById('name').value,
+            p_deezer_id: document.getElementById('deezer_id').value || null,
+            p_id_city: citySel.value === "NEW" ? null : parseInt(citySel.value),
+            p_new_city_name: document.getElementById('new_city_name').value || null,
+            p_id_state: stateSel.value ? parseInt(stateSel.value) : null,
+            p_id_country: parseInt(countrySel.value),
+            p_language: document.getElementById('language').value,
+            p_rating: parseInt(document.getElementById('rating_value').value) || null
+        };
+
+        status.innerText = "Salvando...";
+        const res = await fetch(`${URL}/rest/v1/rpc/fn_save_artist_full`, {
+            method: 'POST', headers: getHeaders(), body: JSON.stringify(payload)
+        });
+
+        if (res.ok) { alert("Sucesso!"); location.reload(); }
+        else { const err = await res.json(); alert("Erro: " + err.message); status.innerText = "Erro"; }
+    };
+
+    init();
+</script>
+</body>
+</html>

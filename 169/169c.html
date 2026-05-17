@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datagrid Avançado Interativo</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-card);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        h2 { margin-top: 0; font-size: 1.5rem; }
+
+        /* Toolbar de Controles */
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .filter-group { flex: 1; min-width: 250px; }
+        .filter-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            outline: none;
+        }
+
+        .column-toggles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .toggle-btn {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Área da Tabela */
+        .grid-wrapper {
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            border-right: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            background: white;
+        }
+
+        /* Fixação de Cabeçalho e Primeira Coluna */
+        thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: #f8fafc;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        thead th:hover { background: #f1f5f9; }
+
+        /* Intersecção Superior Esquerda (Z-index maior) */
+        thead th:first-child {
+            z-index: 20;
+            left: 0;
+        }
+
+        /* Coluna 1 Fixa Lateralmente */
+        td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            background: white;
+            font-weight: 600;
+            border-right: 2px solid var(--border);
+        }
+
+        tr:nth-child(even) td { background: #fafafa; }
+        tr:nth-child(even) td:first-child { background: #fafafa; }
+
+        .hidden-col { display: none !important; }
+        .sort-icon::after { content: ' ↕'; opacity: 0.3; font-size: 10px; }
+        
+        /* Estilo responsivo mobile */
+        @media (max-width: 600px) {
+            .container { padding: 10px; border-radius: 0; max-height: none; }
+            td, th { padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Análise de Indicadores</h2>
+
+    <div class="toolbar">
+        <div class="filter-group">
+            <input type="text" id="searchInput" placeholder="Filtrar por indicador..." onkeyup="filterTable()">
+        </div>
+        <div class="column-toggles" id="toggleContainer">
+            </div>
+    </div>
+
+    <div class="grid-wrapper">
+        <table id="myTable">
+            <thead>
+                <tr id="headerRow">
+                    <th onclick="sortTable(0)">Indicador <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(1)">Meta <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(2)">Realizado <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(3)">Desvio <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(4)">Jan <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(5)">Fev <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(6)">Mar <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(7)">Q1 <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(8)">Q2 <span class="sort-icon"></span></th>
+                    <th onclick="sortTable(9)">Total Anual <span class="sort-icon"></span></th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const indicadores = [
+        "Faturamento Bruto", "Margem Líquida", "Custo Operacional", "CAC Médio", 
+        "Churn Rate", "NPS Mensal", "Novos Leads", "Conversão Funil", 
+        "Ticket Médio", "ROI Marketing", "Taxa de Recompra", "Absenteísmo",
+        "Horas de Treinamento", "Produtividade Equipe", "Gasto com Nuvem",
+        "Tickets Suporte", "Tempo Médio Resposta", "Ativos em Uso",
+        "Depreciação Trimestral", "EBITDA"
+    ];
+
+    // 1. Gerar Dados Aleatórios (20 linhas)
+    function generateData() {
+        const tbody = document.getElementById('tableBody');
+        indicadores.forEach((ind) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${ind}</td>
+                <td>${(Math.random() * 1000).toFixed(0)}k</td>
+                <td>${(Math.random() * 1000).toFixed(0)}k</td>
+                <td>${(Math.random() * 20 - 10).toFixed(1)}%</td>
+                <td>${(Math.random() * 100).toFixed(0)}</td>
+                <td>${(Math.random() * 100).toFixed(0)}</td>
+                <td>${(Math.random() * 100).toFixed(0)}</td>
+                <td>${(Math.random() * 300).toFixed(0)}</td>
+                <td>${(Math.random() * 300).toFixed(0)}</td>
+                <td>${(Math.random() * 5000).toFixed(0)}k</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    // 2. Configurar Alternância de Colunas
+    function setupColumnToggles() {
+        const headerRow = document.getElementById('headerRow');
+        const toggleContainer = document.getElementById('toggleContainer');
+        const ths = headerRow.getElementsByTagName('th');
+
+        for (let i = 1; i < ths.length; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'toggle-btn active';
+            btn.innerText = ths[i].innerText.replace(' ↕', '');
+            btn.onclick = () => {
+                btn.classList.toggle('active');
+                toggleColumnVisibility(i);
+            };
+            toggleContainer.appendChild(btn);
+        }
+    }
+
+    function toggleColumnVisibility(colIndex) {
+        const table = document.getElementById('myTable');
+        const rows = table.rows;
+        for (let i = 0; i < rows.length; i++) {
+            rows[i].cells[colIndex].classList.toggle('hidden-col');
+        }
+    }
+
+    // 3. Filtro de Linhas
+    function filterTable() {
+        const input = document.getElementById('searchInput');
+        const filter = input.value.toLowerCase();
+        const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+
+        for (let row of rows) {
+            const text = row.cells[0].textContent.toLowerCase();
+            row.style.display = text.includes(filter) ? "" : "none";
+        }
+    }
+
+    // 4. Ordenação de Colunas
+    let sortDirection = true;
+    function sortTable(colIndex) {
+        const table = document.getElementById('myTable');
+        const tbody = document.getElementById('tableBody');
+        const rows = Array.from(tbody.rows);
+
+        rows.sort((a, b) => {
+            let valA = a.cells[colIndex].textContent.trim();
+            let valB = b.cells[colIndex].textContent.trim();
+            
+            // Tentar converter para número se possível para ordenação correta
+            let numA = parseFloat(valA.replace(/[^0-9.-]+/g, ""));
+            let numB = parseFloat(valB.replace(/[^0-9.-]+/g, ""));
+
+            if (!isNaN(numA) && !isNaN(numB)) {
+                return sortDirection ? numA - numB : numB - numA;
+            }
+            return sortDirection ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        });
+
+        sortDirection = !sortDirection;
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Inicialização
+    generateData();
+    setupColumnToggles();
+</script>
+
+</body>
+</html>

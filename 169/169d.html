@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datagrid Ultra-Lean</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --border: #e2e8f0;
+            --header-bg: #f8fafc;
+        }
+
+        body, html { 
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: #fff; overflow: hidden;
+        }
+
+        /* Container Principal */
+        .grid-container {
+            display: flex; flex-direction: column;
+            height: 100vh; width: 100vw;
+        }
+
+        /* Menu de Colunas Dropdown */
+        .col-manager {
+            position: fixed; top: 8px; right: 20px; z-index: 100;
+        }
+        .dropdown { position: relative; display: inline-block; }
+        .dropbtn { 
+            background: #fff; border: 1px solid var(--border); padding: 5px 10px;
+            border-radius: 4px; cursor: pointer; font-size: 12px;
+        }
+        .dropdown-content {
+            display: none; position: absolute; right: 0; background: white;
+            min-width: 160px; box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            z-index: 101; border: 1px solid var(--border); padding: 10px;
+            max-height: 300px; overflow-y: auto;
+        }
+        .dropdown:hover .dropdown-content { display: block; }
+        .dropdown-content label { display: block; font-size: 11px; margin-bottom: 5px; cursor: pointer; }
+
+        /* Tabela */
+        .wrapper { flex: 1; overflow: auto; width: 100%; }
+        table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12px; }
+        
+        th, td { 
+            padding: 8px 10px; border-right: 1px solid var(--border); 
+            border-bottom: 1px solid var(--border); white-space: nowrap; 
+        }
+
+        /* Header Fixo */
+        thead th { 
+            position: sticky; top: 0; background: var(--header-bg); 
+            z-index: 10; font-weight: 700; text-align: center;
+        }
+
+        /* Coluna 1 Fixa com Lógica de Redução */
+        .col-fixed {
+            position: sticky; left: 0; z-index: 20; background: #fff !important;
+            border-right: 2px solid var(--border) !important;
+            max-width: 250px; overflow: hidden; text-overflow: ellipsis;
+            transition: max-width 0.2s ease;
+        }
+
+        /* Estilos quando a tela rola lateralmente */
+        .scrolled-x .col-fixed { max-width: 80px; font-size: 10px; }
+
+        /* Intersecção Header/Coluna 1 */
+        thead th.col-fixed { z-index: 30; background: var(--header-bg) !important; text-align: left; }
+
+        /* Lupa e Busca */
+        .search-trigger { cursor: pointer; margin-left: 5px; font-size: 14px; }
+        #searchWrapper { display: none; margin-top: 5px; }
+        #searchWrapper input { width: 90%; font-size: 11px; padding: 2px; }
+
+        tr:nth-child(even) td { background: #fafafa; }
+        .hidden-col { display: none !important; }
+        th { cursor: pointer; }
+        th:hover { background: #f1f5f9; }
+    </style>
+</head>
+<body class="">
+
+<div class="grid-container">
+    <div class="col-manager">
+        <div class="dropdown">
+            <button class="dropbtn">⚙️ Colunas</button>
+            <div class="dropdown-content" id="colList">
+                </div>
+        </div>
+    </div>
+
+    <div class="wrapper" id="scrollWrapper">
+        <table id="mainTable">
+            <thead>
+                <tr id="headerRow">
+                    <th class="col-fixed">
+                        Indicador 
+                        <span class="search-trigger" onclick="toggleSearch()">🔍</span>
+                        <div id="searchWrapper">
+                            <input type="text" id="searchInput" placeholder="Filtrar..." onkeyup="filterRows()">
+                        </div>
+                    </th>
+                    <th data-idx="1" onclick="sortTable(1)">Meta</th>
+                    <th data-idx="2" onclick="sortTable(2)">Realizado</th>
+                    <th data-idx="3" onclick="sortTable(3)">Variação</th>
+                    <th data-idx="4" onclick="sortTable(4)">Jan</th>
+                    <th data-idx="5" onclick="sortTable(5)">Fev</th>
+                    <th data-idx="6" onclick="sortTable(6)">Mar</th>
+                    <th data-idx="7" onclick="sortTable(7)">Q1 Total</th>
+                    <th data-idx="8" onclick="sortTable(8)">Projeção</th>
+                    <th data-idx="9" onclick="sortTable(9)">Status</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const indicadores = [
+        "Faturamento Bruto Indústria", "Custo Mercadoria Vendida", "Margem de Contribuição",
+        "Despesas Fixas Totais", "EBITDA Operacional", "Investimento Marketing",
+        "CAC (Custo Aquisição)", "LTV (Lifetime Value)", "Churn Rate Mensal",
+        "NPS (Net Promoter Score)", "Ticket Médio Pedido", "Absenteísmo Logística",
+        "Lead Time Entrega", "Conversão de Leads", "Volume Devoluções",
+        "Produtividade / Homem", "Custo de Armazenagem", "Quebra de Estoque",
+        "ROI Campanhas", "Prazo Médio Recebimento"
+    ];
+
+    // Gerar dados aleatórios
+    const tbody = document.getElementById('tableBody');
+    indicadores.forEach(name => {
+        const tr = document.createElement('tr');
+        tr.className = "data-row";
+        tr.innerHTML = `
+            <td class="col-fixed">${name}</td>
+            <td>${(Math.random()*500).toFixed(0)}k</td>
+            <td>${(Math.random()*500).toFixed(0)}k</td>
+            <td style="color:${Math.random() > 0.5 ? 'green' : 'red'}">${(Math.random()*20 - 10).toFixed(1)}%</td>
+            <td>${(Math.random()*100).toFixed(0)}</td>
+            <td>${(Math.random()*100).toFixed(0)}</td>
+            <td>${(Math.random()*100).toFixed(0)}</td>
+            <td>${(Math.random()*300).toFixed(0)}k</td>
+            <td>${(Math.random()*1000).toFixed(0)}k</td>
+            <td>${Math.random() > 0.5 ? '✅ OK' : '⚠️ Alerta'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Lógica para reduzir coluna 1 ao rolar lateralmente
+    const scrollWrapper = document.getElementById('scrollWrapper');
+    scrollWrapper.addEventListener('scroll', () => {
+        if (scrollWrapper.scrollLeft > 50) {
+            document.body.classList.add('scrolled-x');
+        } else {
+            document.body.classList.remove('scrolled-x');
+        }
+    });
+
+    // Dropdown de colunas
+    const headers = document.querySelectorAll('#headerRow th');
+    const colList = document.getElementById('colList');
+    headers.forEach((th, i) => {
+        if (i === 0) return;
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="checkbox" checked onchange="toggleCol(${i}, this.checked)"> ${th.innerText}`;
+        colList.appendChild(label);
+    });
+
+    function toggleCol(idx, show) {
+        const rows = document.getElementById('mainTable').rows;
+        for (let row of rows) {
+            row.cells[idx].classList.toggle('hidden-col', !show);
+        }
+    }
+
+    function toggleSearch() {
+        const w = document.getElementById('searchWrapper');
+        w.style.display = (w.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function filterRows() {
+        const val = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('.data-row');
+        rows.forEach(row => {
+            const text = row.cells[0].innerText.toLowerCase();
+            row.style.display = text.includes(val) ? '' : 'none';
+        });
+    }
+
+    function sortTable(idx) {
+        const table = document.getElementById('tableBody');
+        const rows = Array.from(table.rows);
+        const isNumeric = !isNaN(parseFloat(rows[0].cells[idx].innerText));
+
+        rows.sort((a, b) => {
+            let vA = a.cells[idx].innerText;
+            let vB = b.cells[idx].innerText;
+            return isNumeric ? parseFloat(vA) - parseFloat(vB) : vA.localeCompare(vB);
+        });
+        
+        rows.forEach(r => table.appendChild(r));
+    }
+</script>
+</body>
+</html>

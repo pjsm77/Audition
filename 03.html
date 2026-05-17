@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Tracker V3 - Ultimate</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            /* Escala de Cores 1-10 (da sua imagem) */
+            --c1: #ff6b6b; --c2: #ff8787; --c3: #ffa8a8; --c4: #ffc9c9; --c5: #ffe3e3;
+            --c6: #d3f9d8; --c7: #b2f2bb; --c8: #8ce99a; --c9: #69db7c; --c10: #40c057;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        
+        /* Dashboard */
+        .dashboard { max-width: 1000px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .filter-select { padding: 8px; border-radius: 8px; border: 1px solid #ddd; }
+
+        /* Grid */
+        .program-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; }
+        
+        .prog-btn {
+            aspect-ratio: 1/1; border-radius: 12px; border: none; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; transition: transform 0.2s; position: relative;
+        }
+        .prog-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .prog-btn i { font-size: 1.5rem; margin-bottom: 5px; }
+        .prog-btn .sigla { font-weight: bold; font-size: 0.9rem; }
+        
+        /* Status Dot */
+        .dot { position: absolute; top: 8px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background: #ccc; border: 2px solid white; }
+        .dot.check { background: #ffd43b; }
+        .dot.done { background: #40c057; }
+
+        /* Modal & Histórico */
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                  background: white; padding: 25px; border-radius: 20px; z-index: 1000; width: 90%; max-width: 450px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 999; backdrop-filter: blur(3px); }
+        
+        .history-list { max-height: 150px; overflow-y: auto; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
+        .history-item { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 5px 0; align-items: center; }
+        .btn-del { color: #ff6b6b; cursor: pointer; border: none; background: none; }
+
+        .input-group { margin: 15px 0; }
+        input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 8px; }
+        .btn-main { background: #228be6; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="card">
+        <div class="chart-header">
+            <h3 id="chartTitle">Performance</h3>
+            <select class="filter-select" id="periodFilter" onchange="initChart()">
+                <option value="7">Últimos 7 dias</option>
+                <option value="15">Últimos 15 dias</option>
+                <option value="30">Últimos 30 dias</option>
+            </select>
+        </div>
+        <div style="height: 250px;"><canvas id="mainChart"></canvas></div>
+    </div>
+
+    <div class="card">
+        <div class="chart-header">
+            <h3 id="gridTitle">Programas de Hoje</h3>
+            <span id="displayDate" style="font-size: 0.9rem; color: #666;"></span>
+        </div>
+        <div class="program-grid" id="grid"></div>
+    </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeModal()"></div>
+<div class="modal" id="modal">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div id="mIcon" style="font-size: 2rem;"></div>
+        <h2 id="mTitle" style="margin:0"></h2>
+    </div>
+    <div class="input-group" id="mInputs"></div>
+    <button class="btn-main" onclick="handleSave()">Registrar</button>
+    
+    <div class="history-list" id="mHistory">
+        <strong>Histórico do Dia:</strong>
+        <div id="histContent"></div>
+    </div>
+</div>
+
+<script>
+    // Configurações baseadas nas suas figuras
+    const CATEGORIES = {
+        SAUDE: { color: "#40c057", icon: "fa-heart-pulse" },
+        ESTUDOS: { icon: "fa-book-open", color: "#228be6" },
+        PROF: { icon: "fa-laptop-code", color: "#fab005" },
+        MENTAL: { icon: "fa-brain", color: "#be4bdb" },
+        SOCIAL: { icon: "fa-users", color: "#fd7e14" },
+        FINAN: { icon: "fa-wallet", color: "#12b886" },
+        FAMIL: { icon: "fa-house", color: "#fa5252" }
+    };
+
+    const SCALE_COLORS = ["#ff6b6b", "#ff8787", "#ffa8a8", "#ffc9c9", "#ffe3e3", "#d3f9d8", "#b2f2bb", "#8ce99a", "#69db7c", "#40c057"];
+
+    // Banco de Dados Local
+    let db = JSON.parse(localStorage.getItem('tracker_db')) || { logs: [], programs: [] };
+    let currentDate = new Date().toISOString().split('T')[0];
+    let selectedIdx = null;
+    let chartInstance = null;
+
+    // 50 Programas Iniciais
+    const programDefs = [
+        { s: "LIS", n: "Listening", c: "ESTUDOS", mk: 15, md: 60, u: "min" },
+        { s: "GYM", n: "Musculação", c: "SAUDE", mk: 1, md: 1, u: "un" },
+        { s: "HYD", n: "Água", c: "SAUDE", mk: 4, md: 10, u: "un" },
+        { s: "COD", n: "Coding", c: "PROF", mk: 30, md: 120, u: "min" }
+    ];
+    // Gerar os outros 46 para teste
+    for(let i=4; i<50; i++) programDefs.push({ s: "P"+i, n: "Task "+i, c: "MENTAL", mk: 10, md: 30, u: "un" });
+
+    function init() {
+        document.getElementById('displayDate').innerText = currentDate;
+        renderGrid();
+        initChart();
+    }
+
+    function renderGrid() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+        
+        programDefs.forEach((p, idx) => {
+            const total = getTodayTotal(p.s, currentDate);
+            let status = "";
+            if(total >= p.md) status = "done";
+            else if(total >= p.mk) status = "check";
+
+            const btn = document.createElement('button');
+            btn.className = 'prog-btn';
+            btn.style.backgroundColor = CATEGORIES[p.c].color;
+            btn.onclick = () => openModal(idx);
+            btn.innerHTML = `
+                <div class="dot ${status}"></div>
+                <i class="fa-solid ${CATEGORIES[p.c].icon}"></i>
+                <span class="sigla">${p.s}</span>
+                <span style="font-size:0.7rem">${total}/${p.md}</span>
+            `;
+            grid.appendChild(btn);
+        });
+    }
+
+    function openModal(idx) {
+        selectedIdx = idx;
+        const p = programDefs[idx];
+        document.getElementById('mTitle').innerText = p.n;
+        document.getElementById('mIcon').innerHTML = `<i class="fa-solid ${CATEGORIES[p.c].icon}" style="color:${CATEGORIES[p.c].color}"></i>`;
+        
+        const inputArea = document.getElementById('mInputs');
+        inputArea.innerHTML = p.u === 'min' 
+            ? `<input type="time" id="tS"> a <input type="time" id="tE">`
+            : `<input type="number" id="tQ" placeholder="Quantidade (${p.u})">`;
+        
+        renderHistory(p.s);
+        document.getElementById('modal').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    }
+
+    function renderHistory(sigla) {
+        const hist = db.logs.filter(l => l.s === sigla && l.d === currentDate);
+        const cont = document.getElementById('histContent');
+        cont.innerHTML = hist.map((l, i) => `
+            <div class="history-item">
+                <span>${l.v} ${programDefs[selectedIdx].u}</span>
+                <button class="btn-del" onclick="deleteLog('${l.id}')"><i class="fa-solid fa-trash"></i></button>
+            </div>
+        `).join('') || "Sem registros hoje.";
+    }
+
+    function handleSave() {
+        const p = programDefs[selectedIdx];
+        let val = 0;
+        if(p.u === 'min') {
+            const s = document.getElementById('tS').value;
+            const e = document.getElementById('tE').value;
+            if(s && e) val = (new Date(`1970-01-01T${e}`) - new Date(`1970-01-01T${s}`)) / 60000;
+        } else {
+            val = parseInt(document.getElementById('tQ').value) || 0;
+        }
+
+        if(val > 0) {
+            db.logs.push({ id: Date.now().toString(), s: p.s, d: currentDate, v: val });
+            saveDB();
+            closeModal();
+            renderGrid();
+            initChart();
+        }
+    }
+
+    function deleteLog(id) {
+        db.logs = db.logs.filter(l => l.id !== id);
+        saveDB();
+        renderHistory(programDefs[selectedIdx].s);
+        renderGrid();
+        initChart();
+    }
+
+    function saveDB() { localStorage.setItem('tracker_db', JSON.stringify(db)); }
+    function closeModal() { document.querySelectorAll('.modal, .overlay').forEach(el => el.style.display = 'none'); }
+    function getTodayTotal(sigla, date) {
+        return db.logs.filter(l => l.s === sigla && l.d === date).reduce((acc, curr) => acc + curr.v, 0);
+    }
+
+    // Lógica do Chart Interativo
+    function initChart() {
+        const days = parseInt(document.getElementById('periodFilter').value);
+        const labels = [];
+        const data = [];
+        const colors = [];
+
+        for(let i = days - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dStr = d.toISOString().split('T')[0];
+            labels.push(dStr.split('-').slice(1).reverse().join('/'));
+            
+            // Score diário (média de conclusão dos 50 programas)
+            const dayScore = calculateDayScore(dStr);
+            data.push(dayScore);
+            
+            // Cor da escala 1-10
+            const colorIdx = Math.min(9, Math.floor(dayScore / 10));
+            colors.push(SCALE_COLORS[colorIdx]);
+        }
+
+        if(chartInstance) chartInstance.destroy();
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 5 }] },
+            options: {
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const idx = elements[0].index;
+                        const targetDate = new Date();
+                        targetDate.setDate(targetDate.getDate() - (days - 1 - idx));
+                        currentDate = targetDate.toISOString().split('T')[0];
+                        init(); // Recarrega grid para o dia clicado
+                    }
+                }
+            }
+        });
+    }
+
+    function calculateDayScore(date) {
+        let totalPct = 0;
+        programDefs.forEach(p => {
+            const done = getTodayTotal(p.s, date);
+            totalPct += Math.min(1, done / p.md);
+        });
+        return (totalPct / 50) * 100;
+    }
+
+    init();
+</script>
+</body>
+</html>

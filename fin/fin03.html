@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Financeiro V3 - Edição</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #fff; color: #1a1a1a; -webkit-font-smoothing: antialiased; }
+        .transition-all-custom { transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const FinanceApp = () => {
+            const [editMode, setEditMode] = useState(false);
+            const [currentMonthIdx, setCurrentMonthIdx] = useState(2);
+            const [expandedCat, setExpandedCat] = useState(null);
+            const [expandedSub, setExpandedSub] = useState(null);
+
+            const months = ["Janeiro 2026", "Fevereiro 2026", "Março 2026"];
+
+            // Dados iniciais (agora em um estado para permitir edição)
+            const [allData, setAllData] = useState({
+                "Março 2026": {
+                    receita: 12000,
+                    categorias: [
+                        { 
+                            id: 'CASA', budget: 3000, sub: [
+                                { label: 'Luz', budget: 800, gastos: [{ dia: '10', desc: 'CEEE Equatorial', valor: 245.15, parc: '1/1' }] },
+                                { label: 'Internet', budget: 150, gastos: [{ dia: '05', desc: 'Vivo Fibra', valor: 150, parc: '1/1' }] },
+                                { label: 'Manutenção', budget: 400, gastos: [{ dia: '12', desc: 'Reparo Torneira', valor: 450, parc: '1/1' }] }
+                            ]
+                        },
+                        { 
+                            id: 'CARRO', budget: 2000, sub: [
+                                { label: 'Combustível', budget: 400, gastos: [{ dia: '02', desc: 'Posto Ipiranga', valor: 220, parc: '1/1' }] },
+                                { label: 'Seguro', budget: 300, gastos: [{ dia: '10', desc: 'Porto Seguro', valor: 300, parc: '3/10' }] }
+                            ]
+                        },
+                        { id: 'COLÉGIO', budget: 1500, sub: [{ label: 'Mensalidade', budget: 1500, gastos: [{ dia: '05', desc: 'Escola XYZ', valor: 1500, parc: '3/12' }] }] },
+                        { id: 'PESSOAL', budget: 1000, sub: [{ label: 'Lazer', budget: 500, gastos: [{ dia: '20', desc: 'Cinema/Jantar', valor: 450, parc: '1/1' }] }] }
+                    ]
+                }
+            });
+
+            const currentMonth = months[currentMonthIdx];
+            const currentData = allData[currentMonth] || { receita: 0, categorias: [] };
+
+            // Funções de Edição
+            const updateReceita = (val) => {
+                const newData = { ...allData };
+                newData[currentMonth].receita = parseFloat(val) || 0;
+                setAllData(newData);
+            };
+
+            const updateSubBudget = (catIdx, subIdx, val) => {
+                const newData = { ...allData };
+                newData[currentMonth].categorias[catIdx].sub[subIdx].budget = parseFloat(val) || 0;
+                setAllData(newData);
+            };
+
+            const updateGastoValor = (catIdx, subIdx, gastoIdx, val) => {
+                const newData = { ...allData };
+                newData[currentMonth].categorias[catIdx].sub[subIdx].gastos[gastoIdx].valor = parseFloat(val) || 0;
+                setAllData(newData);
+            };
+
+            // Cálculos
+            const totalGasto = currentData.categorias.reduce((acc, cat) => 
+                acc + cat.sub.reduce((sAcc, s) => sAcc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0), 0
+            );
+
+            const getBarColor = (perc) => {
+                if (perc > 100) return 'bg-gradient-to-r from-red-500 to-red-600';
+                if (perc >= 100) return 'bg-gradient-to-r from-yellow-400 to-yellow-500';
+                return 'bg-gradient-to-r from-green-400 to-green-500';
+            };
+
+            const ProgressBar = ({ label, spent, budget, isSub = false, count = null, onEditClick }) => {
+                const perc = budget > 0 ? (spent / budget) * 100 : 0;
+                return (
+                    <div className="w-full mb-3">
+                        <div className="flex justify-between items-end mb-1 px-1">
+                            <span className={`text-[11px] font-bold ${isSub ? 'text-gray-400' : 'text-gray-700'} uppercase`}>
+                                {label} {count !== null && <span className="text-[10px] text-gray-300 ml-1">({count})</span>}
+                            </span>
+                            <div className="text-right">
+                                <span className="text-[10px] font-mono font-bold text-gray-500">
+                                    R$ {spent.toLocaleString('pt-BR', {minimumFractionDigits: 2})} / 
+                                    {editMode && isSub ? (
+                                        <input 
+                                            type="number" 
+                                            className="w-16 ml-1 border-b border-blue-300 text-blue-600 focus:outline-none bg-blue-50 px-1"
+                                            value={budget}
+                                            onChange={(e) => onEditClick(e.target.value)}
+                                        />
+                                    ) : (
+                                        ` R$ ${budget.toLocaleString('pt-BR')}`
+                                    )}
+                                    <span className={`ml-1 ${perc > 100 ? 'text-red-500' : ''}`}> ({perc.toFixed(1)}%)</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div className="w-full bg-gray-100 h-3.5 rounded-full relative overflow-hidden border border-gray-50 shadow-inner">
+                            <div className={`h-full rounded-full transition-all-custom ${getBarColor(perc)}`} style={{ width: `${Math.min(perc, 110)}%` }} />
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="max-w-md mx-auto min-h-screen bg-white pb-24 relative">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-6 sticky top-0 bg-white/95 backdrop-blur-sm z-30 border-b border-gray-50">
+                        <button onClick={() => setCurrentMonthIdx(Math.max(0, currentMonthIdx - 1))} className="p-2 text-gray-300 font-bold">&lt;</button>
+                        <div className="text-center">
+                            <h1 className="text-sm font-black tracking-widest uppercase">{months[currentMonthIdx]}</h1>
+                            {editMode && <span className="text-[9px] text-blue-500 font-bold uppercase animate-pulse">Modo Edição Ativo</span>}
+                        </div>
+                        <button onClick={() => setCurrentMonthIdx(Math.min(months.length - 1, currentMonthIdx + 1))} className="p-2 text-gray-300 font-bold">&gt;</button>
+                    </div>
+
+                    {/* Resumo TOTAL */}
+                    <div className="bg-gray-50 p-6 mb-4 border-b border-gray-100 shadow-sm">
+                        <ProgressBar label="TOTAL" spent={totalGasto} budget={currentData.receita} />
+                        <div className="flex justify-between mt-2 px-1">
+                            <div className="text-[10px] uppercase font-bold text-gray-400">
+                                Receita: {editMode ? (
+                                    <input 
+                                        type="number" 
+                                        className="w-20 border-b border-blue-300 text-blue-600 bg-transparent focus:outline-none" 
+                                        value={currentData.receita} 
+                                        onChange={(e) => updateReceita(e.target.value)}
+                                    />
+                                ) : (
+                                    <span className="text-green-600 font-black italic ml-1">R$ {currentData.receita.toLocaleString('pt-BR')}</span>
+                                )}
+                            </div>
+                            <div className="text-[10px] uppercase font-bold text-gray-400">Saldo: <span className={currentData.receita - totalGasto < 0 ? 'text-red-500 font-black' : 'text-blue-500 font-black'}>R$ {(currentData.receita - totalGasto).toLocaleString('pt-BR')}</span></div>
+                        </div>
+                    </div>
+
+                    {/* Categorias */}
+                    <div className="px-6 space-y-2">
+                        {currentData.categorias.map((cat, cIdx) => {
+                            const catSpent = cat.sub.reduce((acc, s) => acc + s.gastos.reduce((gAcc, g) => gAcc + g.valor, 0), 0);
+                            const isOpen = expandedCat === cat.id;
+
+                            return (
+                                <div key={cat.id} className="border-b border-gray-50 pb-2">
+                                    <div onClick={() => !editMode && setExpandedCat(isOpen ? null : cat.id)} className={`${editMode ? 'cursor-default' : 'cursor-pointer active:opacity-60'}`}>
+                                        <ProgressBar label={cat.id} spent={catSpent} budget={cat.budget} count={cat.sub.length} />
+                                    </div>
+
+                                    {isOpen && (
+                                        <div className="mt-2 ml-4 space-y-3 animate-in fade-in duration-300">
+                                            {cat.sub.map((sub, sIdx) => {
+                                                const subSpent = sub.gastos.reduce((acc, g) => acc + g.valor, 0);
+                                                const isSubOpen = expandedSub === sub.label;
+
+                                                return (
+                                                    <div key={sub.label}>
+                                                        <div onClick={() => !editMode && setExpandedSub(isSubOpen ? null : sub.label)} className={editMode ? '' : 'cursor-pointer active:opacity-60'}>
+                                                            <ProgressBar 
+                                                                label={sub.label} spent={subSpent} budget={sub.budget} 
+                                                                isSub={true} count={sub.gastos.length} 
+                                                                onEditClick={(v) => updateSubBudget(cIdx, sIdx, v)}
+                                                            />
+                                                        </div>
+
+                                                        {isSubOpen && (
+                                                            <div className="bg-blue-50/30 rounded-xl p-3 my-2 space-y-2 border border-blue-100/50">
+                                                                {sub.gastos.map((g, gIdx) => (
+                                                                    <div key={gIdx} className="flex justify-between items-center text-[10px] border-b border-gray-100 last:border-0 pb-1">
+                                                                        <div className="text-gray-400 font-bold">{g.dia}</div>
+                                                                        <div className="flex-1 px-3 text-gray-600 font-medium italic truncate">{g.desc}</div>
+                                                                        {editMode ? (
+                                                                            <input 
+                                                                                type="number" 
+                                                                                className="w-16 border-b border-blue-300 text-blue-600 bg-white text-right font-bold"
+                                                                                value={g.valor}
+                                                                                onChange={(e) => updateGastoValor(cIdx, sIdx, gIdx, e.target.value)}
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="text-gray-800 font-bold">R$ {g.valor.toLocaleString('pt-BR')}</div>
+                                                                        )}
+                                                                        <div className="ml-2 text-blue-400 font-black">{g.parc}</div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Botão de Alternância (FAB) */}
+                    <button 
+                        onClick={() => { setEditMode(!editMode); if(!editMode) {setExpandedCat(null); setExpandedSub(null);}}}
+                        className={`fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 z-50 active:scale-90 ${editMode ? 'bg-green-500' : 'bg-blue-600'}`}
+                    >
+                        {editMode ? (
+                            <span className="text-white text-[10px] font-black uppercase tracking-tighter">Salvar</span>
+                        ) : (
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        )}
+                    </button>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<FinanceApp />);
+    </script>
+</body>
+</html>

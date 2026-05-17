@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Descoberta de Artistas - Deezer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1000px;
+      margin: auto;
+      padding: 20px;
+    }
+    textarea {
+      width: 100%;
+      height: 160px;
+      font-family: monospace;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 16px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px;
+    }
+    th {
+      background: #eee;
+    }
+    #status {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+
+<h2>🎧 Descoberta de Artistas (Deezer)</h2>
+
+<p>Informe a lista de artistas base no formato <b>artist_id,nota</b> (nota 1–3):</p>
+
+<textarea id="inputArtists">
+13551,3
+388833,3
+10594,3
+14059,3
+</textarea>
+
+<button onclick="generate()">Gerar recomendações</button>
+<button onclick="downloadCSV()">Baixar CSV</button>
+
+<div id="status"></div>
+
+<table id="resultTable"></table>
+
+<script>
+const CORS_PROXY = "https://corsproxy.io/?";
+const API_URL = "https://api.deezer.com/artist/";
+
+let allRows = [];
+
+function parseInput() {
+  const lines = document.getElementById("inputArtists").value.trim().split("\n");
+  const artists = {};
+  lines.forEach(line => {
+    const [id, nota] = line.split(",");
+    if (id && nota) {
+      artists[id.trim()] = parseInt(nota.trim());
+    }
+  });
+  return artists;
+}
+
+function recommendationScore(baseNota, relatedNota, order) {
+  const pesoBase = baseNota / 3;
+  const pesoRelated = relatedNota ? relatedNota / 3 : 0.5;
+  const pesoOrdem = (21 - order) / 20;
+
+  let score =
+    (0.5 * pesoBase) +
+    (0.3 * pesoRelated) +
+    (0.2 * pesoOrdem);
+
+  if (!relatedNota) score += 0.15; 
+
+  return score.toFixed(3);
+}
+
+async function generate() {
+  document.getElementById("status").innerText = "Processando artistas... por favor, aguarde.";
+  allRows = [];
+
+  const baseArtists = parseInput();
+  const baseIds = Object.keys(baseArtists);
+
+  for (const baseId of baseIds) {
+    const baseNota = baseArtists[baseId];
+
+    try {
+      const response = await fetch(`${CORS_PROXY}${API_URL}${baseId}/related`);
+      const data = await response.json();
+
+      if (data.data) {
+        data.data.forEach((artist, index) => {
+          const relatedNota = baseArtists[artist.id] || 0;
+          const score = recommendationScore(baseNota, relatedNota, index + 1);
+
+          // Organizado para o ID vir primeiro
+          allRows.push({
+            id_relacionado: artist.id,
+            nome_relacionado: artist.name,
+            score_recomendacao: score,
+            id_base: baseId,
+            nota_base: baseNota,
+            rank_na_lista: index + 1,
+            albuns: artist.nb_album,
+            fas: artist.nb_fan,
+            link_deezer: artist.link
+          });
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar ID " + baseId, error);
+    }
+  }
+
+  renderTable();
+  document.getElementById("status").innerText =
+    `Concluído! ${allRows.length} registros gerados.`;
+}
+
+function renderTable() {
+  const table = document.getElementById("resultTable");
+  table.innerHTML = "";
+
+  if (!allRows.length) return;
+
+  const headers = Object.keys(allRows[0]);
+  const thead = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+
+  headers.forEach(h => {
+    const th = document.createElement("th");
+    th.innerText = h.replace(/_/g, ' ').toUpperCase();
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  allRows
+    .sort((a, b) => b.score_recomendacao - a.score_recomendacao)
+    .forEach(row => {
+      const tr = document.createElement("tr");
+      headers.forEach(h => {
+        const td = document.createElement("td");
+        td.innerText = row[h];
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  table.appendChild(tbody);
+}
+
+function downloadCSV() {
+  if (!allRows.length) return;
+
+  const headers = Object.keys(allRows[0]);
+  const csv = [
+    headers.join(","),
+    ...allRows.map(r =>
+      headers.map(h => `"${r[h]}"`).join(",")
+    )
+  ].join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "recomendacoes_deezer.csv";
+  a.click();
+}
+</script>
+
+</body>
+</html>

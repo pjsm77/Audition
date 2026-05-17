@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Contatos e Ranking Dinâmico</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { font-family: 'Bebas Neue', cursive; }
+        body { background-color: #f7f9fb; }
+        .details-panel { max-height:0; overflow:hidden; transition:.3s cubic-bezier(0.25,0.8,0.25,1); }
+        .details-panel.open { max-height:1000px; transition:.6s cubic-bezier(0.25,0.8,0.25,1); }
+        .contact-card:hover,.ranking-card:hover,.sta-card:hover{ transform:scale(1.002); }
+        .hidden-filter-btn{ visibility:hidden; opacity:0; }
+        .visible-filter-btn{ visibility:visible; opacity:1; }
+    </style>
+</head>
+<body class="min-h-screen p-2 sm:p-4">
+<div class="max-w-4xl mx-auto">
+<div class="bg-white p-2 sm:p-3 rounded-2xl shadow-xl border border-gray-100">
+
+<div id="sheet-nav" class="mb-3 flex flex-wrap gap-2 justify-center"></div>
+
+<div id="search-controls-container">
+    <div class="mb-3">
+        <input type="text" id="search-input"
+        class="w-full p-3 border border-gray-200 rounded-xl"
+        placeholder="Pesquisar por artista, álbum, ano...">
+    </div>
+    <div id="sort-controls" class="mb-3 p-3 bg-gray-50 rounded-xl"></div>
+</div>
+
+<div id="results-count" class="text-sm text-gray-500 mb-3 px-1"></div>
+
+<div id="status-message" class="text-center text-lg text-gray-600 p-4 rounded-xl bg-yellow-50 shadow-inner">
+Carregando dados da Planilha...
+</div>
+
+<div id="contact-list" class="space-y-1"></div>
+
+<div id="no-results" class="hidden text-center text-xl text-gray-400 p-10">
+Nenhum resultado encontrado
+</div>
+
+</div>
+</div>
+
+<script>
+const SHEET_ID = '1QCyU_zShDAWzsZm1G-8cMUamrMdUOvyc3AIXtnhfiUw';
+
+const SHEETS_CONFIG=[
+    {name:'Alb',gid:'0'},
+    {name:'Artists',gid:'60086446'},
+    {name:'Ran',gid:'1085390429'},
+    {name:'Sta',gid:'45947330'}
+];
+
+let currentSheet=SHEETS_CONFIG[0];
+let allData=[];
+
+const contactList=document.getElementById('contact-list');
+const statusMessage=document.getElementById('status-message');
+const sheetNav=document.getElementById('sheet-nav');
+const getSheetUrl=gid=>`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${gid}`;
+
+function parseSheetData(jsonText){
+    const start=jsonText.indexOf('(');
+    const end=jsonText.lastIndexOf(')');
+    const json=JSON.parse(jsonText.substring(start+1,end));
+
+    const headers=json.table.cols.map(col=>col.label||col.id);
+    const rows=[];
+    json.table.rows.forEach(row=>{
+        const obj={};
+        row.c.forEach((cell,i)=>{
+            obj[headers[i]]=cell&&(cell.f||cell.v)||'';
+        });
+        rows.push(obj);
+    });
+    rows.shift();
+    return rows;
+}
+
+function getColumnKeyByIndex(i){
+    if(!allData[0])return null;
+    return Object.keys(allData[0])[i];
+}
+
+/* ================= */
+/* RAN MODIFICADO    */
+/* ================= */
+function processRankingData(rawData){
+
+    if(currentSheet.name==='Ran'){
+
+        const keyPos=getColumnKeyByIndex(0); // COLUNA A
+
+        rawData.sort((a,b)=>{
+            const pa=parseInt(a[keyPos])||9999;
+            const pb=parseInt(b[keyPos])||9999;
+            return pa-pb;
+        });
+
+        return rawData;
+    }
+
+    if(currentSheet.name==='Artists'){
+
+        const keyL=getColumnKeyByIndex(11);
+
+        rawData.sort((a,b)=>{
+            const A=parseFloat(String(a[keyL]).replace(',','.'))||0;
+            const B=parseFloat(String(b[keyL]).replace(',','.'))||0;
+            return B-A;
+        });
+
+        return rawData.map((r,i)=>({...r,calculated_rank:i+1}));
+    }
+
+    return rawData;
+}
+
+/* ================= */
+/* CARD RAN          */
+/* ================= */
+function createExplicitRankingCard(contact){
+
+    const keyPos=getColumnKeyByIndex(0);   // A
+    const keyArtist=getColumnKeyByIndex(1);// B
+    const keyCountry=getColumnKeyByIndex(2);// C
+    const keyScore=getColumnKeyByIndex(3); // D
+
+    const pos=contact[keyPos];
+    const name=contact[keyArtist]||'ARTISTA';
+    const country=String(contact[keyCountry]||'').toLowerCase();
+    const score=parseFloat(contact[keyScore]||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+
+    let flag='';
+    if(country.length>=2){
+        flag=`<img src="https://flagcdn.com/40x30/${country}.png"
+             class="w-10 h-7 border rounded shadow"
+             alt="${country}">`;
+    }
+
+    const card=document.createElement('div');
+    card.className='ranking-card bg-white p-3 rounded-xl shadow border-l-4 border-indigo-500 flex items-center';
+
+    card.innerHTML=`
+        <div class="w-12 text-center text-3xl font-extrabold text-gray-600">${pos}</div>
+
+        <div class="flex items-center gap-3 flex-grow ml-4">
+            ${flag}
+            <h2 class="text-2xl font-extrabold">${name.toUpperCase()}</h2>
+        </div>
+
+        <div class="ml-4 pl-4 border-l text-right">
+            <p class="text-xs text-gray-500">PONTOS</p>
+            <p class="text-xl font-bold text-indigo-600">${score}</p>
+        </div>
+    `;
+
+    return card;
+}
+
+/* ================= */
+
+function renderData(data){
+    contactList.innerHTML='';
+    data.forEach(item=>{
+        if(currentSheet.name==='Ran'){
+            contactList.appendChild(createExplicitRankingCard(item));
+        }
+    });
+}
+
+async function fetchData(){
+
+    statusMessage.textContent="Carregando...";
+
+    const res=await fetch(getSheetUrl(currentSheet.gid));
+    const text=await res.text();
+
+    let data=parseSheetData(text);
+
+    if(currentSheet.name==='Ran' || currentSheet.name==='Artists'){
+        allData=data;
+        data=processRankingData(data);
+    } else {
+        allData=data;
+    }
+
+    renderData(data);
+    statusMessage.textContent="";
+}
+
+function renderSheetNavigation(){
+    sheetNav.innerHTML="";
+    SHEETS_CONFIG.forEach(sheet=>{
+        const btn=document.createElement('button');
+        btn.textContent=sheet.name;
+        btn.className= sheet.gid===currentSheet.gid
+            ? 'bg-indigo-600 text-white px-3 py-1 rounded'
+            : 'bg-gray-100 px-3 py-1 rounded';
+        btn.onclick=()=>{
+            currentSheet=sheet;
+            fetchData();
+            renderSheetNavigation();
+        };
+        sheetNav.appendChild(btn);
+    });
+}
+
+renderSheetNavigation();
+fetchData();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Biblioteca - Ultra Fast Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary: #ba0000; --bg: #121212; --surface: #1e1e1e; --text: #e0e0e0; --secondary-text: #888; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .container { max-width: 1000px; margin: auto; }
+        .chart-container { width: 100%; height: 18vh; max-height: 180px; margin-bottom: 10px; background: var(--surface); border-radius: 8px; padding: 5px; }
+        .controls { background: var(--surface); padding: 10px; border-radius: 8px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .search-wrapper { position: relative; display: flex; align-items: center; }
+        input { background: #2a2a2a; border: 1px solid #444; color: white; padding: 6px 35px 6px 12px; border-radius: 4px; font-size: 13px; width: 100%; box-sizing: border-box; height: 30px; }
+        .clear-btn { position: absolute; right: 10px; cursor: pointer; color: var(--secondary-text); font-weight: bold; font-size: 16px; user-select: none; }
+        .day-shortcuts { display: flex; gap: 4px; justify-content: space-between; }
+        .day-box { background: #333; padding: 3px 0; border-radius: 3px; cursor: pointer; font-size: 0.7em; font-weight: bold; flex: 1; text-align: center; border: 1px solid #444; min-width: 25px; }
+        .day-box:hover, .day-box.active { background: var(--primary); border-color: var(--primary); }
+        .scrobble-list { background: var(--surface); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .scrobble-row { display: flex; align-items: center; padding: 6px 12px; border-bottom: 1px solid #2a2a2a; gap: 12px; transition: background 0.2s; cursor: pointer; }
+        .scrobble-row:hover { background: rgba(255,255,255,0.03); }
+        .date-group-header { background: #252525; padding: 6px 15px; font-weight: bold; color: var(--primary); text-transform: capitalize; border-bottom: 2px solid var(--primary); font-size: 0.85em; }
+        .cover-wrapper { flex-shrink: 0; }
+        .album-cover { width: 55px; height: 55px; border-radius: 3px; object-fit: cover; display: block; }
+        .info-wrapper { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 0px; }
+        .song-title { font-weight: bold; color: #fff; font-size: 0.85em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .artist-link { color: var(--text); font-size: 0.8em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .album-name { color: var(--secondary-text); font-size: 0.75em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .execution-time { color: var(--secondary-text); font-size: 0.7em; opacity: 0.7; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; padding: 10px; }
+        .btn-pag { background: #333; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; }
+        .btn-pag:hover:not(:disabled) { background: var(--primary); }
+        .btn-pag:disabled { opacity: 0.15; }
+        #pageInfo { font-size: 0.75em; color: var(--secondary-text); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="chart-container"><canvas id="execChart"></canvas></div>
+    <div class="controls">
+        <div class="search-wrapper">
+            <input type="text" id="filterArtist" placeholder="Filtrar artista..." oninput="updateFiltersDebounced()">
+            <span class="clear-btn" onclick="clearFilter()">×</span>
+        </div>
+        <div class="day-shortcuts" id="dayShortcuts"></div>
+    </div>
+    <div class="scrobble-list" id="scrobble-container"></div>
+    <div class="pagination">
+        <button class="btn-pag" id="prevBtn" onclick="changePage(-1)">Anterior</button>
+        <span id="pageInfo">Carregando...</span>
+        <button class="btn-pag" id="nextBtn" onclick="changePage(1)">Próxima</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let allData = [];
+    let filteredData = [];
+    let currentPage = 0;
+    let filterTimeout;
+    let myChart;
+
+    async function initialLoad() {
+        let loadedData = [];
+        let offset = 0;
+        let daysFound = 0;
+
+        // Tenta carregar até encontrar 10 dias diferentes
+        while (daysFound < 10 && offset < 2000) {
+            const { data, error } = await _supabase.from('recent_scrobbles_view')
+                .select('*').order('date', { ascending: false })
+                .range(offset, offset + 499);
+            
+            if (error || !data || data.length === 0) break;
+            
+            loadedData = [...loadedData, ...data];
+            const uniqueDays = new Set(loadedData.map(item => new Date(item.date).toLocaleDateString('pt-BR')));
+            daysFound = uniqueDays.size;
+            offset += 500;
+        }
+
+        allData = loadedData;
+        applyFilters(true);
+        loadFullLibrary();
+    }
+
+    async function loadFullLibrary() {
+        const { data, error } = await _supabase.from('recent_scrobbles_view').select('*').order('date', { ascending: false });
+        if (!error) { allData = data; applyFilters(false); }
+    }
+
+    function groupData(dataSet) {
+        const groups = {};
+        dataSet.forEach(item => {
+            const dateKey = new Date(item.date).toLocaleDateString('pt-BR');
+            if (!groups[dateKey]) groups[dateKey] = [];
+            groups[dateKey].push(item);
+        });
+        return Object.values(groups);
+    }
+
+    function updateChart() {
+        // O gráfico sempre usa allData (global) para garantir os 10 dias de navegação
+        const globalGroups = groupData(allData).slice(0, 10).reverse();
+        const labels = globalGroups.map(g => new Date(g[0].date).getDate());
+        const counts = globalGroups.map(g => g.length);
+
+        if (myChart) myChart.destroy();
+        myChart = new Chart(document.getElementById('execChart').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{ data: counts, backgroundColor: '#ba0000', borderRadius: 2 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { display: false, beginAtZero: true },
+                    x: { ticks: { color: '#888', font: { size: 9 } }, grid: { display: false } }
+                }
+            },
+            plugins: [{
+                afterDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    chart.data.datasets[0].data.forEach((val, i) => {
+                        const meta = chart.getDatasetMeta(0);
+                        const x = meta.data[i].x;
+                        const base = meta.data[i].base;
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 9px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(val, x, base - 5);
+                    });
+                }
+            }]
+        });
+    }
+
+    function renderDayShortcuts() {
+        const container = document.getElementById('dayShortcuts');
+        const groups = groupData(filteredData).slice(0, 10);
+        container.innerHTML = groups.map((g, i) => 
+            `<div class="day-box ${currentPage===i?'active':''}" onclick="goToDay(${i})">${new Date(g[0].date).getDate()}</div>`
+        ).join('');
+    }
+
+    function renderList() {
+        const container = document.getElementById('scrobble-container');
+        const groups = groupData(filteredData);
+        const dayData = groups[currentPage];
+        if (!dayData) { container.innerHTML = "<div style='padding:20px;text-align:center'>Nenhum dado.</div>"; return; }
+
+        const dateObj = new Date(dayData[0].date);
+        const header = dateObj.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
+        container.innerHTML = `<div class="date-group-header">${header}</div>` + 
+            dayData.map(item => `
+                <div class="scrobble-row" onclick="openDeezer('${item.artist.replace(/'/g, "\\'")}', '${(item.album||"").replace(/'/g, "\\'")}')">
+                    <div class="cover-wrapper"><img src="${item.album_art || ''}" class="album-cover" onerror="this.src='https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'"></div>
+                    <div class="info-wrapper">
+                        <div class="song-title">${item.song}</div>
+                        <div class="artist-link">${item.artist}</div>
+                        <div class="album-name">${item.album || '—'}</div>
+                        <div class="execution-time">${new Date(item.date).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}</div>
+                    </div>
+                </div>
+            `).join('');
+    }
+
+    function applyFilters(render = true) {
+        const a = document.getElementById('filterArtist').value.toLowerCase();
+        filteredData = allData.filter(item => (item.artist || '').toLowerCase().includes(a));
+        if (render) { currentPage = 0; renderList(); renderDayShortcuts(); updateChart(); updateUI(); }
+    }
+
+    function goToDay(i) { currentPage = i; renderList(); renderDayShortcuts(); updateUI(); window.scrollTo(0, 0); }
+    function clearFilter() { document.getElementById('filterArtist').value = ''; applyFilters(true); }
+    function changePage(d) { currentPage += d; renderList(); renderDayShortcuts(); updateUI(); window.scrollTo(0, 0); }
+    function updateFiltersDebounced() { clearTimeout(filterTimeout); filterTimeout = setTimeout(() => applyFilters(true), 400); }
+    function updateUI() {
+        const total = groupData(filteredData).length || 1;
+        document.getElementById('pageInfo').innerText = `Dia ${currentPage + 1} de ${total}`;
+        document.getElementById('prevBtn').disabled = currentPage === 0;
+        document.getElementById('nextBtn').disabled = (currentPage + 1) >= total;
+    }
+
+    function openDeezer(artist, album) {
+        if (!album || album === '—') { window.open(`https://www.deezer.com/search/${encodeURIComponent(artist)}`, '_blank'); return; }
+        const cb = 'dz_' + Date.now();
+        window[cb] = (d) => {
+            if (d.data && d.data[0]) {
+                window.location.href = `deezer://www.deezer.com/album/${d.data[0].id}`;
+                setTimeout(() => { if (document.hasFocus()) window.open(d.data[0].link, '_blank'); }, 500);
+            } else window.open(`https://www.deezer.com/search/${encodeURIComponent(artist + " " + album)}`, '_blank');
+            delete window[cb];
+        };
+        const s = document.createElement('script');
+        s.src = `https://api.deezer.com/search/album?q=${encodeURIComponent(`album:"${album}" artist:"${artist}"`)}&output=jsonp&callback=${cb}`;
+        document.body.appendChild(s);
+    }
+
+    initialLoad();
+</script>
+</body>
+</html>

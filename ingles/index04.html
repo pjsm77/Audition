@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Quest - Kids Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #58cc02;
+            --primary-dark: #46a302;
+            --wrong: #ff4b4b;
+            --correct: #58cc02;
+            --bg: #ffffff;
+            --text: #4b4b4b;
+            --timer-color: #58cc02;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: var(--text);
+            overflow: hidden;
+        }
+
+        #timer-container {
+            width: 100%;
+            height: 8px;
+            background: #e5e5e5;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+        }
+        #timer-bar {
+            width: 100%;
+            height: 100%;
+            background: var(--timer-color);
+            transition: width 0.1s linear, background 0.3s;
+        }
+
+        #app-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 0 #e5e5e5;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            border: 2px solid #e5e5e5;
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #afafaf;
+        }
+
+        #word-display {
+            font-size: 3rem;
+            margin: 20px 0;
+            color: #3c3c3c;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .audio-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 var(--primary-dark);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .option {
+            padding: 14px;
+            border: 2px solid #e5e5e5;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 #e5e5e5;
+        }
+
+        .option.correct { background-color: #d7ffb8 !important; border-color: var(--correct) !important; box-shadow: 0 4px 0 var(--primary-dark); }
+        .option.wrong { background-color: #ffdfe0 !important; border-color: var(--wrong) !important; box-shadow: 0 4px 0 #e40000; }
+        .disabled { pointer-events: none; }
+
+        /* Botão Config Visível */
+        #config-trigger {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #afafaf;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border: 2px solid #e5e5e5;
+            z-index: 1001;
+        }
+
+        /* Painel Config */
+        #config-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.3);
+            z-index: 2000;
+            width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .lesson-selector {
+            text-align: left;
+            margin: 15px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+
+        .lesson-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .config-item { margin-bottom: 15px; text-align: left; }
+        .config-item label { display: block; font-size: 0.8rem; margin-bottom: 5px; color: #888; }
+        input[type="number"] { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; }
+        
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="timer-container"><div id="timer-bar"></div></div>
+
+<div id="app-container">
+    <div class="score-board">
+        <span>ACERTOS: <span id="total-score">0</span></span>
+        <span id="grade-display">NOTA: <span id="current-grade">0.0</span></span>
+        <span>🔥 <span id="streak">0</span> | ⌛ <span id="missed-count">0</span></span>
+    </div>
+
+    <div id="word-display">
+        <span id="current-en">...</span>
+        <button class="audio-btn" onclick="speak()"><i class="fas fa-volume-up"></i></button>
+    </div>
+
+    <div class="options-grid" id="options-container"></div>
+</div>
+
+<div id="config-trigger" onclick="openConfig()"><i class="fas fa-cog fa-lg"></i></div>
+
+<div id="config-panel">
+    <h3 style="margin-top:0">Configurações</h3>
+    
+    <div class="lesson-selector">
+        <label style="font-size: 0.8rem; color: #888;">Selecione as Lições:</label>
+        <div style="margin: 10px 0;">
+            <button onclick="toggleAllLessons(true)" style="font-size: 10px;">Todas</button>
+            <button onclick="toggleAllLessons(false)" style="font-size: 10px;">Nenhuma</button>
+        </div>
+        <div id="lesson-list">
+            </div>
+    </div>
+
+    <div class="config-item">
+        <label>Tempo Verde (ms):</label>
+        <input type="number" id="time-green" value="5000">
+    </div>
+    <div class="config-item">
+        <label>Tempo Amarelo (ms):</label>
+        <input type="number" id="time-yellow" value="10000">
+    </div>
+    <div class="config-item">
+        <label>Tempo Limite (ms):</label>
+        <input type="number" id="time-limit" value="15000">
+    </div>
+
+    <button class="btn-action" onclick="saveAndClose()">SALVAR E REINICIAR</button>
+</div>
+
+<script>
+    const dictionary = [
+        { en: 'the', pt: 'o, a, os, as', weight: 1, lesson: 1 },
+        { en: 'a', pt: 'um, uma', weight: 1, lesson: 1 },
+        { en: 'is', pt: 'é', weight: 1, lesson: 1 },
+        { en: 'it', pt: 'isso, isto', weight: 1, lesson: 1 },
+        { en: 'in', pt: 'em', weight: 1, lesson: 1 },
+        { en: 'of', pt: 'da, de, do', weight: 1, lesson: 1 },
+        { en: 'that', pt: 'aquilo, aquele, aquela', weight: 1, lesson: 1 },
+        { en: 'to', pt: 'para', weight: 1, lesson: 1 },
+        { en: 'and', pt: 'e', weight: 1, lesson: 1 },
+        { en: 'you', pt: 'você, tu', weight: 1, lesson: 1 },
+        { en: 'he', pt: 'ele', weight: 1, lesson: 2 },
+        { en: 'was', pt: 'foi, era', weight: 1, lesson: 2 },
+        { en: 'for', pt: 'para', weight: 1, lesson: 2 },
+        { en: 'am', pt: 'sou, estou', weight: 1, lesson: 2 },
+        { en: 'are', pt: 'são', weight: 1, lesson: 2 },
+        { en: 'with', pt: 'com', weight: 1, lesson: 2 },
+        { en: 'as', pt: 'como', weight: 1, lesson: 2 },
+        { en: 'I', pt: 'eu', weight: 1, lesson: 2 },
+        { en: 'his', pt: 'seu', weight: 1, lesson: 2 },
+        { en: 'they', pt: 'eles, elas', weight: 1, lesson: 2 },
+        { en: 'be', pt: 'ser, estar', weight: 1, lesson: 3 },
+        { en: 'at', pt: 'em, no, na', weight: 1, lesson: 3 },
+        { en: 'one', pt: 'um', weight: 1, lesson: 3 },
+        { en: 'have', pt: 'ter', weight: 1, lesson: 3 },
+        { en: 'this', pt: 'isto, isso', weight: 1, lesson: 3 },
+        { en: 'from', pt: 'de', weight: 1, lesson: 3 },
+        { en: 'or', pt: 'ou', weight: 1, lesson: 3 },
+        { en: 'had', pt: 'tinha, tive, teve', weight: 1, lesson: 3 },
+        { en: 'by', pt: 'por', weight: 1, lesson: 3 },
+        { en: 'hot', pt: 'quente', weight: 1, lesson: 3 }
+    ];
+
+    let currentWord, lastWord, score = 0, totalAttempts = 0, streak = 0, missedCount = 0;
+    let timerInterval, startTime;
+    let config = { green: 5000, yellow: 10000, limit: 15000 };
+    let selectedLessons = [];
+
+    // Inicialização Inteligente
+    function init() {
+        const lessons = [...new Set(dictionary.map(item => item.lesson))].sort((a,b) => a-b);
+        const maxLesson = Math.max(...lessons);
+        selectedLessons = [maxLesson]; // Padrão: Apenas a lição mais alta
+        
+        buildLessonList(lessons, maxLesson);
+        nextQuestion();
+    }
+
+    function buildLessonList(lessons, maxLesson) {
+        const container = document.getElementById('lesson-list');
+        container.innerHTML = '';
+        lessons.forEach(l => {
+            const div = document.createElement('div');
+            div.className = 'lesson-item';
+            div.innerHTML = `<input type="checkbox" value="${l}" ${l === maxLesson ? 'checked' : ''} class="lesson-cb"> Lição ${l}`;
+            container.appendChild(div);
+        });
+    }
+
+    function toggleAllLessons(state) {
+        document.querySelectorAll('.lesson-cb').forEach(cb => cb.checked = state);
+    }
+
+    function saveAndClose() {
+        selectedLessons = Array.from(document.querySelectorAll('.lesson-cb:checked')).map(cb => parseInt(cb.value));
+        if(selectedLessons.length === 0) return alert("Selecione ao menos uma lição!");
+        
+        config.green = parseInt(document.getElementById('time-green').value);
+        config.yellow = parseInt(document.getElementById('time-yellow').value);
+        config.limit = parseInt(document.getElementById('time-limit').value);
+        
+        document.getElementById('config-panel').style.display = 'none';
+        restartGame();
+    }
+
+    function restartGame() {
+        score = 0; totalAttempts = 0; streak = 0; missedCount = 0;
+        updateDisplay();
+        nextQuestion();
+    }
+
+    function nextQuestion() {
+        clearInterval(timerInterval);
+        let pool = [];
+        dictionary.filter(w => selectedLessons.includes(w.lesson)).forEach(item => {
+            for(let i=0; i<item.weight; i++) pool.push(item);
+        });
+
+        let filteredPool = pool.filter(w => w.en !== lastWord?.en);
+        if (filteredPool.length === 0) filteredPool = pool;
+        
+        currentWord = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+        lastWord = currentWord;
+
+        document.getElementById('current-en').innerText = currentWord.en;
+        document.getElementById('timer-bar').style.width = '100%';
+        document.getElementById('timer-bar').style.background = '#58cc02';
+        
+        generateOptions();
+        speak();
+        startTimer();
+    }
+
+    function startTimer() {
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            let elapsed = Date.now() - startTime;
+            let remaining = Math.max(0, config.limit - elapsed);
+            let percent = (remaining / config.limit) * 100;
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = percent + '%';
+
+            if (elapsed < config.green) bar.style.background = '#58cc02';
+            else if (elapsed < config.yellow) bar.style.background = '#ffa500';
+            else bar.style.background = '#ff4b4b';
+
+            if (elapsed >= config.limit) timeUp();
+        }, 100);
+    }
+
+    function timeUp() {
+        clearInterval(timerInterval);
+        missedCount++;
+        streak = 0;
+        showCorrectAnswer();
+        updateDisplay();
+        setTimeout(nextQuestion, 4000);
+    }
+
+    function generateOptions() {
+        const container = document.getElementById('options-container');
+        container.innerHTML = '';
+        let choices = [currentWord.pt];
+        let others = dictionary.filter(w => w.pt !== currentWord.pt).map(w => w.pt).sort(() => Math.random() - 0.5);
+        choices.push(...others.slice(0, 3));
+        choices.sort(() => Math.random() - 0.5);
+
+        choices.forEach(text => {
+            const btn = document.createElement('div');
+            btn.className = 'option';
+            btn.innerText = text;
+            btn.onclick = () => checkAnswer(text, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    function checkAnswer(selected, element) {
+        clearInterval(timerInterval);
+        let elapsed = Date.now() - startTime;
+        totalAttempts++;
+        const options = document.querySelectorAll('.option');
+        options.forEach(opt => opt.classList.add('disabled'));
+
+        if (selected === currentWord.pt) {
+            element.classList.add('correct');
+            streak++;
+            if (elapsed < config.green) score += 1;
+            else if (elapsed < config.yellow) score += 0.7;
+            else score += 0.5;
+            
+            updateDisplay();
+            setTimeout(nextQuestion, 2000);
+        } else {
+            element.classList.add('wrong');
+            streak = 0;
+            currentWord.weight += 3; 
+            showCorrectAnswer();
+            updateDisplay();
+            setTimeout(nextQuestion, 4000);
+        }
+    }
+
+    function showCorrectAnswer() {
+        document.querySelectorAll('.option').forEach(opt => {
+            if(opt.innerText === currentWord.pt) opt.classList.add('correct');
+            opt.classList.add('disabled');
+        });
+    }
+
+    function updateDisplay() {
+        document.getElementById('total-score').innerText = score.toFixed(0);
+        document.getElementById('streak').innerText = streak;
+        document.getElementById('missed-count').innerText = missedCount;
+        if (totalAttempts > 0) {
+            let grade = (score / totalAttempts) * 10;
+            const ge = document.getElementById('current-grade');
+            ge.innerText = grade.toFixed(1);
+            ge.parentElement.style.color = grade < 7 ? "#ff4b4b" : (grade < 9 ? "#ffa500" : "#58cc02");
+        }
+    }
+
+    function speak() {
+        const utterance = new SpeechSynthesisUtterance(currentWord.en);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function openConfig() {
+        if(prompt("Senha:") === "1234") {
+            document.getElementById('config-panel').style.display = 'block';
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>

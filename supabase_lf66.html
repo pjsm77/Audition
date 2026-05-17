@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sincronizador Pro - DB Final</title>
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #2dd4bf; --border: #334155; --accent: #818cf8; --warning: #fbbf24; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 10px; margin: 0; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 15px; }
+        .card { background: var(--card); padding: 18px; border-radius: 12px; border: 1px solid var(--border); }
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; }
+        label { font-size: 0.65rem; margin-bottom: 4px; color: #94a3b8; text-transform: uppercase; font-weight: bold; }
+        input, select { background: #020617; border: 1px solid var(--border); padding: 10px; border-radius: 8px; color: white; font-size: 0.95rem; width: 100%; box-sizing: border-box; }
+        .status-badge { padding: 8px; border-radius: 6px; font-size: 0.75rem; text-align: center; margin-bottom: 12px; font-weight: bold; display: none; }
+        .found { background: rgba(251, 191, 36, 0.15); color: var(--warning); border: 1px solid var(--warning); }
+        .new { background: rgba(45, 212, 191, 0.15); color: var(--primary); border: 1px solid var(--primary); }
+        .section-box { background: #020617; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+        .section-title { font-size: 0.7rem; color: var(--primary); border-bottom: 1px solid #1e293b; padding-bottom: 5px; margin-bottom: 8px; font-weight: bold; }
+        .data-row { display: flex; justify-content: space-between; font-size: 0.8rem; padding: 3px 0; }
+        .track-list { max-height: 180px; overflow-y: auto; font-size: 0.75rem; }
+        .track-item { display: grid; grid-template-columns: 25px 1fr 50px 80px 60px; gap: 5px; align-items: center; padding: 6px 0; border-bottom: 1px solid #1e293b; }
+        .btn-main { width: 100%; padding: 14px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; background: var(--primary); color: #0f172a; text-transform: uppercase; }
+        .search-link { font-size: 0.7rem; color: var(--accent); text-decoration: underline; margin-top: 4px; display: inline-block; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h3 style="text-align: center; color: var(--primary); margin: 0 0 15px 0;">Sincronizador Master</h3>
+        <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+            <button class="btn-main" style="margin:0; background: var(--accent); color: white;" onclick="pasteFromClipboard()">📋 COLAR</button>
+            <button class="btn-main" style="margin:0; background: #475569; color: white;" onclick="location.reload()">🗑️ LIMPAR</button>
+        </div>
+        <div class="form-group">
+            <label>Link Deezer</label>
+            <input type="text" id="deezer_url" placeholder="https://..." oninput="processUrl(this.value)">
+        </div>
+        <div id="status-msg" class="status-badge"></div>
+        <div id="config-panel" class="hidden">
+            <div class="form-group">
+                <label>País</label>
+                <input list="countries_list" id="country_search" oninput="onCountrySelect(this.value)">
+                <datalist id="countries_list"></datalist>
+                <input type="hidden" id="id_country">
+            </div>
+            <div id="city_group" class="form-group hidden">
+                <label>Cidade</label>
+                <select id="id_city" onchange="updateReview()"></select>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Idioma</label>
+                    <select id="language" onchange="updateReview()">
+                        <option value="ingles">Inglês</option>
+                        <option value="portugues" selected>Português</option>
+                        <option value="espanhol">Espanhol</option>
+                        <option value="instrumental">Instrumental</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Rating Artista</label>
+                    <select id="art_rating" onchange="updateReview()">
+                        <option value="1">⭐ (1)</option>
+                        <option value="2">⭐⭐ (2)</option>
+                        <option value="3">⭐⭐⭐ (3)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-panel" class="hidden">
+        <div class="section-box">
+            <div class="section-title">ARTISTA</div>
+            <div id="review_artist"></div>
+            <a id="google_search" class="search-link" target="_blank">🔍 Pesquisar Origem</a>
+        </div>
+        <div class="section-box">
+            <div class="section-title">ÁLBUM</div>
+            <div id="review_album"></div>
+        </div>
+        <div class="section-box">
+            <div class="section-title">FAIXAS</div>
+            <div id="review_tracks" class="track-list"></div>
+        </div>
+        <button id="btn_save" class="btn-main" onclick="saveToDatabase()">SINCRONIZAR NO SUPABASE</button>
+    </div>
+</div>
+
+<script>
+    const URL_SB = 'https://qdawxpcwkadhfwqhnpsd.supabase.co';
+    const KEY_SB = 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2';
+
+    let rawData = { album: null, tracks: [] };
+    let globalCountries = [];
+    window.dbRef = null;
+
+    function setStatus(text, type) {
+        const el = document.getElementById('status-msg');
+        el.innerText = text; el.className = `status-badge ${type}`; el.style.display = 'block';
+    }
+
+    async function processUrl(url) {
+        const id = url.match(/album\/(\d+)/)?.[1];
+        if (!id) return;
+        setStatus("🔍 Verificando banco...", "new");
+        try {
+            const res = await fetch(`${URL_SB}/rest/v1/tbl_albums?deezer_id_album=eq.${id}&select=*,tbl_artists(*)`, {
+                headers: { 'apikey': KEY_SB, 'Authorization': `Bearer ${KEY_SB}` }
+            });
+            const data = await res.json();
+            window.dbRef = (data && data.length > 0) ? data[0] : null;
+            fetchDeezer(id);
+        } catch (e) { fetchDeezer(id); }
+    }
+
+    function fetchDeezer(id) {
+        const s = document.createElement('script');
+        s.src = `https://api.deezer.com/album/${id}?output=jsonp&callback=handleDeezer`;
+        document.body.appendChild(s);
+    }
+
+    async function handleDeezer(data) {
+        data.deezer_id_cover = data.cover_xl ? data.cover_xl.split('/cover/')[1]?.split('/')[0] : null;
+        data.release_year = data.release_date ? data.release_date.split('-')[0] : null;
+        rawData.album = data;
+        rawData.tracks = data.tracks.data;
+        
+        document.getElementById('config-panel').classList.remove('hidden');
+        document.getElementById('review-panel').classList.remove('hidden');
+        document.getElementById('google_search').href = `https://www.google.com/search?q=${encodeURIComponent(`cidade e país de origem do artista ${data.artist.name} que lançou o álbum ${data.title}`)}`;
+
+        if (window.dbRef) {
+            setStatus("⚠️ ÁLBUM JÁ EXISTE", "found");
+            fillConfig(window.dbRef.tbl_artists);
+        } else {
+            setStatus("✨ NOVO CADASTRO", "new");
+            const resArt = await fetch(`${URL_SB}/rest/v1/tbl_artists?deezer_id=eq.${data.artist.id}`, { headers: { apikey: KEY_SB }});
+            const artData = await resArt.json();
+            if(artData.length > 0) fillConfig(artData[0]);
+        }
+        await loadCountries();
+        updateReview();
+    }
+
+    function updateReview() {
+        if (!rawData.album) return;
+        const cityName = document.getElementById('id_city').options[document.getElementById('id_city').selectedIndex]?.text || "-";
+        document.getElementById('review_artist').innerHTML = `<div class="data-row"><span>Nome:</span> <b>${rawData.album.artist.name}</b></div><div class="data-row"><span>Cidade:</span> <b>${cityName}</b></div>`;
+        document.getElementById('review_album').innerHTML = `<div class="data-row"><span>Título:</span> <b>${rawData.album.title}</b></div><div class="data-row"><span>Ano:</span> <b>${rawData.album.release_year}</b></div>`;
+        document.getElementById('review_tracks').innerHTML = rawData.tracks.map(t => `<div class="track-item"><span>${t.track_position}</span><span>${t.title}</span><span>${Math.floor(t.duration/60)}:${(t.duration%60).toString().padStart(2,'0')}</span><span style="font-size:0.6rem">${t.id}</span><select id="rate_${t.id}" style="padding:2px; font-size:0.7rem"><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option></select></div>`).join('');
+    }
+
+    async function loadCountries() {
+        if (globalCountries.length > 0) return;
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_countries?select=*&order=portuguese_name`, { headers: { apikey: KEY_SB } });
+        globalCountries = await res.json();
+        document.getElementById('countries_list').innerHTML = globalCountries.map(c => `<option value="${c.portuguese_name}">`).join('');
+    }
+
+    async function onCountrySelect(val, db = null) {
+        const country = globalCountries.find(c => c.portuguese_name === val);
+        if (!country) return;
+        document.getElementById('id_country').value = country.id_country;
+        const res = await fetch(`${URL_SB}/rest/v1/tbl_cities?id_country=eq.${country.id_country}&order=name`, { headers: { apikey: KEY_SB } });
+        const cities = await res.json();
+        const sel = document.getElementById('id_city');
+        document.getElementById('city_group').classList.remove('hidden');
+        sel.innerHTML = '<option value="">Selecione...</option>' + cities.map(c => `<option value="${c.id_city}">${c.name}</option>`).join('');
+        if(db && db.id_city) sel.value = db.id_city;
+        updateReview();
+    }
+
+    function fillConfig(art) {
+        document.getElementById('language').value = art.language || "portugues";
+        document.getElementById('art_rating').value = art.rating || "1";
+        const country = globalCountries.find(c => c.id_country == art.id_country);
+        if(country) {
+            document.getElementById('country_search').value = country.portuguese_name;
+            onCountrySelect(country.portuguese_name, art);
+        }
+    }
+
+    async function saveToDatabase() {
+        const btn = document.getElementById('btn_save');
+        btn.disabled = true; btn.innerText = "⏳ GRAVANDO...";
+        try {
+            const cityId = document.getElementById('id_city').value;
+            if (!cityId) throw new Error("Selecione a cidade!");
+
+            const headers = { 'apikey': KEY_SB, 'Authorization': `Bearer ${KEY_SB}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+            // 1. ARTISTA
+            const resArt = await fetch(`${URL_SB}/rest/v1/tbl_artists`, {
+                method: 'POST',
+                headers: { ...headers, 'Prefer': 'resolution=merge-duplicates,return=representation' },
+                body: JSON.stringify({
+                    deezer_id: String(rawData.album.artist.id),
+                    name: rawData.album.artist.name,
+                    id_city: parseInt(cityId),
+                    language: document.getElementById('language').value,
+                    rating: parseInt(document.getElementById('art_rating').value),
+                    deezer_photo: rawData.album.artist.picture_xl
+                })
+            });
+            const artData = await resArt.json();
+            const idArt = artData[0].id_artist;
+
+            // 2. ÁLBUM (Colunas: name, year)
+            const resAlb = await fetch(`${URL_SB}/rest/v1/tbl_albums`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({
+                    id_artist: idArt,
+                    name: rawData.album.title,
+                    year: parseInt(rawData.album.release_year),
+                    deezer_id_album: String(rawData.album.id),
+                    deezer_id_cover: rawData.album.deezer_id_cover
+                })
+            });
+            const albData = await resAlb.json();
+            const idAlb = albData[0].id_album;
+
+            // 3. FAIXAS (Colunas: id_album, id_artist, name, track_number, rating, duration, deezer_id_track)
+            const tracks = rawData.tracks.map(t => ({
+                id_album: idAlb,
+                id_artist: idArt,
+                name: t.title,
+                track_number: t.track_position,
+                duration: t.duration,
+                deezer_id_track: String(t.id),
+                rating: parseInt(document.getElementById(`rate_${t.id}`).value)
+            }));
+
+            await fetch(`${URL_SB}/rest/v1/tbl_tracks`, {
+                method: 'POST',
+                headers: { ...headers, 'Prefer': '' },
+                body: JSON.stringify(tracks)
+            });
+
+            alert("✅ Sucesso!");
+            location.reload();
+        } catch (e) { 
+            alert("Erro: " + e.message); 
+            btn.disabled = false; btn.innerText = "TENTAR NOVAMENTE"; 
+        }
+    }
+
+    async function pasteFromClipboard() {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('deezer_url').value = text;
+        processUrl(text);
+    }
+</script>
+</body>
+</html>
