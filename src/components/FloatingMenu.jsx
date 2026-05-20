@@ -13,7 +13,7 @@ export default function FloatingMenu() {
     setIsOpen(false);
   };
 
-  // Estilos inline para garantir o posicionamento no canto inferior esquerdo
+  // Estilos inline para fixar o menu no canto inferior esquerdo
   const menuContainerStyle = {
     position: 'fixed',
     bottom: '20px',
@@ -60,7 +60,7 @@ export default function FloatingMenu() {
 
   return (
     <div style={menuContainerStyle}>
-      {/* Opções do Menu */}
+      {/* Todas as opções originais restauradas */}
       <div style={dropdownStyle}>
         <div 
           style={itemStyle} 
@@ -80,7 +80,7 @@ export default function FloatingMenu() {
         </div>
       </div>
 
-      {/* Botão de abrir/fechar com as propriedades SVG corrigidas (CamelCase) */}
+      {/* Botão flutuante com propriedades SVG corrigidas para o React */}
       <button style={buttonStyle} onClick={toggleMenu}>
         <svg 
           xmlns="http://www.w3.org/2000/svg" 

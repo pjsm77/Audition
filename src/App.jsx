@@ -1,7 +1,7 @@
 // src/App.jsx
 import { Routes, Route } from 'react-router-dom';
-import Artists from './pages/Artists'; 
-import Recent from './pages/Recent';
+import Artists from './pages/artists'; 
+import Recent from './pages/recent';
 import FloatingMenu from './components/FloatingMenu';
 
 export default function App() {
@@ -14,7 +14,7 @@ export default function App() {
         <Route path="/recent" element={<Recent />} />
       </Routes>
       
-      {/* O menu fixo que aparecerá em todas as telas */}
+      {/* O menu fixo com todas as opções */}
       <FloatingMenu />
     </>
   );
