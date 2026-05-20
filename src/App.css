@@ -2,107 +2,170 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Roboto:wght@400;700&display=swap');
 
 :root { 
-  --primary: #1DB954; 
-  --bg: #ffffff; 
-  --row-even: #f8f8f8;
-  --text: #222;
-  --header-bg: #f1f1f1;
-  --border: #e0e0e0;
+    --primary: #1DB954; 
+    --bg: #ffffff; 
+    --row-even: #f8f8f8;
+    --text: #222;
+    --header-bg: #f1f1f1;
+    --border: #e0e0e0;
 }
 
 body { 
-  margin: 0; 
-  padding: 0; 
-  background-color: var(--bg); 
-  color: var(--text); 
-  font-family: 'Bebas Neue', cursive; 
-  letter-spacing: 0.2px; 
-  overflow: hidden; 
+    font-family: 'Bebas Neue', cursive; 
+    background-color: var(--bg); 
+    color: var(--text); 
+    margin: 0; 
+    padding: 0; 
+    overflow: hidden; 
+    letter-spacing: 0.2px;
 }
 
-/* Wrapper da Tabela */
-.table-wrapper { 
-  width: 100%; 
-  height: 94vh; 
-  overflow: auto; 
-  border: 1px solid var(--border); 
-  position: relative; 
-  background: white; 
+/* Estrutura da Tabela e Wrappers */
+.table-wrapper {
+    width: 100%;
+    height: 94vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    position: relative;
+    background: #fff;
 }
 
-table { 
-  border-collapse: collapse; 
-  border-spacing: 0; 
-  width: 100%; 
-  font-size: 12px; 
-  min-width: 1000px; 
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+    font-size: 12px;
+    min-width: 1200px;
 }
 
-/* Densidade Vertical Compacta */
-th { 
-  background: var(--header-bg); 
-  position: sticky; 
-  top: 0; 
-  z-index: 900; 
-  padding: 4px 1px !important; 
-  border-bottom: 2px solid #ddd; 
-  text-align: left; 
-  font-family: 'Bebas Neue', cursive;
+th {
+    background: var(--header-bg);
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    padding: 4px 1px;
+    border-bottom: 2px solid #ddd;
+    text-align: left;
+    user-select: none;
+    font-family: 'Bebas Neue', cursive;
 }
 
-td { 
-  padding: 3px 1px !important; 
-  border-bottom: 1px solid var(--border); 
-  white-space: nowrap; 
-  text-align: left; 
-  line-height: 1.2; 
-  font-family: 'Bebas Neue', cursive;
+td {
+    padding: 3px 1px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    text-align: left;
+    line-height: 1.2;
+    font-family: 'Bebas Neue', cursive;
 }
 
-tbody tr:nth-child(even) td { 
-  background-color: var(--row-even); 
+/* Barras de Fidelidade Ocultadas no CSS Simplificado */
+.step {
+    height: 100%;
+    border-radius: 0.3px;
+}
+.score-1 { background-color: #e97b78; }
+.score-2 { background-color: #ffaa33; }
+.score-3 { background-color: #ffcc33; }
+.score-4 { background-color: #b7d13e; }
+.score-5 { background-color: #86d03a; }
+.score-6 { background-color: #6dbe99; }
+
+/* Controles de Rodapé */
+.footer-controls {
+    height: 6vh;
+    background: #f1f1f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid #ddd;
+    padding: 0 10px;
+    gap: 10px;
+    box-sizing: border-box;
 }
 
-/* Colunas Sticky Fixas com Offsets Originais */
-.col-sticky-1 { position: sticky; left: 0; z-index: 401; width: 28px; background: white; border-right: 1px solid #ddd; text-align: center; color: var(--primary); }
-.col-sticky-2 { position: sticky; left: 29px; z-index: 400; width: 28px; background: #fff; border-right: 1px solid #ddd; text-align: right; padding-right: 4px !important; }
-.col-sticky-3 { position: sticky; left: 58px; z-index: 400; width: 32px; background: #fff; border-right: 1px solid #ddd; text-align: center; }
-.col-sticky-4 { position: sticky; left: 91px; z-index: 400; width: 28px; background: #fff; border-right: 1px solid #ddd; text-align: center; }
-.col-sticky-5 { position: sticky; left: 120px; z-index: 400; min-width: 90px; max-width: 140px; background: white; border-right: 2px solid #ccc; overflow: hidden; text-overflow: ellipsis; }
-
-/* Componentes do Rodapé */
-.footer-controls { 
-  height: 6vh; 
-  background: #f9f9f9; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  border-top: 1px solid #ddd; 
-  padding: 0 5px; 
-  gap: 10px; 
+.btn-footer {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 2px 8px;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    font-family: 'Bebas Neue', cursive;
 }
 
-.btn-footer { 
-  background: none; 
-  border: none; 
-  font-size: 20px; 
-  cursor: pointer; 
-  padding: 2px 8px; 
-  display: flex; 
-  align-items: center; 
-  height: 100%; 
-  font-family: 'Bebas Neue', cursive;
+.pagination-select {
+    font-family: 'Bebas Neue';
+    border-radius: 4px;
+    font-size: 15px;
+    height: 26px;
+    padding: 0 4px;
 }
 
-.pagination-select { 
-  font-family: 'Bebas Neue', cursive; 
-  border-radius: 5px; 
-  padding: 1px; 
-  font-size: 16px; 
-  height: 28px; 
+/* Modais e Overlays Extras que sumiram */
+#search-overlay {
+    position: fixed;
+    bottom: 45px;
+    left: 0;
+    width: 100%;
+    background: white;
+    padding: 8px 15px;
+    box-shadow: 0 -3px 10px rgba(0,0,0,0.15);
+    z-index: 999;
+    display: flex;
+    gap: 10px;
+    box-sizing: border-box;
 }
 
-/* Modais e Textos com Roboto */
-.modal-content, .detail-overlay-content {
-  font-family: 'Roboto', sans-serif;
+#search-overlay input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    fontSize: 14px;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Overlay Lateral de Detalhes */
+.detail-overlay {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 100%;
+    max-width: 420px;
+    height: 100vh;
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    box-shadow: -5px 0 25px rgba(0,0,0,0.5);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Roboto', sans-serif;
+}
+
+.detail-header {
+    padding: 15px;
+    background: #111;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+}
+
+/* Customização de Scrollbar Original */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
