@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Artists() {
-  // --- ESTADOS GLOBAIS DA PÁGINA ---\
+  // --- ESTADOS GLOBAIS DA PÁGINA ---
   const [fullRawData, setFullRawData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,28 +137,60 @@ export default function Artists() {
     setFilteredData(result);
   }, [fullRawData, searchTerm, currentFilter, sortCol, sortAsc, filterRatingActive, filterZeroScoreActive, filterHighlightActive]);
 
-  // 3. Paginação
-  useEffect(() => {
-    setPagedData(filteredData.slice(offset, offset + limit));
-  }, [filteredData, offset]);
-
   // 4. Carregar Detalhes do Artista (Overlay lateral)
   const openArtistDetails = async (artistName) => {
     setSelectedArtist(artistName);
     setDetailData({ songs: [], albums: [] });
     
     const [resSongs, resAlbums] = await Promise.all([
-      supabase.from('v_songs_ranking').select('track_name, album_name, scrobbles').eq('artist_name', artistName),
-      supabase.from('v_albums_ranking').select('album_name, scrobbles').eq('artist_name', artistName)
+      supabase.from('scrobbles_unificados').select('ranking_no_artista_unico, ranking_geral_unico, total_scrobbles, dias_ultima_execucao, track_name').eq('artist', artistName.toLowerCase()),
+      supabase.from('scrobbles_test').select('album').eq('artist', artistName)
     ]);
 
+    const formattedSongs = (resSongs.data || []).map(item => ({
+      rank_artist: item.ranking_no_artista_unico,
+      rank_global: item.ranking_geral_unico,
+      count: item.total_scrobbles,
+      days: item.dias_ultima_execucao,
+      title: item.track_name
+    }));
+
+    const aCnt = {};
+    (resAlbums.data || []).forEach(r => {
+      const a = r.album || '[Desconhecido]';
+      aCnt[a] = (aCnt[a] || 0) + 1;
+    });
+    const formattedAlbums = Object.entries(aCnt).map(([title, count]) => ({ title, count }));
+
     setDetailData({
-      songs: resSongs.data || [],
-      albums: resAlbums.data || []
+      songs: formattedSongs,
+      albums: formattedAlbums
     });
   };
 
   // 5. Submit do Modal de Rating
+  const checkAuthAndOpenRating = async (artistName) => {
+    const access = sessionStorage.getItem('admin_access');
+    if (!access) {
+      const pass = prompt("Acesso restrito. Digite a senha:");
+      if (pass !== "9000") return;
+      sessionStorage.setItem('admin_access', 'true');
+    }
+
+    const { data } = await supabase
+      .from('tbl_artists_recent')
+      .select('id')
+      .eq('artist_name', artistName)
+      .maybeSingle();
+
+    if (data) {
+      alert("Este artista já possui um rating registrado.");
+      return;
+    }
+
+    setRatingArtist(artistName);
+  };
+
   const submitRating = async (ratingValue) => {
     if (!ratingArtist) return;
     const { error } = await supabase
@@ -181,6 +213,21 @@ export default function Artists() {
       setSortCol(col);
       setSortAsc(col === 'artist');
     }
+    setOffset(0);
+  };
+
+  const toggleQuickFilter = (type, value) => {
+    if (!value || value === '-') return;
+    setCurrentFilter(currentFilter.type === type && currentFilter.value === value ? { type: null, value: null } : { type, value });
+    setOffset(0);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setCurrentFilter({ type: null, value: null });
+    setFilterRatingActive(false);
+    setFilterZeroScoreActive(false);
+    setFilterHighlightActive(false);
     setOffset(0);
   };
 
@@ -210,15 +257,19 @@ export default function Artists() {
 
   const generateFidelityBar = (rating) => {
     const finalScore = Math.min(Math.max(Math.round(rating), 0), 6);
+    const colors = ['#e97b78', '#ff7d45', '#ffc845', '#e2ef4d', '#a3e04d', '#6dbe99'];
+    const activeColor = finalScore >= 1 ? colors[finalScore - 1] : '#f2f2f2';
+    
     return (
       <div style={{ display: 'inline-grid', gridTemplateColumns: 'repeat(6, 2px)', gap: '1.5px', verticalAlign: 'middle', marginRight: '4px' }}>
         {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} style={{ height: '10px', borderRadius: '0.3px', backgroundColor: i < finalScore ? '#2c3e50' : '#f2f2f2' }}></div>
+          <div key={i} style={{ height: '10px', borderRadius: '0.3px', backgroundColor: i < finalScore ? activeColor : '#f2f2f2' }}></div>
         ))}
       </div>
     );
   };
 
+  const pagedData = filteredData.slice(offset, offset + limit);
   const totalPages = Math.ceil(filteredData.length / limit) || 1;
 
   if (loading) {
@@ -242,9 +293,9 @@ export default function Artists() {
                   <span onClick={() => handleSort('artist')} style={{ cursor: 'pointer' }}>ARTIST</span>
                   <span onClick={() => handleSort('recencia_score')} style={{ ...iconStyle, color: sortCol === 'recencia_score' ? '#1DB954' : '#999' }}>◈</span>
                   <span onClick={() => handleSort('recencia_variation')} style={{ ...iconStyle, color: sortCol === 'recencia_variation' ? '#1DB954' : '#999' }}>±</span>
-                  <span id="star-filter" onClick={() => { setOffset(0); setFilterRatingActive(!filterRatingActive); }} style={{ ...iconStyle, color: filterRatingActive ? '#1DB954' : '#ccc' }}>★</span>
-                  <span id="zero-score-filter" onClick={() => { setOffset(0); setFilterZeroScoreActive(!filterZeroScoreActive); }} style={{ ...iconStyle, fontSize: '10px', backgroundColor: filterZeroScoreActive ? '#e97b78' : '#ccc', color: 'white', padding: '1px 3px', borderRadius: '2px' }}>0</span>
-                  <span id="highlight-filter" onClick={() => { setOffset(0); setFilterHighlightActive(!filterHighlightActive); }} style={{ ...iconStyle, color: filterHighlightActive ? '#3498db' : '#ccc' }}>💎</span>
+                  <span onClick={() => { setOffset(0); setFilterRatingActive(!filterRatingActive); }} style={{ ...iconStyle, color: filterRatingActive ? '#1DB954' : '#ccc' }}>★</span>
+                  <span onClick={() => { setOffset(0); setFilterZeroScoreActive(!filterZeroScoreActive); }} style={{ ...iconStyle, fontSize: '10px', backgroundColor: filterZeroScoreActive ? '#e97b78' : '#ccc', color: 'white', padding: '1px 3px', borderRadius: '2px' }}>0</span>
+                  <span onClick={() => { setOffset(0); setFilterHighlightActive(!filterHighlightActive); }} style={{ ...iconStyle, color: filterHighlightActive ? '#3498db' : '#ccc' }}>💎</span>
                 </div>
               </th>
               <th onClick={() => handleSort('country')} style={thStyle}>PAÍS</th>
@@ -264,7 +315,7 @@ export default function Artists() {
                   <td style={tdFixedStyle('fixed', 0, '30px', 'center', '#1DB954', index)}>{offset + index + 1}</td>
                   <td style={{ ...tdFixedStyle('fixed', '30px', '55px', 'right', '#222', index), fontWeight: 'bold', paddingRight: '4px' }}>{item.scrobbles.toLocaleString('pt-BR')}</td>
                   <td style={tdFixedStyle('fixed', '85px', '35px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
-                  <td style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', getGRColor(item), index), fontWeight: 'bold' }}>{item.global_pos}</td>
+                  <td style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', getGRColor(item), index), fontWeight: 'bold' }} onClick={() => checkAuthAndOpenRating(item.artist)}>{item.global_pos}</td>
                   <td style={{ ...tdFixedStyle('fixed', '150px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
                     <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                       {generateFidelityBar(item.rating_artista)}
@@ -277,22 +328,21 @@ export default function Artists() {
                       <img 
                         src={`https://flagcdn.com/32x24/${flagCode}.png`} 
                         style={{ width: '14px', height: '10px', border: '0.5px solid #bbb', marginRight: '6px', cursor: 'pointer' }}
-                        onClick={() => setCurrentFilter({ type: 'country', value: item.country })}
+                        onClick={() => toggleQuickFilter('country', item.country)}
                         alt="" 
                       />
                       <span 
                         onClick={() => openArtistDetails(item.artist)}
-                        onContextMenu={(e) => { e.preventDefault(); setRatingArtist(item.artist); }}
                         style={{ color: getNameColor(item.db_rating), fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Roboto', sans-serif", fontSize: '13px' }}
                       >
                         {item.artist}
                       </span>
                     </div>
                   </td>
-                  <td style={{ ...tdStyle, color: '#555' }} onClick={() => setCurrentFilter({ type: 'country', value: item.country })}>{item.country || '-'}</td>
-                  <td style={{ ...tdStyle, color: '#555' }} onClick={() => setCurrentFilter({ type: 'city', value: item.city })}>{item.city || '-'}</td>
+                  <td style={tdStyle} onClick={() => toggleQuickFilter('country', item.country)}>{item.country || '-'}</td>
+                  <td style={tdStyle} onClick={() => toggleQuickFilter('city', item.city)}>{item.city || '-'}</td>
                   {years.map(y => (
-                    <td key={y} style={{ ...tdStyle, textArranges: 'center', textAlign: 'center', color: (item[`y${y}`] || 0) > 0 ? '#000' : '#ccc', fontWeight: (item[`y${y}`] || 0) > 0 ? 'bold' : 'normal' }}>
+                    <td key={y} style={{ ...tdStyle, textAlign: 'center', color: (item[`y${y}`] || 0) > 0 ? '#000' : '#ccc', fontWeight: (item[`y${y}`] || 0) > 0 ? 'bold' : 'normal' }}>
                       {item[`y${y}`] || '-'}
                     </td>
                   ))}
@@ -308,7 +358,7 @@ export default function Artists() {
       <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 10px', gap: '10px', zIndex: 950 }}>
         <button style={btnFooterStyle} onClick={() => setOffset(Math.max(0, offset - limit))}>«</button>
         <select 
-          style={{ fontFamily: 'Bebas Neue', borderRadius: '4px', fontSize: '15px', height: '26px', padding: '0 4px' }} 
+          style={{ fontFamily: "'Bebas Neue', cursive", borderRadius: '4px', fontSize: '15px', height: '26px', padding: '0 4px' }} 
           value={Math.floor(offset / limit) + 1} 
           onChange={(e) => setOffset((Number(e.target.value) - 1) * limit)}
         >
@@ -320,7 +370,7 @@ export default function Artists() {
         <button style={btnFooterStyle} onClick={() => setShowSearch(!showSearch)}>🔍</button>
         
         {(currentFilter.type || searchTerm || filterRatingActive || filterZeroScoreActive || filterHighlightActive) && (
-          <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '13px' }} onClick={() => { setSearchTerm(''); setCurrentFilter({ type: null, value: null }); setFilterRatingActive(false); setFilterZeroScoreActive(false); setFilterHighlightActive(false); }}>CLEAR</button>
+          <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '13px' }} onClick={clearFilters}>CLEAR</button>
         )}
         
         <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} ARTISTAS</span>
@@ -336,16 +386,16 @@ export default function Artists() {
             placeholder="BUSCAR ARTISTA EM TEMPO REAL..." 
             style={{ flex: 1, padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px', fontFamily: "'Roboto', sans-serif" }} 
           />
-          <button onClick={() => setShowSearch(false)} style={{ background: '#2c3e50', color: 'white', border: 'none', padding: '0 15px', borderRadius: '4px', cursor: 'pointer' }}>OK</button>
+          <button onClick={() => setShowSearch(false)} style={{ background: '#2c3e50', color: 'white', border: 'none', padding: '0 15px', borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', cursive" }}>OK</button>
         </div>
       )}
 
       {/* OVERLAY DE DETALHES LATERAL */}
       {selectedArtist && (
         <div style={{ position: 'fixed', top: 0, right: 0, width: '100%', maxWidth: '420px', height: '100vh', backgroundColor: '#1e1e1e', color: '#e0e0e0', boxShadow: '-5px 0 25px rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Roboto', sans-serif" }}>
-          <div style={{ padding: '15px', background: '#111', display: 'flex', justifyContent: 'between', alignItems: 'center', borderBottom: '1px solid #333' }}>
+          <div style={{ padding: '15px', background: '#111', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
             <h2 style={{ margin: 0, color: '#fff', fontSize: '18px', fontFamily: "'Bebas Neue', cursive", letterSpacing: '0.5px' }}>{selectedArtist.toUpperCase()}</h2>
-            <button onClick={() => setSelectedArtist(null)} style={{ background: 'none', border: 'none', color: '#888', fontSize: '20px', cursor: 'pointer', marginLeft: 'auto' }}>✕</button>
+            <button onClick={() => setSelectedArtist(null)} style={{ background: 'none', border: 'none', color: '#888', fontSize: '20px', cursor: 'pointer' }}>✕</button>
           </div>
           
           <div style={{ display: 'flex', background: '#222' }}>
@@ -354,25 +404,42 @@ export default function Artists() {
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: 'unset' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #444', color: '#aaa' }}>
-                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static' }}>{detailTab === 'songs' ? 'TRACK' : 'ALBUM'}</th>
-                  <th onClick={() => setDetailSortAsc(!detailSortAsc)} style={{ padding: '6px 4px', textAlign: 'right', cursor: 'pointer', background: 'transparent', position: 'static' }}>SCROBBLES ⇅</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px' }}>#A</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px' }}>#G</th>
+                  <th onClick={() => setDetailSortAsc(!detailSortAsc)} style={{ padding: '6px 4px', textAlign: 'right', cursor: 'pointer', background: 'transparent', position: 'static', width: '60px' }}>TOT ⇅</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'center', background: 'transparent', position: 'static', width: '50px' }}>DIAS</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static' }}>TÍTULO</th>
                 </tr>
               </thead>
               <tbody>
-                {(detailTab === 'songs' ? detailData.songs : detailData.albums)
-                  .sort((a, b) => detailSortAsc ? a.scrobbles - b.scrobbles : b.scrobbles - a.scrobbles)
-                  .map((row, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #2a2a2a' }}>
-                      <td style={{ padding: '6px 4px', maxWidth: '28px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontWeight: 'bold', color: '#fff' }}>{detailTab === 'songs' ? row.track_name : row.album_name}</span>
-                        {detailTab === 'songs' && <div style={{ fontSize: '11px', color: '#888' }}>{row.album_name || '[Single]'}</div>}
-                      </td>
-                      <td style={{ padding: '6px 4px', textAlign: 'right', color: '#1DB954', fontWeight: 'bold' }}>{row.scrobbles}</td>
-                    </tr>
-                ))}
+                {detailTab === 'songs' ? (
+                  detailData.songs
+                    .sort((a, b) => detailSortAsc ? a.count - b.count : b.count - a.count)
+                    .map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                        <td style={{ padding: '6px 4px', color: '#1DB954', fontWeight: 'bold' }}>{row.rank_artist}</td>
+                        <td style={{ padding: '6px 4px', color: '#777', fontSize: '10px' }}>{row.rank_global}</td>
+                        <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>{row.count}</td>
+                        <td style={{ padding: '6px 4px', textAlign: 'center', fontSize: '10px' }}>{row.days}d</td>
+                        <td style={{ padding: '6px 4px', color: '#fff', fontWeight: 'bold', whiteSpace: 'normal' }}>{row.title}</td>
+                      </tr>
+                    ))
+                ) : (
+                  detailData.albums
+                    .sort((a, b) => detailSortAsc ? a.count - b.count : b.count - a.count)
+                    .map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                        <td style={{ padding: '6px 4px' }}>-</td>
+                        <td style={{ padding: '6px 4px' }}>-</td>
+                        <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>{row.count}</td>
+                        <td style={{ padding: '6px 4px' }}>-</td>
+                        <td style={{ padding: '6px 4px', color: '#fff', fontWeight: 'bold', whiteSpace: 'normal' }}>{row.title}</td>
+                      </tr>
+                    ))
+                )}
               </tbody>
             </table>
           </div>
@@ -381,15 +448,16 @@ export default function Artists() {
 
       {/* MODAL DE RATING */}
       {ratingArtist && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, fontFamily: "'Roboto', sans-serif" }}>
-          <div style={{ background: '#fff', padding: '20px', borderRadius: '6px', width: '280px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-            <h3 style={{ margin: '0 0 5px 0', fontFamily: "'Bebas Neue', cursive", fontSize: '20px' }}>{ratingArtist}</h3>
-            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 15px 0' }}>Selecione o nível de inclusão:</p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
-              <button onClick={() => submitRating(-1)} style={{ padding: '6px 12px', background: '#1DB954', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>★ INCLUIR</button>
-              <button onClick={() => submitRating(-3)} style={{ padding: '6px 12px', background: '#e97b78', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>✕ BARRAR</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifycontent: 'center', zIndex: 40001, justifyContent: 'center' }}>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '80%', maxWidth: '300px', textAlign: 'center', fontFamily: "'Roboto', sans-serif", color: '#333' }}>
+            <h2 style={{ margin: '0 0 5px 0', fontFamily: "'Bebas Neue', cursive", fontSize: '20px' }}>{ratingArtist.toUpperCase()}</h2>
+            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 15px 0' }}>Avalie para a coleção:</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', margin: '20px 0', fontSize: '30px' }}>
+              <span style={{ cursor: 'pointer', color: '#e97b78' }} onClick={() => submitRating(-3)} title="Não incluir">★</span>
+              <span style={{ cursor: 'pointer', color: '#ffc845' }} onClick={() => submitRating(-2)} title="Ouvir mais">★</span>
+              <span style={{ cursor: 'pointer', color: '#1DB954' }} onClick={() => submitRating(-1)} title="Incluir na Coleção">★</span>
             </div>
-            <button style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', fontSize: '12px' }} onClick={() => setRatingArtist(null)}>CANCELAR</button>
+            <button style={{ background: '#eee', border: 'none', padding: '8px', width: '100%', marginTop: '10px', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer' }} onClick={() => setRatingArtist(null)}>CANCELAR</button>
           </div>
         </div>
       )}
@@ -400,7 +468,7 @@ export default function Artists() {
 
 // --- ESTILOS INLINE AUXILIARES ---
 const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: 'left' };
-const tdStyle = { padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2' };
+const tdStyle = { padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', cursor: 'pointer' };
 const iconStyle = { cursor: 'pointer', fontSize: '13px', color: '#999', transition: 'color 0.2s', marginLeft: '5px' };
 const btnFooterStyle = { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '2px 8px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
 const tabBtnStyle = (active) => ({ background: active ? '#1DB954' : '#eee', color: active ? 'white' : '#333', border: 'none', padding: '10px 5px', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', flex: 1, fontSize: '14px' });
