@@ -23,9 +23,8 @@ body {
 /* Estrutura da Tabela e Wrappers */
 .table-wrapper {
     width: 100%;
-    height: 94vh;
+    height: calc(100vh - 45px); /* Desconta exatamente a altura do rodapé de controles */
     overflow: auto;
-    border: 1px solid var(--border);
     position: relative;
     background: #fff;
 }

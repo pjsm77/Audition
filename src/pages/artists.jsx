@@ -281,7 +281,16 @@ export default function Artists() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive" }}>
       
-      <div className="table-wrapper" style={{ flex: 1 }}>
+      <div 
+  className="table-wrapper" 
+  style={{ 
+    flex: 1, 
+    overflowY: 'auto',  /* Permite rolar para baixo */
+    overflowX: 'auto',  /* Permite rolar para os lados (países, cidades, anos) */
+    width: '100%',
+    position: 'relative'
+  }}
+>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px', minWidth: '1200px' }}>
           <thead>
             <tr>
