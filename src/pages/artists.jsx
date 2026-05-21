@@ -334,7 +334,9 @@ export default function Artists() {
                       />
                       <span 
                         onClick={() => openArtistDetails(item.artist)}
-                        style={{ color: getNameColor(item.db_rating), fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Roboto', sans-serif", fontSize: '13px' }}
+                       style={{ color: getNameColor(item.db_rating), fontWeight: 'bold', cursor: 'pointer', fontFamily: "'Bebas Neue', cursive", fontSize: '13px' }}
+
+                      
                       >
                         {item.artist}
                       </span>
