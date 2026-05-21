@@ -466,17 +466,57 @@ export default function Artists() {
   );
 }
 
-// --- ESTILOS INLINE AUXILIARES ---
-const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: 'left' };
-const tdStyle = { padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', cursor: 'pointer' };
-const iconStyle = { cursor: 'pointer', fontSize: '13px', color: '#999', transition: 'color 0.2s', marginLeft: '5px' };
-const btnFooterStyle = { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '2px 8px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
-const tabBtnStyle = (active) => ({ background: active ? '#1DB954' : '#eee', color: active ? 'white' : '#333', border: 'none', padding: '10px 5px', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', flex: 1, fontSize: '14px' });
+// Altere as constantes de estilo no fim do seu src/pages/artists.jsx para isto:
+
+const thStyle = { 
+  background: '#f1f1f1', 
+  position: 'sticky', 
+  top: 0, 
+  zIndex: 900, 
+  padding: '4px 1px', 
+  borderBottom: '2px solid #ddd', 
+  textAlign: 'left',
+  fontFamily: "'Bebas Neue', cursive" 
+};
+
+const tdStyle = { 
+  padding: '3px 1px', 
+  borderBottom: '1px solid #e0e0e0', 
+  whiteSpace: 'nowrap', 
+  textAlign: 'left', 
+  lineHeight: '1.2', 
+  cursor: 'pointer',
+  fontFamily: "'Bebas Neue', cursive" 
+};
 
 const thFixedStyle = (pos, left, width, align = 'left') => ({
-  background: '#f1f1f1', position: 'sticky', top: 0, left: left, width: width, minWidth: width, maxWidth: width, zIndex: 910, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: align
+  background: '#f1f1f1', 
+  position: 'sticky', 
+  top: 0, 
+  left: left, 
+  width: width, 
+  minWidth: width, 
+  maxWidth: width, 
+  zIndex: 910, 
+  padding: '4px 1px', 
+  borderBottom: '2px solid #ddd', 
+  textAlign: align,
+  fontFamily: "'Bebas Neue', cursive"
 });
 
 const tdFixedStyle = (pos, left, width, align, color, index) => ({
-  position: 'sticky', left: left, width: width, minWidth: width, maxWidth: width, zIndex: 400, backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', color: color, textAlign: align, padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', lineHeight: '1.2'
+  position: 'sticky', 
+  left: left, 
+  width: width, 
+  minWidth: width, 
+  maxWidth: width, 
+  zIndex: 400, 
+  backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', 
+  color: color, 
+  textAlign: align, 
+  padding: '3px 1px', 
+  borderBottom: '1px solid #e0e0e0', 
+  whiteSpace: 'nowrap', 
+  lineHeight: '1.2',
+  fontFamily: "'Bebas Neue', cursive"
 });

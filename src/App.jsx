@@ -1,17 +1,22 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Layout from './components/Layout'; // CORREÇÃO: Importando o Layout que faltava
+import { Routes, Route } from 'react-router-dom';
 import Artists from './pages/artists';
+import Recent from './pages/recent';
+import Charts from './pages/charts';
+import FloatingMenu from './components/FloatingMenu';
 
 export default function App() {
   return (
-    <Router>
+    <div className="app-container">
+      {/* O menu flutuante fica ativo globalmente em todas as páginas */}
+      <FloatingMenu />
+      
       <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Artists />} />
-          {/* Outras rotas internas caso existam ficam aqui */}
-        </Route>
+        <Route path="/" element={<Artists />} />
+        <Route path="/recent" element={<Recent />} />
+        <Route path="/charts" element={<Charts />} />
+        {/* Caso tenha /albums ou outras rotas no menu, elas apontarão para cá */}
       </Routes>
-    </Router>
+    </div>
   );
 }
