@@ -1,4 +1,4 @@
-// src/pages/Artists.jsx
+// src/pages/artists.jsx
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -32,7 +32,6 @@ export default function Artists() {
 
   const limit = 50;
 
-  // Mapeamento de bandeiras
   const countryMap = {
     "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
     "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
@@ -56,9 +55,8 @@ export default function Artists() {
     "vietnã": "vn", "zâmbia": "zm", "zimbábue": "zw"
   };
 
-  const years = Array.from({ length: 13 }, (_, i) => 26 - i); // '26 ate '14
+  const years = Array.from({ length: 13 }, (_, i) => 26 - i);
 
-  // 1. Carga Inicial de Dados Coordenada (RPC + Tabelas Auxiliares)
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -105,10 +103,9 @@ export default function Artists() {
     loadData();
   }, []);
 
-  // 2. Filtragem e Ordenação em Memória
   useEffect(() => {
     let result = fullRawData.filter(item => {
-      const nameMatch = item.artist.toLowerCase().includes(searchTerm.toLowerCase());
+      const nameMatch = (item.artist || "").toLowerCase().includes(searchTerm.toLowerCase());
       const countryMatch = !currentFilter.type || (currentFilter.type === 'country' && item.country === currentFilter.value);
       const cityMatch = !currentFilter.type || (currentFilter.type === 'city' && item.city === currentFilter.value);
       
@@ -119,56 +116,62 @@ export default function Artists() {
       return nameMatch && ratingMatch && zeroScoreMatch && highlightMatch && (currentFilter.type ? (countryMatch || cityMatch) : true);
     });
 
+    // SISTEMA DE ORDENAÇÃO SEGURO CONTRA QUEDAS (ANTILEGACY CRASH)
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
 
-      if (typeof valA === 'string') {
-        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+      if (sortCol === 'artist') {
+        const strA = String(valA || "");
+        const strB = String(valB || "");
+        return sortAsc ? strA.localeCompare(strB) : strB.localeCompare(strA);
       }
 
-      valA = valA ?? -1;
-      valB = valB ?? -1;
+      // Tratamento numérico robusto para scrobbles, recência e anos vazios
+      const numA = Number(valA) || 0;
+      const numB = Number(valB) || 0;
 
-      if (valA === valB) return a.artist.localeCompare(b.artist);
-      return sortAsc ? valA - valB : valB - valA;
+      if (numA === numB) {
+        return String(a.artist || "").localeCompare(String(b.artist || ""));
+      }
+      return sortAsc ? numA - numB : numB - numA;
     });
 
     setFilteredData(result);
   }, [fullRawData, searchTerm, currentFilter, sortCol, sortAsc, filterRatingActive, filterZeroScoreActive, filterHighlightActive]);
 
-  // 4. Carregar Detalhes do Artista (Overlay lateral)
   const openArtistDetails = async (artistName) => {
+    if (!artistName) return;
     setSelectedArtist(artistName);
     setDetailData({ songs: [], albums: [] });
     
-    const [resSongs, resAlbums] = await Promise.all([
-      supabase.from('scrobbles_unificados').select('ranking_no_artista_unico, ranking_geral_unico, total_scrobbles, dias_ultima_execucao, track_name').eq('artist', artistName.toLowerCase()),
-      supabase.from('scrobbles_test').select('album').eq('artist', artistName)
-    ]);
+    try {
+      const [resSongs, resAlbums] = await Promise.all([
+        supabase.from('scrobbles_unificados').select('ranking_no_artista_unico, ranking_geral_unico, total_scrobbles, dias_ultima_execucao, track_name').eq('artist', artistName.toLowerCase()),
+        supabase.from('scrobbles_test').select('album').eq('artist', artistName)
+      ]);
 
-    const formattedSongs = (resSongs.data || []).map(item => ({
-      rank_artist: item.ranking_no_artista_unico,
-      rank_global: item.ranking_geral_unico,
-      count: item.total_scrobbles,
-      days: item.dias_ultima_execucao,
-      title: item.track_name
-    }));
+      const formattedSongs = (resSongs.data || []).map(item => ({
+        rank_artist: item.ranking_no_artista_unico,
+        rank_global: item.ranking_geral_unico,
+        count: item.total_scrobbles,
+        days: item.dias_ultima_execucao,
+        title: item.track_name
+      }));
 
-    const aCnt = {};
-    (resAlbums.data || []).forEach(r => {
-      const a = r.album || '[Desconhecido]';
-      aCnt[a] = (aCnt[a] || 0) + 1;
-    });
-    const formattedAlbums = Object.entries(aCnt).map(([title, count]) => ({ title, count }));
+      const aCnt = {};
+      (resAlbums.data || []).forEach(r => {
+        const a = r.album || '[Desconhecido]';
+        aCnt[a] = (aCnt[a] || 0) + 1;
+      });
+      const formattedAlbums = Object.entries(aCnt).map(([title, count]) => ({ title, count }));
 
-    setDetailData({
-      songs: formattedSongs,
-      albums: formattedAlbums
-    });
+      setDetailData({ songs: formattedSongs, albums: formattedAlbums });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  // 5. Submit do Modal de Rating
   const checkAuthAndOpenRating = async (artistName) => {
     const access = sessionStorage.getItem('admin_access');
     if (!access) {
@@ -231,7 +234,6 @@ export default function Artists() {
     setOffset(0);
   };
 
-  // --- REGRAS VISUAIS / CORES ---
   const getGRColor = (item) => {
     if (item.status_rating === -1) return "#1DB954";
     if (item.status_rating === -2) return "#ffc845";
@@ -279,8 +281,7 @@ export default function Artists() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive" }}>
       
-      {/* WRAPPER PRINCIPAL DA TABELA */}
-      <div style={{ flex: 1, overflow: 'auto', border: '1px solid #e0e0e0', position: 'relative', backgroundColor: '#fff' }}>
+      <div className="table-wrapper" style={{ flex: 1 }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px', minWidth: '1200px' }}>
           <thead>
             <tr>
@@ -313,9 +314,9 @@ export default function Artists() {
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
                   <td style={tdFixedStyle('fixed', 0, '30px', 'center', '#1DB954', index)}>{offset + index + 1}</td>
-                  <td style={{ ...tdFixedStyle('fixed', '30px', '55px', 'right', '#222', index), fontWeight: 'bold', paddingRight: '4px' }}>{item.scrobbles.toLocaleString('pt-BR')}</td>
+                  <td style={{ ...tdFixedStyle('fixed', '30px', '55px', 'right', '#222', index), fontWeight: 'bold', paddingRight: '4px' }}>{(item.scrobbles || 0).toLocaleString('pt-BR')}</td>
                   <td style={tdFixedStyle('fixed', '85px', '35px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
-                  <td style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', getGRColor(item), index), fontWeight: 'bold' }} onClick={() => checkAuthAndOpenRating(item.artist)}>{item.global_pos}</td>
+                  <td style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', getGRColor(item), index), fontWeight: 'bold', cursor: 'pointer' }} onClick={() => checkAuthAndOpenRating(item.artist)}>{item.global_pos}</td>
                   <td style={{ ...tdFixedStyle('fixed', '150px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
                     <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
                       {generateFidelityBar(item.rating_artista)}
@@ -341,11 +342,14 @@ export default function Artists() {
                   </td>
                   <td style={tdStyle} onClick={() => toggleQuickFilter('country', item.country)}>{item.country || '-'}</td>
                   <td style={tdStyle} onClick={() => toggleQuickFilter('city', item.city)}>{item.city || '-'}</td>
-                  {years.map(y => (
-                    <td key={y} style={{ ...tdStyle, textAlign: 'center', color: (item[`y${y}`] || 0) > 0 ? '#000' : '#ccc', fontWeight: (item[`y${y}`] || 0) > 0 ? 'bold' : 'normal' }}>
-                      {item[`y${y}`] || '-'}
-                    </td>
-                  ))}
+                  {years.map(y => {
+                    const yearVal = item[`y${y}`];
+                    return (
+                      <td key={y} style={{ ...tdStyle, textAlign: 'center', color: yearVal > 0 ? '#000' : '#ccc', fontWeight: yearVal > 0 ? 'bold' : 'normal' }}>
+                        {yearVal || '-'}
+                      </td>
+                    );
+                  })}
                   <td style={tdStyle}>{item.primeiro_ano || '-'}</td>
                 </tr>
               );
@@ -354,7 +358,7 @@ export default function Artists() {
         </table>
       </div>
 
-      {/* FOOTER CONTROLS */}
+      {/* RODAPÉ DO PAGINADOR */}
       <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 10px', gap: '10px', zIndex: 950 }}>
         <button style={btnFooterStyle} onClick={() => setOffset(Math.max(0, offset - limit))}>«</button>
         <select 
@@ -376,9 +380,9 @@ export default function Artists() {
         <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} ARTISTAS</span>
       </div>
 
-      {/* BUSCA OVERLAY */}
+      {/* BUSCA EM OVERLAY */}
       {showSearch && (
-        <div style={{ position: 'fixed', bottom: '45px', left: 0, width: '100%', background: 'white', padding: '8px 15px', boxShadow: '0 -3px 10px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '10px' }}>
+        <div style={{ position: 'fixed', bottom: '45px', left: 0, width: '100%', background: 'white', padding: '8px 15px', boxShadow: '0 -3px 10px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '10px', boxSizing: 'border-box' }}>
           <input 
             type="text" 
             value={searchTerm} 
@@ -390,10 +394,10 @@ export default function Artists() {
         </div>
       )}
 
-      {/* OVERLAY DE DETALHES LATERAL */}
+      {/* OVERLAY DE DETALHES LATERAL (SONGS / ALBUMS) */}
       {selectedArtist && (
         <div style={{ position: 'fixed', top: 0, right: 0, width: '100%', maxWidth: '420px', height: '100vh', backgroundColor: '#1e1e1e', color: '#e0e0e0', boxShadow: '-5px 0 25px rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', flexDirection: 'column', fontFamily: "'Roboto', sans-serif" }}>
-          <div style={{ padding: '15px', background: '#111', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
+          <div style={{ padding: '15px', background: '#111', display: 'flex', alignItems: 'center', borderBottom: '1px solid #333', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0, color: '#fff', fontSize: '18px', fontFamily: "'Bebas Neue', cursive", letterSpacing: '0.5px' }}>{selectedArtist.toUpperCase()}</h2>
             <button onClick={() => setSelectedArtist(null)} style={{ background: 'none', border: 'none', color: '#888', fontSize: '20px', cursor: 'pointer' }}>✕</button>
           </div>
@@ -407,11 +411,11 @@ export default function Artists() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: 'unset' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #444', color: '#aaa' }}>
-                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px' }}>#A</th>
-                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px' }}>#G</th>
-                  <th onClick={() => setDetailSortAsc(!detailSortAsc)} style={{ padding: '6px 4px', textAlign: 'right', cursor: 'pointer', background: 'transparent', position: 'static', width: '60px' }}>TOT ⇅</th>
-                  <th style={{ padding: '6px 4px', textAlign: 'center', background: 'transparent', position: 'static', width: '50px' }}>DIAS</th>
-                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static' }}>TÍTULO</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px', fontFamily: "'Bebas Neue', cursive" }}>#A</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px', fontFamily: "'Bebas Neue', cursive" }}>#G</th>
+                  <th onClick={() => setDetailSortAsc(!detailSortAsc)} style={{ padding: '6px 4px', textAlign: 'right', cursor: 'pointer', background: 'transparent', position: 'static', width: '60px', fontFamily: "'Bebas Neue', cursive" }}>TOT ⇅</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'center', background: 'transparent', position: 'static', width: '50px', fontFamily: "'Bebas Neue', cursive" }}>DIAS</th>
+                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', fontFamily: "'Bebas Neue', cursive" }}>TÍTULO</th>
                 </tr>
               </thead>
               <tbody>
@@ -446,9 +450,9 @@ export default function Artists() {
         </div>
       )}
 
-      {/* MODAL DE RATING */}
+      {/* MODAL DE REGISTRO DE RATING */}
       {ratingArtist && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifycontent: 'center', zIndex: 40001, justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', zIndex: 40001, justifyContent: 'center' }}>
           <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '80%', maxWidth: '300px', textAlign: 'center', fontFamily: "'Roboto', sans-serif", color: '#333' }}>
             <h2 style={{ margin: '0 0 5px 0', fontFamily: "'Bebas Neue', cursive", fontSize: '20px' }}>{ratingArtist.toUpperCase()}</h2>
             <p style={{ fontSize: '12px', color: '#666', margin: '0 0 15px 0' }}>Avalie para a coleção:</p>
@@ -466,57 +470,17 @@ export default function Artists() {
   );
 }
 
-// Altere as constantes de estilo no fim do seu src/pages/artists.jsx para isto:
-
-const thStyle = { 
-  background: '#f1f1f1', 
-  position: 'sticky', 
-  top: 0, 
-  zIndex: 900, 
-  padding: '4px 1px', 
-  borderBottom: '2px solid #ddd', 
-  textAlign: 'left',
-  fontFamily: "'Bebas Neue', cursive" 
-};
-
-const tdStyle = { 
-  padding: '3px 1px', 
-  borderBottom: '1px solid #e0e0e0', 
-  whiteSpace: 'nowrap', 
-  textAlign: 'left', 
-  lineHeight: '1.2', 
-  cursor: 'pointer',
-  fontFamily: "'Bebas Neue', cursive" 
-};
+// --- ESTILOS INLINE AUXILIARES COM HERANÇA TIPOGRÁFICA ---
+const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive" };
+const tdStyle = { padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', cursor: 'pointer', fontFamily: "'Bebas Neue', cursive" };
+const iconStyle = { cursor: 'pointer', fontSize: '13px', color: '#999', transition: 'color 0.2s', marginLeft: '5px' };
+const btnFooterStyle = { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '2px 8px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
+const tabBtnStyle = (active) => ({ background: active ? '#1DB954' : '#eee', color: active ? 'white' : '#333', border: 'none', padding: '10px 5px', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', flex: 1, fontSize: '14px' });
 
 const thFixedStyle = (pos, left, width, align = 'left') => ({
-  background: '#f1f1f1', 
-  position: 'sticky', 
-  top: 0, 
-  left: left, 
-  width: width, 
-  minWidth: width, 
-  maxWidth: width, 
-  zIndex: 910, 
-  padding: '4px 1px', 
-  borderBottom: '2px solid #ddd', 
-  textAlign: align,
-  fontFamily: "'Bebas Neue', cursive"
+  background: '#f1f1f1', position: 'sticky', top: 0, left: left, width: width, minWidth: width, maxWidth: width, zIndex: 910, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: align, fontFamily: "'Bebas Neue', cursive"
 });
 
 const tdFixedStyle = (pos, left, width, align, color, index) => ({
-  position: 'sticky', 
-  left: left, 
-  width: width, 
-  minWidth: width, 
-  maxWidth: width, 
-  zIndex: 400, 
-  backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', 
-  color: color, 
-  textAlign: align, 
-  padding: '3px 1px', 
-  borderBottom: '1px solid #e0e0e0', 
-  whiteSpace: 'nowrap', 
-  lineHeight: '1.2',
-  fontFamily: "'Bebas Neue', cursive"
+  position: 'sticky', left: left, width: width, minWidth: width, maxWidth: width, zIndex: 400, backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', color: color, textAlign: align, padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive"
 });
