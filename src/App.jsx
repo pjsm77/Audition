@@ -1,21 +1,17 @@
 // src/App.jsx
-import { Routes, Route } from 'react-router-dom';
-import Artists from './pages/artists'; 
-import Recent from './pages/recent';
-import FloatingMenu from './components/FloatingMenu';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout'; // CORREÇÃO: Importando o Layout que faltava
+import Artists from './pages/artists';
 
 export default function App() {
   return (
-    <>
+    <Router>
       <Routes>
-        {/* Define a tela de Artistas como a página inicial do site */}
-        <Route path="/" element={<Artists />} />
-        <Route path="/artists" element={<Artists />} />
-        <Route path="/recent" element={<Recent />} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Artists />} />
+          {/* Outras rotas internas caso existam ficam aqui */}
+        </Route>
       </Routes>
-      
-      {/* O menu fixo com todas as opções */}
-      <FloatingMenu />
-    </>
+    </Router>
   );
-} 
+}
