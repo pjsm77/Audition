@@ -211,10 +211,15 @@ export default function Artists() {
   };
 
   const handleSort = (col) => {
-    if (sortCol === col) setSortAsc(!sortAsc);
-    else {
-      setSortCol(col);
-      setSortAsc(col === 'artist');
+    // Se for um número (ano), adiciona o prefixo 'y' para casar com a propriedade do objeto (ex: y26)
+    const targetCol = typeof col === 'number' ? `y${col}` : col;
+  
+    if (sortCol === targetCol) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortCol(targetCol);
+      // Se for o nome do artista ou o ano, a ordenação inicial padrão pode ser ascendente, caso contrário descendente (total scrobbles, etc)
+      setSortAsc(targetCol === 'artist' || typeof col === 'number');
     }
     setOffset(0);
   };
@@ -310,7 +315,17 @@ export default function Artists() {
               </th>
               <th onClick={() => handleSort('country')} style={thStyle}>PAÍS</th>
               <th onClick={() => handleSort('city')} style={thStyle}>CIDADE</th>
-              {years.map(y => <th key={y} style={{ ...thStyle, fontSize: '9px', textAlign: 'center' }}>'{y}</th>)}
+              {/* Subsitua a linha atual de mapeamento dos anos por esta: */}
+{years.map(y => (
+  <th 
+    key={y} 
+    onClick={() => handleSort(y)} /* Adicionado o evento de ordenação */
+    style={{ ...thStyle, fontSize: '9px', textAlign: 'center', cursor: 'pointer' }}
+    title={`Ordenar por '${y}`}
+  >
+    '{y}
+  </th>
+))}
               <th onClick={() => handleSort('primeiro_ano')} style={thStyle}>INÍCIO</th>
             </tr>
           </thead>
