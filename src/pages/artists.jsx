@@ -211,15 +211,23 @@ export default function Artists() {
   };
 
   const handleSort = (col) => {
-    // Se for um número (ano), adiciona o prefixo 'y' para casar com a propriedade do objeto (ex: y26)
+    // Se for um número (ano), adiciona o prefixo 'y' para mapear o objeto do banco (ex: y26)
     const targetCol = typeof col === 'number' ? `y${col}` : col;
   
     if (sortCol === targetCol) {
+      // Se já está na coluna atual, apenas inverte a direção (Crescente <-> Decrescente)
       setSortAsc(!sortAsc);
     } else {
       setSortCol(targetCol);
-      // Se for o nome do artista ou o ano, a ordenação inicial padrão pode ser ascendente, caso contrário descendente (total scrobbles, etc)
-      setSortAsc(targetCol === 'artist' || typeof col === 'number');
+      
+      // REGRA DE OURO REFINADA:
+      // Se for a coluna 'scrobbles' (TOTAL) OU se a coluna original for um número (ANO),
+      // o primeiro clique DEVE ser decrescente (false) para trazer os maiores números no topo.
+      if (targetCol === 'scrobbles' || typeof col === 'number') {
+        setSortAsc(false); // Primeiro clique = Decrescente
+      } else {
+        setSortAsc(true);  // Qualquer outra coluna (Artist, País, Cidade, Início, etc) = Crescente (A-Z)
+      }
     }
     setOffset(0);
   };
