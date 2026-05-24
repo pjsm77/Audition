@@ -11,16 +11,17 @@ export default function Languages() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   
-  // Ordenação Padrão: Artistas por idioma, desc
+  // Ordenação Padrão: Artistas por idioma, desc (total_artists)
   const [sortCol, setSortCol] = useState('total_artists');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const limit = 30; // Mostrar 30 por página conforme padrão
+  const limit = 30; // Mostrar 30 por página
 
   useEffect(() => {
     async function loadLanguageStats() {
       setLoading(true);
       try {
+        // CORREÇÃO: Garanta que está puxando da view correta
         const { data, error } = await supabase
           .from('vw_languages')
           .select('*');
@@ -28,11 +29,11 @@ export default function Languages() {
         if (error) throw error;
 
         let base = data || [];
-        // Ordenação inicial: total_artists desc
+        // Ordenação inicial padrão
         base.sort((a, b) => b.total_artists - a.total_artists);
         setFullRawData(base);
       } catch (err) {
-        console.error("Erro na carga de idiomas:", err);
+        console.error("Erro na carga de idiomas (vw_languages):", err);
       } finally {
         setLoading(false);
       }
@@ -46,7 +47,7 @@ export default function Languages() {
       return (item.language || "").toLowerCase().includes(term);
     });
 
-    // ENGINE DE ORDENAÇÃO DINÂMICA COMPATÍVEL
+    // ENGINE DE ORDENAÇÃO DINÂMICA ALINHADO COM O SQL
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
@@ -116,9 +117,16 @@ export default function Languages() {
               <th onClick={() => handleSort('total_artists')} style={{ ...thStyle, textAlign: 'center' }}>
                 ART {sortCol === 'total_artists' ? (sortAsc ? '▲' : '▼') : ''}
               </th>
-              <th onClick={() => handleSort('total_albums')} style={{ ...thStyle, textAlign: 'center' }}>ALB</th>
-              <th onClick={() => handleSort('total_unique_songs')} style={{ ...thStyle, textAlign: 'center' }}>TRA</th>
-              <th onClick={() => handleSort('total_scrobbles')} style={{ ...thStyle, textAlign: 'center' }}>SCROBBLES</th>
+              <th onClick={() => handleSort('total_albums')} style={{ ...thStyle, textAlign: 'center' }}>
+                ALB {sortCol === 'total_albums' ? (sortAsc ? '▲' : '▼') : ''}
+              </th>
+              {/* Alinhado para ordenar pela chave correta do banco (total_unique_songs) */}
+              <th onClick={() => handleSort('total_unique_songs')} style={{ ...thStyle, textAlign: 'center' }}>
+                TRA {sortCol === 'total_unique_songs' ? (sortAsc ? '▲' : '▼') : ''}
+              </th>
+              <th onClick={() => handleSort('total_scrobbles')} style={{ ...thStyle, textAlign: 'center' }}>
+                SCROBBLES {sortCol === 'total_scrobbles' ? (sortAsc ? '▲' : '▼') : ''}
+              </th>
               <th style={{ ...thStyle, textAlign: 'center', width: '110px' }}>RATINGS</th>
             </tr>
           </thead>
@@ -132,39 +140,39 @@ export default function Languages() {
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
                   
-                  {/* Posição Global Fixa à esquerda */}
+                  {/* # Posição Global */}
                   <td style={tdFixedStyle('fixed', 0, '35px', 'center', '#b5b5b5', index)}>
                     {offset + index + 1}
                   </td>
                   
-                  {/* Nome do Idioma em Caixa Alta */}
+                  {/* IDIOMA EM CAIXA ALTA */}
                   <td style={{ ...tdStyle, fontWeight: 'bold', borderBottom: '1px solid #e0e0e0', paddingLeft: '8px' }}>
                     <span style={{ fontSize: '15px', letterSpacing: '0.3px', color: '#000' }}>
                       {item.language ? item.language.toUpperCase() : '-'}
                     </span>
                   </td>
 
-                  {/* Total Artistas */}
+                  {/* ART (Total Artistas) */}
                   <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 'bold', color: '#000', fontSize: '15px' }}>
                     {item.total_artists}
                   </td>
 
-                  {/* Total Álbuns */}
+                  {/* ALB (Total Álbuns) */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.total_albums}
                   </td>
 
-                  {/* Total Músicas (Tracks) */}
+                  {/* TRA (Total Músicas Únicas) */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.total_unique_songs}
                   </td>
 
-                  {/* Total Scrobbles Formatados */}
+                  {/* SCROBBLES */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.total_scrobbles ? item.total_scrobbles.toLocaleString('pt-BR') : 0}
                   </td>
 
-                  {/* Distribuição de Barras de Ratings */}
+                  {/* RATINGS (Gráfico de barras proporcional inline) */}
                   <td style={{ ...tdStyle, padding: '3px 6px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', width: '100%' }}>
                       
@@ -205,14 +213,14 @@ export default function Languages() {
         <button style={btnFooterStyle} onClick={() => { if (offset + limit < filteredData.length) setOffset(offset + limit); }}>»</button>
         <button style={btnFooterStyle} onClick={() => setShowSearch(!showSearch)}>🔍</button>
         
-        {(searchTerm) && (
+        {searchTerm && (
           <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '13px' }} onClick={() => setSearchTerm('')}>CLEAR</button>
         )}
         
         <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} IDIOMAS</span>
       </div>
 
-      {/* OVERLAY DE BUSCA */}
+      {/* OVERLAY DE BUSCA FLUTUANTE */}
       {showSearch && (
         <div style={{ position: 'fixed', bottom: '45px', left: 0, width: '100%', background: 'white', padding: '8px 15px', boxShadow: '0 -3px 10px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '10px', boxSizing: 'border-box' }}>
           <input 
