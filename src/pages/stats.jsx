@@ -1,18 +1,24 @@
 import React, { useEffect, useState } from 'react';
 
-// Componente Interno de Card com ícones SVG inline
-const StatCard = ({ title, value, iconPath, color }) => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-    <div>
-      <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">{title}</p>
-      <h3 className="text-3xl font-bold text-slate-800 mt-1">
+// Card moderno com proporção flexível para preencher a tela
+const StatCard = ({ title, value, iconPath, gradient }) => (
+  <div className="relative overflow-hidden bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:border-slate-700 hover:scale-[1.01] group flex-1">
+    {/* Gradiente de fundo sutil no hover */}
+    <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl opacity-10 group-hover:opacity-20 transition-opacity ${gradient}`} />
+    
+    <div className="flex items-center justify-between">
+      <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">{title}</span>
+      <div className={`p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/50 shadow-inner`}>
+        <svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          {iconPath}
+        </svg>
+      </div>
+    </div>
+
+    <div className="mt-auto">
+      <h3 className="text-4xl xl:text-5xl font-black text-white tracking-tight">
         {value !== null ? value.toLocaleString() : '...'}
       </h3>
-    </div>
-    <div className={`p-3 rounded-lg text-white ${color}`}>
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-        {iconPath}
-      </svg>
     </div>
   </div>
 );
@@ -24,9 +30,6 @@ export default function Stats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Exemplo: const { data } = await supabase.from('vw_stats').select('*').single();
-        // setStats(data);
-        
         // Simulando o retorno da vw_stats para teste:
         setStats({
           total_artists: 1240,
@@ -47,59 +50,65 @@ export default function Stats() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-slate-50">
-        <div className="text-slate-500 font-medium animate-pulse">Carregando estatísticas...</div>
+      <div className="flex justify-center items-center h-screen bg-[#0b0f19]">
+        <div className="text-slate-400 font-medium tracking-widest animate-pulse uppercase text-xs">
+          Sincronizando dados...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen">
-      <header className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-800">Minha Coleção Musical</h1>
-        <p className="text-sm text-slate-500">Dados gerais e histórico de reprodução</p>
+    // h-screen + overflow-hidden garante que NADA saia da tela ou crie barras de rolagem
+    <div className="h-screen w-full bg-[#0b0f19] text-slate-100 p-6 md:p-8 flex flex-col overflow-hidden font-sans">
+      
+      {/* Header Fixo */}
+      <header className="mb-6 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <h1 className="text-xl font-bold tracking-tight text-slate-200">Dashboard de Música</h1>
+        </div>
+        <p className="text-xs text-slate-500 mt-0.5">Visão geral da sua biblioteca em tempo real</p>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-        {/* Card: Artistas */}
+      {/* Grid Dinâmico: se adapta verticalmente para ocupar o espaço restante */}
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 min-h-0">
+        
         <StatCard 
           title="Artistas" 
           value={stats?.total_artists} 
-          color="bg-blue-500" 
-          iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.771m.019 3.193a9.093 9.093 0 013.741.479m11.138-8.87a3.375 3.375 0 10-4.969-4.134 3.375 3.375 0 004.969 4.134zM4.965 11.01a3.375 3.375 0 11-4.97-4.134 3.375 3.375 0 014.97 4.134zM12 11a3 3 0 100-6 3 3 0 000 6z" />}
+          gradient="bg-blue-500"
+          iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />}
         />
 
-        {/* Card: Álbuns */}
         <StatCard 
           title="Álbuns" 
           value={stats?.total_albums} 
-          color="bg-emerald-500" 
+          gradient="bg-emerald-500"
           iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M9 9l10.5-3m0 0L21 8.25M19.5 6V12m0 0.5a3 3 0 11-6 0 3 3 0 016 0zM6 10.5a3 3 0 11-6 0 3 3 0 016 0zM6 10.5h13.5" />}
         />
 
-        {/* Card: Músicas */}
         <StatCard 
           title="Músicas" 
           value={stats?.total_tracks} 
-          color="bg-purple-500" 
+          gradient="bg-purple-500"
           iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3zm12-3c0 1.657-1.343 3-3 3s-3-1.343-3-3 1.343-3 3-3 3 1.343 3 3zM9 10l12-3" />}
         />
 
-        {/* Card: Países */}
         <StatCard 
           title="Países" 
           value={stats?.total_countries} 
-          color="bg-amber-500" 
-          iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M6.115 5.19l.319 1.59a1.5 1.5 0 00.732.996l.825.427a1.5 1.5 0 01.812 1.332v1.123a1.5 1.5 0 001.5 1.5h1.122a1.5 1.5 0 011.06.44l1.104 1.103a1.5 1.5 0 010 2.122l-1.104 1.104a1.5 1.5 0 01-1.06.44H4.5A2.25 2.25 0 012.25 15V6.115a2.25 2.25 0 012.25-2.25h1.123a1.5 1.5 0 011.492 1.325z" />}
+          gradient="bg-amber-500"
+          iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9s2.015-9 4.5-9m0 0a9.003 9.003 0 018.716 4.253M12 3a9.003 9.003 0 00-8.716 4.253M12 12h.008v.008H12V12z" />}
         />
 
-        {/* Card: Scrobbles */}
         <StatCard 
           title="Scrobbles" 
           value={stats?.total_scrobbles} 
-          color="bg-rose-500" 
+          gradient="bg-rose-500"
           iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653z" />}
         />
+
       </div>
     </div>
   );
