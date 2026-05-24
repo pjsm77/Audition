@@ -1,28 +1,12 @@
 // src/components/FloatingMenu.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Users, 
-  Disc, 
-  Music, 
-  Globe, 
-  Languages, 
-  BarChart2, 
-  Compass, 
-  PieChart, 
-  LayoutDashboard, 
-  Clock, 
-  Link2, 
-  PlusCircle, 
-  Bug,
-  Menu,
-  X
-} from 'lucide-react';
 
 export default function FloatingMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
+  // Fecha o menu se o usuário clicar em qualquer lugar fora dele
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -33,20 +17,150 @@ export default function FloatingMenu() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Mapeamento dos itens com SVGs nativos inline (sem dependências externas)
   const menuItems = [
-    { to: "/", label: "Artists", icon: <Users size={16} /> },
-    { to: "/albums", label: "Albums", icon: <Disc size={16} /> },
-    { to: "/tracks", label: "Tracks", icon: <Music size={16} /> },
-    { to: "/countries", label: "Countries", icon: <Globe size={16} /> },
-    { to: "/languages", label: "Languages", icon: <Languages size={16} /> },
-    { to: "/charts", label: "Charts", icon: <BarChart2 size={16} /> },
-    { to: "/discover", label: "Discover", icon: <Compass size={16} /> },
-    { to: "/stats", label: "Stats", icon: <PieChart size={16} /> },
-    { to: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={16} /> },
-    { to: "/recent", label: "Recent", icon: <Clock size={16} /> },
-    { to: "/links", label: "Links", icon: <Link2 size={16} /> },
-    { to: "/new-entries", label: "New Entries", icon: <PlusCircle size={16} /> },
-    { to: "/debug", label: "Debug", icon: <Bug size={16} /> },
+    { 
+      to: "/", 
+      label: "Artists", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      )
+    },
+    { 
+      to: "/albums", 
+      label: "Albums", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      )
+    },
+    { 
+      to: "/tracks", 
+      label: "Tracks", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
+      )
+    },
+    { 
+      to: "/countries", 
+      label: "Countries", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="2" y1="12" x2="22" y2="12" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+      )
+    },
+    { 
+      to: "/languages", 
+      label: "Languages", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m5 8 6 6" />
+          <path d="m4 14 6-6 2-3" />
+          <path d="M2 5h12" />
+          <path d="M7 2h1" />
+          <path d="m22 22-5-10-5 10" />
+          <path d="M14 18h6" />
+        </svg>
+      )
+    },
+    { 
+      to: "/charts", 
+      label: "Charts", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      )
+    },
+    { 
+      to: "/discover", 
+      label: "Discover", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+        </svg>
+      )
+    },
+    { 
+      to: "/stats", 
+      label: "Stats", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+          <path d="M22 12A10 10 0 0 0 12 2v10z" />
+        </svg>
+      )
+    },
+    { 
+      to: "/dashboard", 
+      label: "Dashboard", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="9" />
+          <rect x="14" y="3" width="7" height="5" />
+          <rect x="14" y="12" width="7" height="9" />
+          <rect x="3" y="16" width="7" height="5" />
+        </svg>
+      )
+    },
+    { 
+      to: "/recent", 
+      label: "Recent", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      )
+    },
+    { 
+      to: "/links", 
+      label: "Links", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+      )
+    },
+    { 
+      to: "/new-entries", 
+      label: "New Entries", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+      )
+    },
+    { 
+      to: "/debug", 
+      label: "Debug", 
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      )
+    },
   ];
 
   return (
@@ -70,8 +184,20 @@ export default function FloatingMenu() {
         ))}
       </div>
 
+      {/* Botão com ícone Hamburger / X em SVG Puro */}
       <button className="floating-menu-btn" onClick={() => setIsOpen(!isOpen)} style={styles.button}>
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
+        {isOpen ? (
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        )}
       </button>
     </div>
   );
@@ -83,8 +209,8 @@ const styles = {
     bottom: '20px', 
     left: '20px', 
     zIndex: 9999, 
-    fontFamily: "'Bebas Neue', cursive", // Atualizado para a sua configuração padrão
-    letterSpacing: '0.8px'               // Um ajuste sutil de espaçamento que cai muito bem com o estilo cursive/display da Bebas
+    fontFamily: "'Bebas Neue', cursive",
+    letterSpacing: '0.8px'
   },
   button: { 
     width: '50px', 
@@ -120,7 +246,7 @@ const styles = {
     padding: '10px 14px', 
     color: '#333', 
     textDecoration: 'none', 
-    fontSize: '18px',                  // Aumentado levemente para dar o destaque imponente que a Bebas Neue pede
+    fontSize: '18px', 
     borderBottom: '1px solid #f5f5f5',
     transition: 'background-color 0.15s ease'
   },
@@ -131,7 +257,7 @@ const styles = {
     width: '18px', 
     display: 'inline-block',
     textAlign: 'center',
-    fontFamily: 'sans-serif'             // Mantido em sans-serif para garantir largura fixa e alinhamento dos números de dois dígitos
+    fontFamily: 'sans-serif'
   },
   iconWrapper: {
     display: 'flex',
