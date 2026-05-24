@@ -543,7 +543,7 @@ export default function Artists() {
     </div>
   );
 
-
+}
 // --- ESTILOS INLINE AUXILIARES COM HERANÇA TIPOGRÁFICA ---
 const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive" };
 const tdStyle = { padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', cursor: 'pointer', fontFamily: "'Bebas Neue', cursive" };
@@ -589,4 +589,3 @@ const getGRBadgeStyle = (item) => {
   };
 };
 
-}
