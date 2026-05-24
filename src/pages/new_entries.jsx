@@ -216,7 +216,6 @@ export default function NewEntries() {
     setTrackRatings(prev => ({ ...prev, [trackId]: parseInt(val) }));
   };
 
-  // Envio final para o Banco de Dados
   const saveToDatabase = async () => {
     if (!selectedCityId) {
       alert("Selecione a cidade!");
@@ -227,7 +226,7 @@ export default function NewEntries() {
     setStatus({ text: "⏳ GRAVANDO...", type: "new" });
 
     try {
-      // 1. Executa a RPC do banco para obter ou criar o artista de forma segura
+      // Executa a RPC passando os parâmetros tipados corretamente
       const { data: artResult, error: rpcError } = await supabase.rpc('get_or_create_artist', {
         p_deezer_id: String(rawData.album.artist.id),
         p_name: rawData.album.artist.name,
@@ -239,6 +238,7 @@ export default function NewEntries() {
 
       if (rpcError) throw rpcError;
 
+      // Desestruturação segura do retorno da RPC
       let idArt;
       if (Array.isArray(artResult) && artResult.length > 0) {
         idArt = artResult[0].id_artist || artResult[0];
@@ -251,7 +251,7 @@ export default function NewEntries() {
       if (!idArt) throw new Error("Não foi possível obter o ID do artista.");
       idArt = parseInt(idArt);
 
-      // 2. Salva o Álbum
+      // Salva o Álbum
       const { data: albData, error: albError } = await supabase
         .from('tbl_albums')
         .insert([{
@@ -269,7 +269,7 @@ export default function NewEntries() {
       }
       const idAlb = albData[0].id_album;
 
-      // 3. Estrutura e envia as faixas em lote
+      // Estrutura e envia as faixas em lote
       const tracksPayload = rawData.tracks.map((t, idx) => ({
         id_album: idAlb,
         id_artist: idArt,
@@ -296,7 +296,7 @@ export default function NewEntries() {
       setLoading(false);
     }
   };
-
+  
   const handlePasteFromClipboard = async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -518,15 +518,16 @@ const styles = {
       fontFamily: '-apple-system, system-ui, sans-serif',
       backgroundColor: '#0f172a',
       color: '#f8fafc',
-      padding: '20px 10px 40px 10px',
+      padding: '20px 10px 80px 10px', // Espaço extra no final para o menu flutuante não cobrir o botão
       
-      // --- ESTAS LINHAS ABAIXO FORÇAM O SCROLL INTERNO INDEPENDENTE ---
+      // --- FORÇA SCROLL COMPATÍVEL COM O APP-CONTAINER ---
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      overflowY: 'auto', // Cria uma barra de rolagem exclusiva para esta página caso o app-container esteja travado
+      overflowY: 'auto', 
+      WebkitOverflowScrolling: 'touch', // Scroll suave no iOS
       
       display: 'flex',
       justifyContent: 'center',
