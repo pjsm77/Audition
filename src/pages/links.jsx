@@ -21,8 +21,6 @@ const Links = () => {
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
           </svg>
         </div>
-        <h1 style={styles.title}>Plataformas de Música</h1>
-        <p style={styles.subtitle}>Estatísticas, catalogação, streaming e bancos de dados da minha coleção</p>
 
         <div style={styles.linksContainer}>
           {links.map((link) => (
@@ -59,10 +57,12 @@ const styles = {
     background: 'linear-gradient(135deg, #0f0f12 0%, #17171c 100%)',
     minHeight: '100vh',
     display: 'flex',
-    justifyContent: 'center',
+    flexDirection: 'column',
+    justifyContent: 'flex-start',
     alignItems: 'center',
-    padding: '40px 20px',
+    padding: '60px 20px',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    overflowY: 'auto',
   },
   card: {
     width: '100%',
@@ -78,24 +78,13 @@ const styles = {
     display: 'inline-flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: '20px',
-  },
-  title: {
-    fontSize: '24px',
-    color: '#ffffff',
-    fontWeight: '700',
-    marginBottom: '8px',
-  },
-  subtitle: {
-    fontSize: '14px',
-    color: '#a0a0a8',
     marginBottom: '32px',
-    lineHeight: '1.5',
   },
   linksContainer: {
     display: 'flex',
     flexDirection: 'column',
     gap: '14px',
+    width: '100%',
   },
   linkCard: {
     display: 'block',
