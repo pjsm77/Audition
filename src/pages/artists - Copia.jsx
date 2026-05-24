@@ -370,15 +370,7 @@ export default function Artists() {
       </td>
       
       <td style={tdFixedStyle('fixed', '85px', '35px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
-      <td 
-  style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', 'transparent', index), cursor: 'pointer' }} 
-  onClick={() => checkAuthAndOpenRating(item.artist)}
-  title="Avaliar Artista"
->
-  <span style={getGRBadgeStyle(item)}>
-    {item.global_pos}
-  </span>
-</td>
+      <td style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', getGRColor(item), index), fontWeight: 'bold', cursor: 'pointer' }} onClick={() => checkAuthAndOpenRating(item.artist)}>{item.global_pos}</td>
       
       <td style={{ ...tdFixedStyle('fixed', '150px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
@@ -542,7 +534,7 @@ export default function Artists() {
 
     </div>
   );
-
+}
 
 // --- ESTILOS INLINE AUXILIARES COM HERANÇA TIPOGRÁFICA ---
 const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive" };
@@ -558,35 +550,3 @@ const thFixedStyle = (pos, left, width, align = 'left') => ({
 const tdFixedStyle = (pos, left, width, align, color, index) => ({
   position: 'sticky', left: left, width: width, minWidth: width, maxWidth: width, zIndex: 400, backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', color: color, textAlign: align, padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive"
 });
-
-const getGRBadgeStyle = (item) => {
-  const gr = Number(item.global_pos) || 0;
-  
-  // Regra de cores baseada estritamente no ranking geral
-  let borderColor = '#777777'; // Cor padrão caso falte o dado
-  if (gr > 0 && gr <= 100) {
-    borderColor = '#1DB954'; // Verde para Top 100
-  } else if (gr > 100 && gr <= 500) {
-    borderColor = '#ffc845'; // Amarelo para 101 a 500
-  } else if (gr > 500) {
-    borderColor = '#e97b78'; // Vermelho a partir de 501
-  }
-
-  return {
-    fontFamily: "monospace, 'Bebas Neue', cursive",
-    fontSize: '11px',
-    fontWeight: 'bold',
-    color: borderColor,          // Texto assume a cor da borda para um look uniforme
-    backgroundColor: 'transparent', // Fundo transparente mantendo o efeito zebra
-    border: `1px solid ${borderColor}`,
-    borderRadius: '4px',
-    padding: '2px 4px',          // Padding minimalista para não esticar a linha verticalmente
-    display: 'inline-block',
-    minWidth: '34px',            // Garante tamanho estável prevendo números de até 4 dígitos (ex: 9999)
-    textAlign: 'center',
-    lineHeight: '1',             // Trava o tamanho vertical impedindo impactos na linha da tabela
-    boxSizing: 'border-box'
-  };
-};
-
-}
