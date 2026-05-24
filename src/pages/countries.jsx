@@ -146,7 +146,7 @@ export default function Countries() {
               </th>
               <th onClick={() => handleSort('total_albums')} style={{ ...thStyle, textAlign: 'center' }}>ALB</th>
               <th onClick={() => handleSort('total_unique_songs')} style={{ ...thStyle, textAlign: 'center' }}>MÚS</th>
-              <th onClick={() => handleSort('total_scrobbles')} style={{ ...thStyle, textAlign: 'center' }}>SCROBBLES</th>
+              <th style={{ ...thStyle, textAlign: 'center', color: '#999', cursor: 'default' }}>SCROBBLES</th>
               <th style={{ ...thStyle, textAlign: 'center', width: '110px' }}>RATINGS</th>
             </tr>
           </thead>
@@ -195,10 +195,10 @@ export default function Countries() {
                     {item.total_unique_songs}
                   </td>
 
-                  {/* Total Scrobbles Formatados */}
-                  <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
-                    {item.total_scrobbles ? item.total_scrobbles.toLocaleString('pt-BR') : 0}
-                  </td>
+{/* Total Scrobbles Desativados temporariamente por performance */}
+<td style={{ ...tdStyle, textAlign: 'center', color: '#bbb', fontSize: '16px' }}>
+  -
+</td>
 
                   {/* Proporção e contagem de Ratings com as barras inline compactadas */}
                   <td style={{ ...tdStyle, padding: '3px 6px' }}>
