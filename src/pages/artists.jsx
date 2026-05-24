@@ -562,30 +562,37 @@ const tdFixedStyle = (pos, left, width, align, color, index) => ({
 const getGRBadgeStyle = (item) => {
   const gr = Number(item.global_pos) || 0;
   
-  // Regra de cores baseada estritamente no ranking geral
-  let borderColor = '#777777'; // Cor padrão caso falte o dado
+  // Definição dos 7 níveis baseados na escala de recência (0 a 6)
+  let borderColor = '#aaaaaa'; // Nível 0: Demais (> 2000 ou sem posição)
+
   if (gr > 0 && gr <= 100) {
-    borderColor = '#1DB954'; // Verde para Top 100
-  } else if (gr > 100 && gr <= 500) {
-    borderColor = '#ffc845'; // Amarelo para 101 a 500
-  } else if (gr > 500) {
-    borderColor = '#e97b78'; // Vermelho a partir de 501
+    borderColor = '#6dbe99'; // Nível 6: Top 100 (Verde Recência)
+  } else if (gr > 100 && gr <= 300) {
+    borderColor = '#86d03a'; // Nível 5: 101 ao 300
+  } else if (gr > 300 && gr <= 600) {
+    borderColor = '#ffcc33'; // Nível 4: 301 ao 600
+  } else if (gr > 600 && gr <= 1000) {
+    borderColor = '#ffaa33'; // Nível 3: 601 ao 1000
+  } else if (gr > 1000 && gr <= 1500) {
+    borderColor = '#ff5f33'; // Nível 2: 1001 ao 1500
+  } else if (gr > 1500 && gr <= 2000) {
+    borderColor = '#e97b78'; // Nível 1: 1501 ao 2000
   }
 
   return {
-    fontFamily: "monospace, 'Bebas Neue', cursive",
+    fontFamily: "'Bebas Neue', cursive", // Mesma fonte condensada da coluna TOTAL
     fontSize: '11px',
     fontWeight: 'bold',
-    color: borderColor,          // Texto assume a cor da borda para um look uniforme
-    backgroundColor: 'transparent', // Fundo transparente mantendo o efeito zebra
+    letterSpacing: '0.3px',
+    color: borderColor,
+    backgroundColor: 'transparent',
     border: `1px solid ${borderColor}`,
-    borderRadius: '4px',
-    padding: '2px 4px',          // Padding minimalista para não esticar a linha verticalmente
+    borderRadius: '3px',
+    padding: '1px 3px',
     display: 'inline-block',
-    minWidth: '34px',            // Garante tamanho estável prevendo números de até 4 dígitos (ex: 9999)
+    minWidth: '26px',              // Mais estreito devido à fonte condensada, economizando espaço lateral
     textAlign: 'center',
-    lineHeight: '1',             // Trava o tamanho vertical impedindo impactos na linha da tabela
+    lineHeight: '1',
     boxSizing: 'border-box'
   };
 };
-
