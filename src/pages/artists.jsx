@@ -560,7 +560,6 @@ const tdFixedStyle = (pos, left, width, align, color, index) => ({
   position: 'sticky', left: left, width: width, minWidth: width, maxWidth: width, zIndex: 400, backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', color: color, textAlign: align, padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive"
 });
 
-// Adicione junto com os outros estilos auxiliares no fim do arquivo
 const getGRBadgeStyle = (item, index) => {
   const color = getGRColor(item);
   return {
@@ -568,14 +567,14 @@ const getGRBadgeStyle = (item, index) => {
     fontSize: '11px',
     fontWeight: 'bold',
     color: color,
-    backgroundColor: 'transparent', /* Fundo transparente solicitado */
-    border: `1px solid ${color}`,  /* Borda colorida usando a cor do GR */
-    borderRadius: '4px',           /* Cantos levemente arredondados */
-    padding: '1px 5px',            /* Espaçamento interno minimalista */
+    backgroundColor: 'transparent',
+    border: `1px solid ${color}`,
+    borderRadius: '4px',
+    padding: '1px 5px',
     display: 'inline-block',
-    minWidth: '24px',              /* Mantém os números alinhados simetricamente */
+    minWidth: '24px',
     textAlign: 'center',
-    lineHeight: '1',               /* Trava o tamanho vertical para não empurrar a linha */
+    lineHeight: '1',
     boxSizing: 'border-box'
   };
 };
