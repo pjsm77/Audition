@@ -1,6 +1,7 @@
 // src/App.jsx
 import { Routes, Route } from 'react-router-dom';
 import Artists from './pages/artists';
+import Albums from './pages/albums';
 import Recent from './pages/recent';
 import Charts from './pages/charts';
 import FloatingMenu from './components/FloatingMenu';
@@ -13,6 +14,7 @@ export default function App() {
       
       <Routes>
         <Route path="/" element={<Artists />} />
+        <Route path="/albums" element={<Albums />} />
         <Route path="/recent" element={<Recent />} />
         <Route path="/charts" element={<Charts />} />
         {/* Caso tenha /albums ou outras rotas no menu, elas apontarão para cá */}
