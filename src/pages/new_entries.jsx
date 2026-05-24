@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// IMPORTAÇÃO CORRETA ALINHADA COM O SEU PROJETO:
+// Importação padrão do seu cliente centralizado
 import { supabase } from '../supabaseClient'; 
 
 export default function NewEntries() {
@@ -11,7 +11,7 @@ export default function NewEntries() {
 
   // Dados carregados do banco / Deezer
   const [countries, setCountries] = useState([]);
-  const [languages, setLanguages] = useState({ top: [], others: [] }); // Ajustado para evitar erro de undefined antes da carga
+  const [languages, setLanguages] = useState({ top: [], others: [] });
   const [cities, setCities] = useState([]);
 
   // Valores selecionados pelo usuário
@@ -36,6 +36,12 @@ export default function NewEntries() {
   useEffect(() => {
     async function loadInitialData() {
       try {
+        // Garantia de segurança: checar se o cliente foi instanciado
+        if (!supabase) {
+          console.error("Erro crítico: O cliente Supabase não pôde ser importado corretamente.");
+          return;
+        }
+
         // Carrega Países
         const { data: dbCountries, error: errC } = await supabase
           .from('tbl_countries')
@@ -102,15 +108,13 @@ export default function NewEntries() {
     setStatus({ text: "🔍 Verificando banco...", type: "new" });
     
     try {
-      // 1. Verifica se o álbum já existe ou busca o artista vinculado
-      const { data: albumData } = await supabase
-        .from('tbl_albums')
-        .select('*, tbl_artists(*)')
-        .eq('deezer_id_album', id);
-
-      // 2. Busca dados direto da API do Deezer via JSONP
+      // Busca dados direto da API do Deezer via JSONP antes da checagem do banco
       const deezerData = await fetchDeezerJsonp(id);
       
+      if (!deezerData || deezerData.error) {
+        throw new Error("Álbum não encontrado na API do Deezer.");
+      }
+
       // Tratamento básico de propriedades extraídas
       deezerData.deezer_id_cover = deezerData.cover_xl ? deezerData.cover_xl.split('/cover/')[1]?.split('/')[0] : null;
       deezerData.release_year = deezerData.release_date ? deezerData.release_date.split('-')[0] : null;
@@ -131,12 +135,14 @@ export default function NewEntries() {
       setListeningDate(new Date().toISOString().split('T')[0]);
       setShowPanels(true);
 
-      // 3. Busca o artista no Supabase para ver se ele já está cadastrado
+      // Busca o artista no Supabase usando a referência segura importada
       const deezerIdArt = String(deezerData.artist.id);
-      const { data: artData } = await supabase
+      const { data: artData, error: artError } = await supabase
         .from('tbl_artists')
         .select('*')
         .eq('deezer_id', deezerIdArt);
+
+      if (artError) throw artError;
 
       if (artData && artData.length > 0) {
         setStatus({ text: "⚠️ ARTISTA ENCONTRADO", type: "found" });
@@ -146,11 +152,22 @@ export default function NewEntries() {
         setArtistRating(art.rating || "1");
 
         // Tenta remapear o país e carregar as cidades dele
-        const foundCountry = countries.find(c => c.id_country === art.id_country);
+        // Força busca usando a lista local ou diretamente do banco caso a montagem demore
+        let targetCountryId = art.id_country;
+        const foundCountry = countries.find(c => c.id_country === targetCountryId);
+        
         if (foundCountry) {
           setCountrySearch(foundCountry.portuguese_name);
           setSelectedCountryId(foundCountry.id_country);
           await loadCities(foundCountry.id_country, art.id_city);
+        } else if (targetCountryId) {
+          // Fallback caso a lista global ainda esteja indexando
+          const { data: cData } = await supabase.from('tbl_countries').select('*').eq('id_country', targetCountryId);
+          if (cData && cData.length > 0) {
+            setCountrySearch(cData[0].portuguese_name);
+            setSelectedCountryId(cData[0].id_country);
+            await loadCities(cData[0].id_country, art.id_city);
+          }
         }
       } else {
         setStatus({ text: "✨ NOVO ARTISTA", type: "new" });
@@ -163,18 +180,18 @@ export default function NewEntries() {
     } catch (e) {
         console.error("Erro detalhado no processUrl:", e);
         setStatus({ text: `Erro: ${e.message || e}`, type: "new" });
-      }
+    }
   };
 
   // Carrega cidades com base no ID do país selecionado
   const loadCities = async (countryId, targetCityId = '') => {
-    const { data: dbCities } = await supabase
+    const { data: dbCities, error } = await supabase
       .from('tbl_cities')
       .select('*')
       .eq('id_country', countryId)
       .order('name');
 
-    if (dbCities) {
+    if (!error && dbCities) {
       setCities(dbCities);
       if (targetCityId) {
         setSelectedCityId(targetCityId);
@@ -199,7 +216,7 @@ export default function NewEntries() {
     setTrackRatings(prev => ({ ...prev, [trackId]: parseInt(val) }));
   };
 
-  // Envio final para o Banco de Dados (Mantendo a chamada idêntica à RPC)
+  // Envio final para o Banco de Dados
   const saveToDatabase = async () => {
     if (!selectedCityId) {
       alert("Selecione a cidade!");
@@ -302,14 +319,12 @@ export default function NewEntries() {
     setTrackRatings({});
   };
 
-  // Formatação de minutos e segundos das faixas
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = (seconds % 60).toString().padStart(2, '0');
     return `${mins}:${secs}`;
   };
 
-  // Termos de pesquisa do Google para origem do artista
   const googleSearchUrl = rawData.album 
     ? `https://www.google.com/search?q=${encodeURIComponent(`${rawData.album.artist.name} band origin city country`)}`
     : '#';
@@ -498,7 +513,6 @@ export default function NewEntries() {
   );
 }
 
-// Mapeamento fiel das classes CSS inline para o padrão de objetos de estilo do React
 const styles = {
   body: {
     fontFamily: '-apple-system, system-ui, sans-serif',
