@@ -1,23 +1,33 @@
 import React, { useEffect, useState } from 'react';
 
-// Componente de Card com tamanho controlado e layout limpo
+// Componente de Card com dimensões inline inline estritas (CSS nativo)
 const StatCard = ({ title, value, iconPath, gridSpan = "" }) => (
-  <div className={`bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between min-h-[110px] ${gridSpan}`}>
-    {/* Topo do Card: Ícone pequeno + Título */}
-    <div className="flex items-center gap-2">
-      <div className="text-slate-700 flex-shrink-0">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-          {iconPath}
-        </svg>
-      </div>
+  <div 
+    className={`bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-between ${gridSpan}`}
+    style={{ minHeight: '110px', boxSizing: 'border-box' }}
+  >
+    {/* Topo do Card: Título + Ícone Lado a Lado */}
+    <div className="flex items-center justify-between" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
       <span className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate">
         {title}
       </span>
+      {/* Forçando o container do ícone a ter tamanho fixo via style */}
+      <div style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <svg 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24" 
+          strokeWidth="2.5"
+          style={{ width: '20px', height: '20px', minWidth: '20px', minHeight: '20px', display: 'block' }}
+        >
+          {iconPath}
+        </svg>
+      </div>
     </div>
 
     {/* Base do Card: Valor numérico */}
-    <div className="mt-2">
-      <h3 className="text-2xl font-black text-slate-800 tracking-tight">
+    <div style={{ marginTop: '8px' }}>
+      <h3 className="text-2xl font-black text-slate-800 tracking-tight" style={{ margin: 0, fontSize: '24px', fontWeight: '900' }}>
         {value !== null ? value.toLocaleString() : '...'}
       </h3>
     </div>
@@ -31,7 +41,6 @@ export default function Stats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Simulando o retorno da sua vw_stats
         setStats({
           total_artists: 1240,
           total_albums: 3420,
@@ -51,7 +60,7 @@ export default function Stats() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-slate-50">
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
         <div className="text-slate-400 font-bold text-xs uppercase tracking-widest animate-pulse">
           Carregando dados...
         </div>
@@ -60,20 +69,31 @@ export default function Stats() {
   }
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 text-slate-800 p-4 flex flex-col pb-24">
+    <div 
+      className="w-full min-h-screen bg-slate-50 text-slate-800 p-4 flex flex-col"
+      style={{ boxSizing: 'border-box', paddingBottom: '80px' }}
+    >
       
       {/* Cabeçalho */}
-      <header className="mb-5 pl-1">
-        <h1 className="text-xl font-black tracking-tight uppercase text-slate-900">
+      <header style={{ marginBottom: '20px', paddingLeft: '4px' }}>
+        <h1 className="text-xl font-black tracking-tight uppercase text-slate-900" style={{ margin: 0, fontSize: '20px' }}>
           Dashboard de Música
         </h1>
-        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">
+        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider" style={{ margin: '4px 0 0 0', fontSize: '11px' }}>
           Visão geral da sua biblioteca em tempo real
         </p>
       </header>
 
-      {/* Grid de Cards - Ajustado para caber perfeitamente no Mobile e Desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      {/* Grid de Cards - Se o grid do Tailwind falhar, as propriedades nativas seguram */}
+      <div 
+        className="grid grid-cols-2 gap-3"
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', 
+          gap: '12px',
+          width: '100%'
+        }}
+      >
         
         {/* Card: Artistas */}
         <StatCard 
@@ -103,11 +123,11 @@ export default function Stats() {
           iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9s2.015-9 4.5-9m0 0a9.003 9.003 0 018.716 4.253M12 3a9.003 9.003 0 00-8.716 4.253M12 12h.008v.008H12V12z" />}
         />
 
-        {/* Card: Scrobbles - Ocupa 2 colunas no mobile para fechar o layout bonito */}
+        {/* Card: Scrobbles - Ocupa as duas colunas no final */}
         <StatCard 
           title="Scrobbles" 
           value={stats?.total_scrobbles} 
-          gridSpan="col-span-2 sm:col-span-1"
+          gridSpan="col-span-2"
           iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653z" />}
         />
 
