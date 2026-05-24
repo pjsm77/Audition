@@ -1,10 +1,3 @@
-Excelente ideia! Mapear os ícones com o gradiente de cores da escala de pH vai dar um efeito visual fantástico e super dinâmico ao menu.
-
-Extraí os códigos hexadecimais correspondentes a cada nível da imagem (do vermelho do 0 até o azul/violeta do 12) e apliquei diretamente na propriedade `stroke` de cada ícone correspondente.
-
-Aqui está o código pronto para rodar:
-
-```jsx
 // src/components/FloatingMenu.jsx
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
@@ -286,5 +279,3 @@ const styles = {
     // O atributo color foi movido direto para a renderização inline (style do map)
   }
 };
-
-```
