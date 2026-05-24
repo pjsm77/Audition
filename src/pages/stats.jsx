@@ -1,23 +1,25 @@
-import React, { useEffect, useState } from 'react';
-// IMPORTANTE: Descomente e ajuste a linha abaixo com o caminho correto do seu cliente Supabase
-// import { supabase } from '../path/to/supabaseClient';
+// src/pages/countries.jsx
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient'; // Garanta que o caminho do seu cliente está correto
 
+// Card estruturado em lista vertical com estilo inline estrito
 const StatCard = ({ title, value, iconPath }) => (
   <div 
     className="rounded-xl"
     style={{ 
-      backgroundColor: '#e0f2fe', 
-      border: '2px solid #7dd3fc', 
+      backgroundColor: '#e0f2fe', // Azul claro
+      border: '2px solid #7dd3fc', // Borda azul destacada
       padding: '16px',
       marginBottom: '12px', 
       display: 'flex', 
       alignItems: 'center', 
-      justifyContent: 'space-between', // Corrigido de 'between' para 'space-between' nativo
+      justifyContent: 'space-between',
       width: '100%',
       boxSizing: 'border-box',
       boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)'
     }}
   >
+    {/* Bloco de Texto (Título em inglês + Valor vindo do Banco) */}
     <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <span style={{ fontSize: '12px', fontWeight: '700', color: '#0369a1', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         {title}
@@ -27,6 +29,7 @@ const StatCard = ({ title, value, iconPath }) => (
       </h3>
     </div>
 
+    {/* Ícone Contido à Direita */}
     <div style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#0369a1' }}>
       <svg 
         fill="none" 
@@ -41,29 +44,29 @@ const StatCard = ({ title, value, iconPath }) => (
   </div>
 );
 
-export default function Stats() {
+export default function Countries() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    async function loadCountryStats() {
+      setLoading(true);
       try {
-        // Chamada real à View do Supabase
+        // 1. Apontando para a view correta criada no Supabase: 'vw_stats'
         const { data, error } = await supabase
           .from('vw_stats')
           .select('*')
-          .single(); // Como a view consolida tudo em 1 linha, usamos .single()
+          .single(); // Consome a linha única de agregados
 
         if (error) throw error;
         setStats(data);
-      } catch (error) {
-        console.error("Erro ao buscar estatísticas do Supabase:", error);
+      } catch (err) {
+        console.error("Erro na carga do banco de dados (vw_stats):", err);
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchStats();
+    }
+    loadCountryStats();
   }, []);
 
   if (loading) {
@@ -81,14 +84,17 @@ export default function Stats() {
       className="w-full min-h-screen bg-slate-50 p-4 flex flex-col"
       style={{ boxSizing: 'border-box', paddingBottom: '32px' }}
     >
+      
+      {/* Título do Componente */}
       <header style={{ marginBottom: '20px', paddingLeft: '2px' }}>
         <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '-0.025em', color: '#0f172a' }}>
           Stats
         </h1>
       </header>
 
+      {/* Lista de Cards Verticais Populados com dados reais do Supabase */}
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
-        {/* Mapeados com as variáveis exatas retornadas pelo SELECT da view (total_...) */}
+        
         <StatCard 
           title="Artists" 
           value={stats?.total_artists} 
@@ -118,6 +124,7 @@ export default function Stats() {
           value={stats?.total_scrobbles} 
           iconPath={<path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347c-.75.412-1.667-.13-1.667-.986V5.653z" />}
         />
+
       </div>
     </div>
   );
