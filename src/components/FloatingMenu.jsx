@@ -17,14 +17,14 @@ export default function FloatingMenu() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Mapeamento dos itens com as cores exatas da escala de pH (0 a 12) nos ícones
+  // Mapeamento dos itens com stroke="currentColor" fixado para herdar as cores do pH
   const menuItems = [
     { 
       to: "/", 
       label: "Artists", 
       color: "#e6224c", // pH 0 - Vermelho
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
           <circle cx="9" cy="7" r="4" />
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -37,7 +37,7 @@ export default function FloatingMenu() {
       label: "Albums", 
       color: "#f15a24", // pH 1 - Laranja Escuro
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <circle cx="12" cy="12" r="3" />
         </svg>
@@ -48,7 +48,7 @@ export default function FloatingMenu() {
       label: "Tracks", 
       color: "#f9a01b", // pH 2 - Laranja Claro
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 18V5l12-2v13" />
           <circle cx="6" cy="18" r="3" />
           <circle cx="18" cy="16" r="3" />
@@ -60,7 +60,7 @@ export default function FloatingMenu() {
       label: "Countries", 
       color: "#ffd400", // pH 3 - Amarelo Escuro
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <line x1="2" y1="12" x2="22" y2="12" />
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -72,7 +72,7 @@ export default function FloatingMenu() {
       label: "Languages", 
       color: "#cedc00", // pH 4 - Amarelo Lima
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m5 8 6 6" />
           <path d="m4 14 6-6 2-3" />
           <path d="M2 5h12" />
@@ -87,7 +87,7 @@ export default function FloatingMenu() {
       label: "Charts", 
       color: "#8cc63f", // pH 5 - Verde Claro
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="20" x2="18" y2="10" />
           <line x1="12" y1="20" x2="12" y2="4" />
           <line x1="6" y1="20" x2="6" y2="14" />
@@ -99,7 +99,7 @@ export default function FloatingMenu() {
       label: "Discover", 
       color: "#39b54a", // pH 6 - Verde Médio
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
         </svg>
@@ -110,7 +110,7 @@ export default function FloatingMenu() {
       label: "Stats", 
       color: "#00a651", // pH 7 - Verde Neutro
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
           <path d="M22 12A10 10 0 0 0 12 2v10z" />
         </svg>
@@ -121,7 +121,7 @@ export default function FloatingMenu() {
       label: "Dashboard", 
       color: "#00a99d", // pH 8 - Ciano Esverdeado
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="7" height="9" />
           <rect x="14" y="3" width="7" height="5" />
           <rect x="14" y="12" width="7" height="9" />
@@ -134,7 +134,7 @@ export default function FloatingMenu() {
       label: "Recent", 
       color: "#29abe2", // pH 9 - Ciano/Azul Claro
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
         </svg>
@@ -145,7 +145,7 @@ export default function FloatingMenu() {
       label: "Links", 
       color: "#0071bc", // pH 10 - Azul Royal
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
@@ -156,7 +156,7 @@ export default function FloatingMenu() {
       label: "New Entries", 
       color: "#1b1464", // pH 11 - Azul Escuro / Índigo
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="16" />
           <line x1="8" y1="12" x2="16" y2="12" />
@@ -168,7 +168,7 @@ export default function FloatingMenu() {
       label: "Debug", 
       color: "#3e3a94", // pH 12 - Violeta Médio
       icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
@@ -191,7 +191,6 @@ export default function FloatingMenu() {
             style={styles.item}
           >
             <span style={styles.number}>{index + 1}</span>
-            {/* Passando a cor correspondente dinamicamente para o wrapper do ícone */}
             <span style={{...styles.iconWrapper, color: item.color}}>{item.icon}</span>
             <span>{item.label}</span>
           </Link>
@@ -276,6 +275,5 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     marginRight: '10px'
-    // O atributo color foi movido direto para a renderização inline (style do map)
   }
 };
