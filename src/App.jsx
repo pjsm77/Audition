@@ -4,6 +4,7 @@ import Artists from './pages/artists';
 import Albums from './pages/albums';
 import Countries from './pages/countries';
 import Languages from './pages/languages';
+import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
 import Charts from './pages/charts';
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/albums" element={<Albums />} />
         <Route path="/countries" element={<Countries />} />
         <Route path="/languages" element={<Languages />} />
+        <Route path="/discover" element={<Discover />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/recent" element={<Recent />} />
         <Route path="/charts" element={<Charts />} />
