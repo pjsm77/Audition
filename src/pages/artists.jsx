@@ -391,11 +391,20 @@ export default function Artists() {
             {variationText}
           </span>
           <img 
-            src={`https://flagcdn.com/32x24/${flagCode}.png`} 
-            style={{ width: '14px', height: '10px', border: '0.5px solid #bbb', marginRight: '6px', cursor: 'pointer' }}
-            onClick={() => toggleQuickFilter('country', item.country)}
-            alt="" 
-          />
+  src={`https://flagcdn.com/32x24/${flagCode}.png`} 
+  style={{ 
+    width: '18px',          // Aumentado de 14px para 18px (ganho de visibilidade)
+    height: '13px',         // Aumentado de 10px para 13px (proporcional)
+    border: '0.5px solid #bbb', 
+    marginRight: '6px', 
+    verticalAlign: 'middle', // Alinha perfeitamente ao centro do texto do artista
+    marginTop: '-2px',      // Compensação cirúrgica para o topo
+    marginBottom: '-2px',   // Compensação cirúrgica para a base (impede interferência na altura da linha)
+    cursor: 'pointer' 
+  }}
+  onClick={() => toggleQuickFilter('country', item.country)}
+  alt="" 
+/>
           
           {/* 3. CLIQUE NO NOME DO ARTISTA: Abre perfil no Last.fm */}
           <span 
