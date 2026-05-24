@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; // Ajuste o caminho de acordo com a sua estrutura de pastas
+// IMPORTAÇÃO CORRETA ALINHADA COM O SEU PROJETO:
+import { supabase } from '../supabaseClient'; 
 
-export default function NewEntries() {
 export default function NewEntries() {
   // Estados do Formulário e Controle
   const [deezerUrl, setDeezerUrl] = useState('');
@@ -11,7 +11,7 @@ export default function NewEntries() {
 
   // Dados carregados do banco / Deezer
   const [countries, setCountries] = useState([]);
-  const [languages, setLanguages] = useState([]);
+  const [languages, setLanguages] = useState({ top: [], others: [] }); // Ajustado para evitar erro de undefined antes da carga
   const [cities, setCities] = useState([]);
 
   // Valores selecionados pelo usuário
