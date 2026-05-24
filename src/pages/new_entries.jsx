@@ -513,19 +513,24 @@ export default function NewEntries() {
   );
 }
 
-// Substitua o objeto styles antigo por este:
 const styles = {
     body: {
       fontFamily: '-apple-system, system-ui, sans-serif',
       backgroundColor: '#0f172a',
       color: '#f8fafc',
-      padding: '20px 10px 40px 10px', // Aumentado o padding inferior para dar respiro ao rolar
-      minHeight: '100vh',            // Garante que o fundo cubra toda a tela, mas permita expandir
-      width: '100%',
-      boxSizing: 'border-box',
+      padding: '20px 10px 40px 10px',
+      
+      // --- ESTAS LINHAS ABAIXO FORÇAM O SCROLL INTERNO INDEPENDENTE ---
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      overflowY: 'auto', // Cria uma barra de rolagem exclusiva para esta página caso o app-container esteja travado
+      
       display: 'flex',
       justifyContent: 'center',
-      alignItems: 'flex-start',      // Alinha o card no topo para não quebrar o scroll vertical
+      alignItems: 'flex-start',
     },
     container: {
       width: '100%',
