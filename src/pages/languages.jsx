@@ -21,7 +21,6 @@ export default function Languages() {
     async function loadLanguageStats() {
       setLoading(true);
       try {
-        // CORREÇÃO: Garanta que está puxando da view correta
         const { data, error } = await supabase
           .from('vw_languages')
           .select('*');
@@ -71,6 +70,9 @@ export default function Languages() {
   }, [fullRawData, searchTerm, sortCol, sortAsc]);
 
   const handleSort = (col) => {
+    // Ignora o clique se for a coluna de scrobbles desativada
+    if (col === 'total_scrobbles') return;
+
     if (sortCol === col) {
       setSortAsc(!sortAsc);
     } else {
@@ -120,12 +122,12 @@ export default function Languages() {
               <th onClick={() => handleSort('total_albums')} style={{ ...thStyle, textAlign: 'center' }}>
                 ALB {sortCol === 'total_albums' ? (sortAsc ? '▲' : '▼') : ''}
               </th>
-              {/* Alinhado para ordenar pela chave correta do banco (total_unique_songs) */}
               <th onClick={() => handleSort('total_unique_songs')} style={{ ...thStyle, textAlign: 'center' }}>
                 TRA {sortCol === 'total_unique_songs' ? (sortAsc ? '▲' : '▼') : ''}
               </th>
-              <th onClick={() => handleSort('total_scrobbles')} style={{ ...thStyle, textAlign: 'center' }}>
-                SCROBBLES {sortCol === 'total_scrobbles' ? (sortAsc ? '▲' : '▼') : ''}
+              {/* Ajustado: Cabeçalho visual estático para os Scrobbles desativados */}
+              <th style={{ ...thStyle, textAlign: 'center', color: '#999', cursor: 'default' }}>
+                SCROBBLES
               </th>
               <th style={{ ...thStyle, textAlign: 'center', width: '110px' }}>RATINGS</th>
             </tr>
@@ -167,9 +169,9 @@ export default function Languages() {
                     {item.total_unique_songs}
                   </td>
 
-                  {/* SCROBBLES */}
-                  <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
-                    {item.total_scrobbles ? item.total_scrobbles.toLocaleString('pt-BR') : 0}
+                  {/* SCROBBLES DESATIVADOS POR PERFORMANCE */}
+                  <td style={{ ...tdStyle, textAlign: 'center', color: '#bbb', fontSize: '16px' }}>
+                    -
                   </td>
 
                   {/* RATINGS (Gráfico de barras proporcional inline) */}
