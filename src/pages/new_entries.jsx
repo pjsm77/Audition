@@ -165,9 +165,9 @@ export default function NewEntries() {
       }
 
     } catch (e) {
-      console.error(e);
-      setStatus({ text: "Erro ao processar dados", type: "new" });
-    }
+        console.error("Erro detalhado no processUrl:", e);
+        setStatus({ text: `Erro: ${e.message || e}`, type: "new" });
+      }
   };
 
   // Carrega cidades com base no ID do país selecionado
