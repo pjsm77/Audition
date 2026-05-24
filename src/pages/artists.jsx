@@ -116,7 +116,6 @@ export default function Artists() {
       return nameMatch && ratingMatch && zeroScoreMatch && highlightMatch && (currentFilter.type ? (countryMatch || cityMatch) : true);
     });
 
-    // SISTEMA DE ORDENAÇÃO SEGURO CONTRA QUEDAS (ANTILEGACY CRASH)
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
@@ -127,7 +126,6 @@ export default function Artists() {
         return sortAsc ? strA.localeCompare(strB) : strB.localeCompare(strA);
       }
 
-      // Tratamento numérico robusto para scrobbles, recência e anos vazios
       const numA = Number(valA) || 0;
       const numB = Number(valB) || 0;
 
@@ -211,22 +209,16 @@ export default function Artists() {
   };
 
   const handleSort = (col) => {
-    // Se for um número (ano), adiciona o prefixo 'y' para mapear o objeto do banco (ex: y26)
     const targetCol = typeof col === 'number' ? `y${col}` : col;
   
     if (sortCol === targetCol) {
-      // Se já está na coluna atual, apenas inverte a direção (Crescente <-> Decrescente)
       setSortAsc(!sortAsc);
     } else {
       setSortCol(targetCol);
-      
-      // REGRA DE OURO REFINADA:
-      // Se for a coluna 'scrobbles' (TOTAL) OU se a coluna original for um número (ANO),
-      // o primeiro clique DEVE ser decrescente (false) para trazer os maiores números no topo.
       if (targetCol === 'scrobbles' || typeof col === 'number') {
-        setSortAsc(false); // Primeiro clique = Decrescente
+        setSortAsc(false);
       } else {
-        setSortAsc(true);  // Qualquer outra coluna (Artist, País, Cidade, Início, etc) = Crescente (A-Z)
+        setSortAsc(true);
       }
     }
     setOffset(0);
@@ -295,15 +287,15 @@ export default function Artists() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive" }}>
       
       <div 
-  className="table-wrapper" 
-  style={{ 
-    flex: 1, 
-    overflowY: 'auto',  /* Permite rolar para baixo */
-    overflowX: 'auto',  /* Permite rolar para os lados (países, cidades, anos) */
-    width: '100%',
-    position: 'relative'
-  }}
->
+        className="table-wrapper" 
+        style={{ 
+          flex: 1, 
+          overflowY: 'auto',
+          overflowX: 'auto',
+          width: '100%',
+          position: 'relative'
+        }}
+      >
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px', minWidth: '1200px' }}>
           <thead>
             <tr>
@@ -323,112 +315,106 @@ export default function Artists() {
               </th>
               <th onClick={() => handleSort('country')} style={thStyle}>PAÍS</th>
               <th onClick={() => handleSort('city')} style={thStyle}>CIDADE</th>
-              {/* Subsitua a linha atual de mapeamento dos anos por esta: */}
-{years.map(y => (
-  <th 
-    key={y} 
-    onClick={() => handleSort(y)} /* Adicionado o evento de ordenação */
-    style={{ ...thStyle, fontSize: '9px', textAlign: 'center', cursor: 'pointer' }}
-    title={`Ordenar por '${y}`}
-  >
-    '{y}
-  </th>
-))}
+              {years.map(y => (
+                <th 
+                  key={y} 
+                  onClick={() => handleSort(y)}
+                  style={{ ...thStyle, fontSize: '9px', textAlign: 'center', cursor: 'pointer' }}
+                  title={`Ordenar por '${y}`}
+                >
+                  '{y}
+                </th>
+              ))}
               <th onClick={() => handleSort('primeiro_ano')} style={thStyle}>INÍCIO</th>
             </tr>
           </thead>
           <tbody>
-          {pagedData.map((item, index) => {
-  const flagCode = countryMap[(item.country || "").toLowerCase().trim()] || "un";
-  const variationText = item.recencia_variation > 0 ? `+${item.recencia_variation}` : item.recencia_variation;
-  const recenciaColor = item.recencia_variation > 0 ? "#6dbe99" : item.recencia_variation < 0 ? "#e97b78" : "#f8c039";
+            {pagedData.map((item, index) => {
+              const flagCode = countryMap[(item.country || "").toLowerCase().trim()] || "un";
+              const variationText = item.recencia_variation > 0 ? `+${item.recencia_variation}` : item.recencia_variation;
+              const recenciaColor = item.recencia_variation > 0 ? "#6dbe99" : item.recencia_variation < 0 ? "#e97b78" : "#f8c039";
 
-  // Formata o nome para a URL do Last.fm substituindo espaços por '+'
-  const lastFmUrl = `https://www.last.fm/music/${encodeURIComponent(item.artist)}`;
-  // Formata o nome para a busca do Deezer
-  const deezerUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist)}`;
+              const lastFmUrl = `https://www.last.fm/music/${encodeURIComponent(item.artist)}`;
+              const deezerUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist)}`;
 
-  return (
-    <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
-      
-      {/* 1. CLIQUE NA POSIÇÃO: Abre busca no Deezer */}
-      <td 
-        style={{ ...tdFixedStyle('fixed', 0, '30px', 'center', '#1DB954', index), cursor: 'pointer' }}
-        onClick={() => window.open(deezerUrl, '_blank')}
-        title="Buscar no Deezer"
-      >
-        {offset + index + 1}
-      </td>
-      
-      {/* 2. CLIQUE NO TOTAL DE SCROBBLES: Abre o painel lateral de detalhes */}
-      <td 
-        style={{ ...tdFixedStyle('fixed', '30px', '55px', 'right', '#222', index), fontWeight: 'bold', paddingRight: '4px', cursor: 'pointer' }}
-        onClick={() => openArtistDetails(item.artist)}
-        title="Ver músicas e álbuns"
-      >
-        {(item.scrobbles || 0).toLocaleString('pt-BR')}
-      </td>
-      
-      <td style={tdFixedStyle('fixed', '85px', '35px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
-      
-      <td 
-  style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', 'transparent', index), cursor: 'pointer' }} 
-  onClick={() => checkAuthAndOpenRating(item.artist)}
-  title="Avaliar Artista"
->
-  <span style={getGRBadgeStyle(item, index)}>
-    {item.global_pos}
-  </span>
-</td>
+              return (
+                <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
+                  <td 
+                    style={{ ...tdFixedStyle('fixed', 0, '30px', 'center', '#1DB954', index), cursor: 'pointer' }}
+                    onClick={() => window.open(deezerUrl, '_blank')}
+                    title="Buscar no Deezer"
+                  >
+                    {offset + index + 1}
+                  </td>
+                  
+                  <td 
+                    style={{ ...tdFixedStyle('fixed', '30px', '55px', 'right', '#222', index), fontWeight: 'bold', paddingRight: '4px', cursor: 'pointer' }}
+                    onClick={() => openArtistDetails(item.artist)}
+                    title="Ver músicas e álbuns"
+                  >
+                    {(item.scrobbles || 0).toLocaleString('pt-BR')}
+                  </td>
+                  
+                  <td style={tdFixedStyle('fixed', '85px', '35px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
+                  
+                  {/* COLUNA GR ATUALIZADA COM O CORTE TRANSPARENTE SEM ALTERAR ALTURA DA LINHA */}
+                  <td 
+                    style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', 'transparent', index), cursor: 'pointer' }} 
+                    onClick={() => checkAuthAndOpenRating(item.artist)}
+                    title="Avaliar Artista"
+                  >
+                    <span style={getGRBadgeStyle(item, index)}>
+                      {item.global_pos}
+                    </span>
+                  </td>
 
-      <td style={{ ...tdFixedStyle('fixed', '150px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
-        <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          {generateFidelityBar(item.rating_artista)}
-          <span style={{ backgroundColor: getScoreBgColor(item.recencia_score), color: '#fff', fontSize: '10px', minWidth: '14px', height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1px', marginRight: '4px' }}>
-            {item.recencia_score}
-          </span>
-          <span style={{ display: 'inline-block', width: '25px', textAlign: 'center', fontFamily: 'monospace', fontSize: '8px', color: recenciaColor, marginRight: '4px' }}>
-            {variationText}
-          </span>
-          <img 
-            src={`https://flagcdn.com/32x24/${flagCode}.png`} 
-            style={{ width: '14px', height: '10px', border: '0.5px solid #bbb', marginRight: '6px', cursor: 'pointer' }}
-            onClick={() => toggleQuickFilter('country', item.country)}
-            alt="" 
-          />
-          
-          {/* 3. CLIQUE NO NOME DO ARTISTA: Abre perfil no Last.fm */}
-          <span 
-            onClick={() => window.open(lastFmUrl, '_blank')}
-            style={{ 
-              color: getNameColor(item.db_rating), 
-              fontWeight: 'bold', 
-              cursor: 'pointer', 
-              fontFamily: "'Bebas Neue', cursive", 
-              fontSize: '15px',
-              letterSpacing: '0.3px'
-            }}
-            title="Abrir no Last.fm"
-          >
-            {item.artist}
-          </span>
-        </div>
-      </td>
-      
-      <td style={tdStyle} onClick={() => toggleQuickFilter('country', item.country)}>{item.country || '-'}</td>
-      <td style={tdStyle} onClick={() => toggleQuickFilter('city', item.city)}>{item.city || '-'}</td>
-      {years.map(y => {
-        const yearVal = item[`y${y}`];
-        return (
-          <td key={y} style={{ ...tdStyle, textAlign: 'center', color: yearVal > 0 ? '#000' : '#ccc', fontWeight: yearVal > 0 ? 'bold' : 'normal' }}>
-            {yearVal || '-'}
-          </td>
-        );
-      })}
-      <td style={tdStyle}>{item.primeiro_ano || '-'}</td>
-    </tr>
-  );
-})}
+                  <td style={{ ...tdFixedStyle('fixed', '150px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                      {generateFidelityBar(item.rating_artista)}
+                      <span style={{ backgroundColor: getScoreBgColor(item.recencia_score), color: '#fff', fontSize: '10px', minWidth: '14px', height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1px', marginRight: '4px' }}>
+                        {item.recencia_score}
+                      </span>
+                      <span style={{ display: 'inline-block', width: '25px', textAlign: 'center', fontFamily: 'monospace', fontSize: '8px', color: recenciaColor, marginRight: '4px' }}>
+                        {variationText}
+                      </span>
+                      <img 
+                        src={`https://flagcdn.com/32x24/${flagCode}.png`} 
+                        style={{ width: '14px', height: '10px', border: '0.5px solid #bbb', marginRight: '6px', cursor: 'pointer' }}
+                        onClick={() => toggleQuickFilter('country', item.country)}
+                        alt="" 
+                      />
+                      
+                      <span 
+                        onClick={() => window.open(lastFmUrl, '_blank')}
+                        style={{ 
+                          color: getNameColor(item.db_rating), 
+                          fontWeight: 'bold', 
+                          cursor: 'pointer', 
+                          fontFamily: "'Bebas Neue', cursive", 
+                          fontSize: '15px',
+                          letterSpacing: '0.3px'
+                        }}
+                        title="Abrir no Last.fm"
+                      >
+                        {item.artist}
+                      </span>
+                    </div>
+                  </td>
+                  
+                  <td style={tdStyle} onClick={() => toggleQuickFilter('country', item.country)}>{item.country || '-'}</td>
+                  <td style={tdStyle} onClick={() => toggleQuickFilter('city', item.city)}>{item.city || '-'}</td>
+                  {years.map(y => {
+                    const yearVal = item[`y${y}`];
+                    return (
+                      <td key={y} style={{ ...tdStyle, textAlign: 'center', color: yearVal > 0 ? '#000' : '#ccc', fontWeight: yearVal > 0 ? 'bold' : 'normal' }}>
+                        {yearVal || '-'}
+                      </td>
+                    );
+                  })}
+                  <td style={tdStyle}>{item.primeiro_ano || '-'}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
