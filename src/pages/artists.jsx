@@ -307,11 +307,11 @@ export default function Artists() {
         <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '12px', minWidth: '1200px' }}>
           <thead>
             <tr>
-            <th onClick={() => handleSort('scrobbles')} style={thFixedStyle('fixed', 0, '25px')}>POS</th>
-<th onClick={() => handleSort('scrobbles')} style={thFixedStyle('fixed', '25px', '42px', 'right')}>TOTAL</th>
-<th onClick={() => handleSort('dias_ultimo')} style={thFixedStyle('fixed', '67px', '32px', 'center')}>DAYS</th>
-<th onClick={() => handleSort('global_pos')} style={thFixedStyle('fixed', '99px', '32px', 'center')}>GR</th>
-<th style={thFixedStyle('fixed', '131px', '220px')}>
+            <th onClick={() => handleSort('scrobbles')} style={thFixedStyle('fixed', 0, '20px')}>POS</th>
+<th onClick={() => handleSort('scrobbles')} style={thFixedStyle('fixed', '20px', '35px', 'right')}>TOTAL</th>
+<th onClick={() => handleSort('dias_ultimo')} style={thFixedStyle('fixed', '55px', '28px', 'center')}>DAYS</th>
+<th onClick={() => handleSort('global_pos')} style={thFixedStyle('fixed', '83px', '28px', 'center')}>GR</th>
+<th style={thFixedStyle('fixed', '111px', '220px')}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <span onClick={() => handleSort('artist')} style={{ cursor: 'pointer' }}>ARTIST</span>
                   <span onClick={() => handleSort('recencia_score')} style={{ ...iconStyle, color: sortCol === 'recencia_score' ? '#1DB954' : '#999' }}>◈</span>
@@ -353,7 +353,7 @@ export default function Artists() {
       
 {/* 1. CLIQUE NA POSIÇÃO: Abre busca no Deezer */}
 <td 
-  style={{ ...tdFixedStyle('fixed', 0, '25px', 'center', '#1DB954', index), cursor: 'pointer' }}
+  style={{ ...tdFixedStyle('fixed', 0, '20px', 'center', '#1DB954', index), cursor: 'pointer' }}
   onClick={() => window.open(deezerUrl, '_blank')}
   title="Buscar no Deezer"
 >
@@ -362,17 +362,17 @@ export default function Artists() {
 
 {/* 2. CLIQUE NO TOTAL DE SCROBBLES: Abre o painel lateral de detalhes */}
 <td 
-  style={{ ...tdFixedStyle('fixed', '25px', '42px', 'right', '#222', index), fontWeight: 'bold', paddingRight: '4px', cursor: 'pointer' }}
+  style={{ ...tdFixedStyle('fixed', '20px', '35px', 'right', '#222', index), fontWeight: 'bold', paddingRight: '2px', cursor: 'pointer' }}
   onClick={() => openArtistDetails(item.artist)}
   title="Ver músicas e álbuns"
 >
   {(item.scrobbles || 0).toLocaleString('pt-BR')}
 </td>
 
-<td style={tdFixedStyle('fixed', '67px', '32px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
+<td style={tdFixedStyle('fixed', '55px', '28px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
 
 <td 
-  style={{ ...tdFixedStyle('fixed', '99px', '32px', 'center', 'transparent', index), cursor: 'pointer' }} 
+  style={{ ...tdFixedStyle('fixed', '83px', '28px', 'center', 'transparent', index), cursor: 'pointer' }} 
   onClick={() => checkAuthAndOpenRating(item.artist)}
   title="Avaliar Artista"
 >
@@ -381,7 +381,7 @@ export default function Artists() {
   </span>
 </td>
 
-<td style={{ ...tdFixedStyle('fixed', '131px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
+<td style={{ ...tdFixedStyle('fixed', '111px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           {generateFidelityBar(item.rating_artista)}
           <span style={{ backgroundColor: getScoreBgColor(item.recencia_score), color: '#fff', fontSize: '10px', minWidth: '14px', height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '1px', marginRight: '4px' }}>
