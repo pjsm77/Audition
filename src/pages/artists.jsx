@@ -370,8 +370,17 @@ export default function Artists() {
       </td>
       
       <td style={tdFixedStyle('fixed', '85px', '35px', 'center', '#222', index)}>{item.dias_ultimo ?? '-'}</td>
-      <td style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', getGRColor(item), index), fontWeight: 'bold', cursor: 'pointer' }} onClick={() => checkAuthAndOpenRating(item.artist)}>{item.global_pos}</td>
       
+      <td 
+  style={{ ...tdFixedStyle('fixed', '120px', '30px', 'center', 'transparent', index), cursor: 'pointer' }} 
+  onClick={() => checkAuthAndOpenRating(item.artist)}
+  title="Avaliar Artista"
+>
+  <span style={getGRBadgeStyle(item, index)}>
+    {item.global_pos}
+  </span>
+</td>
+
       <td style={{ ...tdFixedStyle('fixed', '150px', '220px', 'left', '#222', index), borderRight: '2px solid #ccc' }}>
         <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           {generateFidelityBar(item.rating_artista)}
@@ -550,3 +559,23 @@ const thFixedStyle = (pos, left, width, align = 'left') => ({
 const tdFixedStyle = (pos, left, width, align, color, index) => ({
   position: 'sticky', left: left, width: width, minWidth: width, maxWidth: width, zIndex: 400, backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', color: color, textAlign: align, padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive"
 });
+
+// Adicione junto com os outros estilos auxiliares no fim do arquivo
+const getGRBadgeStyle = (item, index) => {
+  const color = getGRColor(item);
+  return {
+    fontFamily: "monospace, 'Bebas Neue', cursive",
+    fontSize: '11px',
+    fontWeight: 'bold',
+    color: color,
+    backgroundColor: 'transparent', /* Fundo transparente solicitado */
+    border: `1px solid ${color}`,  /* Borda colorida usando a cor do GR */
+    borderRadius: '4px',           /* Cantos levemente arredondados */
+    padding: '1px 5px',            /* Espaçamento interno minimalista */
+    display: 'inline-block',
+    minWidth: '24px',              /* Mantém os números alinhados simetricamente */
+    textAlign: 'center',
+    lineHeight: '1',               /* Trava o tamanho vertical para não empurrar a linha */
+    boxSizing: 'border-box'
+  };
+};
