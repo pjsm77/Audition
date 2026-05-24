@@ -9,13 +9,16 @@ export default function Countries() {
     async function fetchCountryStats() {
       try {
         setLoading(true);
-        // Busca os dados direto da nossa View customizada
+        
         const { data, error } = await supabase
           .from('v_countries_stats')
-          .select('*')
-          .order('total_scrobbles', { ascending: false });
-
+          .select('*'); // Removemos o .order fixo daqui para usar o padrão da View
+  
         if (error) throw error;
+        
+        // LOG DE CONTROLE: Abra o console do navegador (F12) para ver o que retornou
+        console.log("Dados retornados da View:", data);
+        
         setCountries(data || []);
       } catch (error) {
         console.error('Erro ao buscar estatísticas dos países:', error.message);
@@ -23,7 +26,7 @@ export default function Countries() {
         setLoading(false);
       }
     }
-
+  
     fetchCountryStats();
   }, []);
 
