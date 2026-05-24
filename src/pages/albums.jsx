@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../supabaseClient'; // Ajustado para o caminho relativo padrão do seu projeto
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { supabase } from '../supabaseClient';
 
 const ITEMS_PER_PAGE = 30;
 
-// Mapeamento de cores oficial extraído do seu componente de artistas
+// Mapeamento de cores oficial do seu ecossistema
 const getNameColor = (rating) => {
   if (rating === 1) return "#e97b78";
   if (rating === 2) return "#f8c039";
@@ -11,7 +11,7 @@ const getNameColor = (rating) => {
   return "#AAAAAA";
 };
 
-// Dicionário de tradução de países extraído do seu projeto para garantir a renderização das bandeiras
+// Dicionário de tradução de países integrado para renderização das bandeiras
 const countryMap = {
   "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
   "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
@@ -42,19 +42,26 @@ export default function Albums() {
   const [loading, setLoading] = useState(true);
   const [artistAlbumCounts, setArtistAlbumCounts] = useState({});
 
-  // Filtros, Busca e Ordenação
+  // Filtros, Busca e Ordenação Padrão (Configurada para album_id DESC no carregamento)
   const [search, setSearch] = useState('');
-  const [orderBy, setOrderBy] = useState('album_id'); 
+  const [sortCol, setSortCol] = useState('album_id'); 
+  const [sortAsc, setSortAsc] = useState(false); // false = DESC
+
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [selectedYear, setSelectedYear] = useState(null);
   const [page, setPage] = useState(0);
 
-  // Modais / Overlays
+  // Controle de Overlays e Modais
+  const [showSearch, setShowSearch] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [modalAlbum, setModalAlbum] = useState(null);
   const [previewCover, setPreviewCover] = useState(null);
 
-  // 1. Carrega o cache de contagem total de álbuns por artista para renderizar os colchetes [X] de forma performática
+  // Referência para auto-focar o input de busca ao abrir
+  const searchInputRef = useRef(null);
+
+  // 1. Carrega o cache de contagem total de álbuns por artista
   useEffect(() => {
     async function fetchArtistCounts() {
       const { data, error } = await supabase
@@ -74,7 +81,14 @@ export default function Albums() {
     fetchArtistCounts();
   }, []);
 
-  // 2. Consulta reativa ao Supabase controlando paginação, filtros e ordenações de colunas
+  // 2. Foco automático no input de busca ao abrir o overlay
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearch]);
+
+  // 3. Consulta reativa ao Supabase controlando paginação, filtros e ordenações do banco
   const fetchAlbums = useCallback(async () => {
     setLoading(true);
     try {
@@ -98,15 +112,14 @@ export default function Albums() {
         query = query.eq('album_year', selectedYear);
       }
 
-      // Lógica de ordenação alinhada
-      let column = 'id_album';
-      let ascending = true;
-      if (orderBy === 'date') { column = 'album_date'; ascending = false; }
-      else if (orderBy === 'album_name') { column = 'album_name'; ascending = true; }
-      else if (orderBy === 'artist_name') { column = 'artist_name'; ascending = true; }
-      else if (orderBy === 'album_year') { column = 'album_year'; ascending = false; } // Maiores anos no topo por padrão
+      // Tradução lógica das chaves para colunas reais da sua view
+      let dbColumn = 'id_album';
+      if (sortCol === 'date') dbColumn = 'album_date';
+      else if (sortCol === 'album_name') dbColumn = 'album_name';
+      else if (sortCol === 'artist_name') dbColumn = 'artist_name';
+      else if (sortCol === 'album_year') dbColumn = 'album_year';
 
-      query = query.order(column, { ascending });
+      query = query.order(dbColumn, { ascending: sortAsc });
 
       // Cálculo de Paginação offset (30 em 30)
       const from = page * ITEMS_PER_PAGE;
@@ -124,15 +137,30 @@ export default function Albums() {
     } finally {
       setLoading(false);
     }
-  }, [search, orderBy, selectedCountry, selectedArtist, selectedYear, page]);
+  }, [search, sortCol, sortAsc, selectedCountry, selectedArtist, selectedYear, page]);
 
   useEffect(() => {
     fetchAlbums();
   }, [fetchAlbums]);
 
-  const handleSearchChange = (e) => {
-    setSearch(e.target.value);
+  // Sistema Robusto de Alternância de Ordenação baseado em regras nativas
+  const handleSort = (targetKey) => {
+    if (sortCol === targetKey) {
+      // Se clicou na mesma coluna, apenas inverte a direção corrente
+      setSortAsc(!sortAsc);
+    } else {
+      setSortCol(targetKey);
+      // Regra de ouro solicitada:
+      // album_id, date, album_year -> Inicializam como DESC (false)
+      // album_name, artist_name -> Inicializam como ASC (true)
+      if (targetKey === 'album_id' || targetKey === 'date' || targetKey === 'album_year') {
+        setSortAsc(false);
+      } else {
+        setSortAsc(true);
+      }
+    }
     setPage(0);
+    setShowSortMenu(false);
   };
 
   const clearFilters = () => {
@@ -143,133 +171,133 @@ export default function Albums() {
     setPage(0);
   };
 
-  // Helper para buscar a bandeira usando o countryMap idêntico ao de artistas
   const getFlagUrl = (countryName) => {
     if (!countryName) return `https://flagcdn.com/32x24/un.png`;
     const code = countryMap[countryName.toLowerCase().trim()] || "un";
     return `https://flagcdn.com/32x24/${code}.png`;
   };
 
-  // Resgate das capas hospedadas no CDN do Deezer
   const getCoverUrl = (coverId, size = 120) => {
     if (!coverId) return 'https://via.placeholder.com/120?text=Sem+Capa';
     return `https://e-cdns-images.dzcdn.net/images/cover/${coverId}/${size}x${size}.jpg`;
   };
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
 
   if (loading && albums.length === 0) {
     return <div style={{ padding: '20px', color: '#666', fontSize: '24px', fontFamily: "'Bebas Neue', cursive" }}>CARREGANDO CATÁLOGO DE ÁLBUNS...</div>;
   }
 
   return (
-    <div style={styles.container}>
-      {/* Menu Superior Mapeado do Layout */}
-      <div style={styles.headerTabs}>
-        <button style={{...styles.tabBtn, ...styles.activeTab}}>ÁLBUNS</button>
-        <button style={styles.tabBtn}>BANDAS</button>
-        <button style={styles.tabBtn}>OUVIR</button>
-        <button style={styles.tabBtn}>ESTATÍSTICAS</button>
-        <button style={styles.tabBtn}>PAÍSES</button>
-      </div>
+    <div style={styles.viewWrapper}>
+      
+      {/* AREA DE ROLAGEM INDEPENDENTE (Resolve o problema do item 1) */}
+      <div style={styles.scrollableContent}>
+        <div style={styles.listContainer}>
+          {albums.map((album) => {
+            const totalArtistAlbums = artistAlbumCounts[album.artist_name] || 1;
+            const artistColor = getNameColor(album.artist_rating);
 
-      {/* Input de Busca Incremental */}
-      <input
-        type="text"
-        placeholder="PESQUISAR..."
-        value={search}
-        onChange={handleSearchChange}
-        style={styles.searchInput}
-      />
-
-      {/* Seletor de Ordenação e Botão de Limpeza */}
-      <div style={styles.filterBar}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <label style={styles.label}>ORDENAR POR:</label>
-          <select 
-            value={orderBy} 
-            onChange={(e) => { setOrderBy(e.target.value); setPage(0); }}
-            style={styles.select}
-          >
-            <option value="album_id">ALBUM ID</option>
-            <option value="date">DATA DE AUDIÇÃO</option>
-            <option value="album_name">NOME DO ÁLBUM</option>
-            <option value="artist_name">NOME DO ARTISTA</option>
-            <option value="album_year">ANO DE LANÇAMENTO</option>
-          </select>
-          <button style={styles.helpBtn}>?</button>
-        </div>
-
-        {(selectedCountry || selectedArtist || selectedYear || search) && (
-          <button onClick={clearFilters} style={styles.clearFilterBtn}>
-            CLEAR
-          </button>
-        )}
-      </div>
-
-      {/* Contador de Registros */}
-      <div style={styles.recordsCount}>
-        {totalCount} REGISTROS ENCONTRADOS.
-      </div>
-
-      {/* Listagem Base com Herança Tipográfica */}
-      <div style={styles.listContainer}>
-        {albums.map((album) => {
-          const totalArtistAlbums = artistAlbumCounts[album.artist_name] || 1;
-          const artistColor = getNameColor(album.artist_rating);
-
-          return (
-            <div key={album.id_album} style={styles.albumRow}>
-              <div style={styles.infoLeft}>
-                <img
-                  src={getFlagUrl(album.artist_country)}
-                  alt=""
-                  onClick={() => { setSelectedCountry(album.artist_country); setPage(0); }}
-                  style={styles.flagIcon}
-                  title={`Filtrar por ${album.artist_country}`}
-                />
-                
-                <div style={styles.textGroup}>
-                  <div style={styles.albumHeaderLine}>
-                    <span onClick={() => setModalAlbum(album)} style={styles.albumNameLink}>
-                      {album.album_name?.toUpperCase()}
-                    </span>
-                    <span onClick={() => { setSelectedYear(album.album_year); setPage(0); }} style={styles.albumYearLink}>
-                      &nbsp;({album.album_year})
-                    </span>
-                  </div>
+            return (
+              <div key={album.id_album} style={styles.albumRow}>
+                <div style={styles.infoLeft}>
+                  <img
+                    src={getFlagUrl(album.artist_country)}
+                    alt=""
+                    onClick={() => { setSelectedCountry(album.artist_country); setPage(0); }}
+                    style={styles.flagIcon}
+                    title={`Filtrar por ${album.artist_country}`}
+                  />
                   
-                  <div style={styles.artistLine}>
-                    <span 
-                      onClick={() => { setSelectedArtist(album.artist_name); setPage(0); }} 
-                      style={{ ...styles.artistNameLink, color: artistColor }}
-                    >
-                      {album.artist_name?.toUpperCase()}
-                    </span>
-                    <span style={styles.albumCountBracket}> [{totalArtistAlbums}]</span>
+                  <div style={styles.textGroup}>
+                    <div style={styles.albumHeaderLine}>
+                      <span onClick={() => setModalAlbum(album)} style={styles.albumNameLink}>
+                        {album.album_name?.toUpperCase()}
+                      </span>
+                      <span onClick={() => { setSelectedYear(album.album_year); setPage(0); }} style={styles.albumYearLink}>
+                        &nbsp;({album.album_year})
+                      </span>
+                    </div>
+                    
+                    <div style={styles.artistLine}>
+                      <span 
+                        onClick={() => { setSelectedArtist(album.artist_name); setPage(0); }} 
+                        style={{ ...styles.artistNameLink, color: artistColor }}
+                      >
+                        {album.artist_name?.toUpperCase()}
+                      </span>
+                      <span style={styles.albumCountBracket}> [{totalArtistAlbums}]</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <img
-                src={getCoverUrl(album.album_cover, 120)}
-                alt="Cover"
-                onClick={() => setPreviewCover(album.album_cover)}
-                style={styles.coverThumb}
-              />
-            </div>
-          );
-        })}
+                <img
+                  src={getCoverUrl(album.album_cover, 120)}
+                  alt="Cover"
+                  onClick={() => setPreviewCover(album.album_cover)}
+                  style={styles.coverThumb}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Rodapé do Paginador (Casado com a lógica de 30 em 30) */}
-      {totalCount > ITEMS_PER_PAGE && (
-        <div style={styles.pagination}>
-          <button disabled={page === 0} onClick={() => setPage(p => p - 1)} style={styles.pageBtn}>«</button>
-          <span style={styles.pageIndicator}>PÁG {page + 1} DE {Math.ceil(totalCount / ITEMS_PER_PAGE)}</span>
-          <button disabled={(page + 1) * ITEMS_PER_PAGE >= totalCount} onClick={() => setPage(p => p + 1)} style={styles.pageBtn}>»</button>
+      {/* RODAPÉ FIXO CASADO COM ARTISTS.JSX (Itens 1 e 3) */}
+      <div style={styles.footerBar}>
+        <button style={styles.btnFooter} onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}>«</button>
+        
+        <select 
+          style={styles.footerSelect} 
+          value={page + 1} 
+          onChange={(e) => setPage(Number(e.target.value) - 1)}
+        >
+          {Array.from({ length: totalPages }, (_, i) => (
+            <option key={i} value={i + 1}>PÁG {i + 1}</option>
+          ))}
+        </select>
+        
+        <button style={styles.btnFooter} onClick={() => { if ((page + 1) * ITEMS_PER_PAGE < totalCount) setPage(page + 1); }} disabled={(page + 1) * ITEMS_PER_PAGE >= totalCount}>»</button>
+        <button style={styles.btnFooter} onClick={() => { setShowSearch(!showSearch); setShowSortMenu(false); }}>🔍</button>
+        <button style={styles.btnFooter} onClick={() => { setShowSortMenu(!showSortMenu); setShowSearch(false); }}>⇅</button>
+        
+        {(selectedCountry || selectedArtist || selectedYear || search) && (
+          <button style={styles.clearBtn} onClick={clearFilters}>CLEAR</button>
+        )}
+        
+        <span style={styles.footerCounter}>{totalCount} ÁLBUNS</span>
+      </div>
+
+      {/* OVERLAY DE BUSCA EM TEMPO REAL (Foco automático via Ref) */}
+      {showSearch && (
+        <div style={styles.searchOverlay}>
+          <input 
+            ref={searchInputRef}
+            type="text" 
+            value={search} 
+            onChange={(e) => { setPage(0); setSearch(e.target.value); }} 
+            placeholder="BUSCAR ÁLBUM OU ARTISTA..." 
+            style={styles.searchFieldsInput} 
+          />
+          <button onClick={() => setShowSearch(false)} style={styles.overlayOkBtn}>OK</button>
         </div>
       )}
 
-      {/* MODAL: Exibição completa de metadados da View */}
+      {/* OVERLAY DE OPÇÕES DE ORDENAÇÃO DINÂMICA */}
+      {showSortMenu && (
+        <div style={styles.sortOverlay}>
+          <div style={styles.sortOverlayTitle}>ORDENAR LISTA POR:</div>
+          <div style={styles.sortGrid}>
+            <button onClick={() => handleSort('album_id')} style={styles.sortMenuBtn(sortCol === 'album_id')}>ALBUM ID {sortCol === 'album_id' ? (sortAsc ? '▲' : '▼') : ''}</button>
+            <button onClick={() => handleSort('date')} style={styles.sortMenuBtn(sortCol === 'date')}>DATA AUDIÇÃO {sortCol === 'date' ? (sortAsc ? '▲' : '▼') : ''}</button>
+            <button onClick={() => handleSort('album_name')} style={styles.sortMenuBtn(sortCol === 'album_name')}>NOME ÁLBUM {sortCol === 'album_name' ? (sortAsc ? '▲' : '▼') : ''}</button>
+            <button onClick={() => handleSort('artist_name')} style={styles.sortMenuBtn(sortCol === 'artist_name')}>NOME ARTISTA {sortCol === 'artist_name' ? (sortAsc ? '▲' : '▼') : ''}</button>
+            <button onClick={() => handleSort('album_year')} style={styles.sortMenuBtn(sortCol === 'album_year')}>ANO LANÇAMENTO {sortCol === 'album_year' ? (sortAsc ? '▲' : '▼') : ''}</button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Exibição detalhada dos metadados da View */}
       {modalAlbum && (
         <div style={styles.modalOverlay} onClick={() => setModalAlbum(null)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -278,11 +306,11 @@ export default function Albums() {
               <p><strong>ID DO ÁLBUM:</strong> {modalAlbum.id_album}</p>
               <p><strong>ARTISTA:</strong> {modalAlbum.artist_name?.toUpperCase()} (RATING: {modalAlbum.artist_rating})</p>
               <p><strong>ANO DE LANÇAMENTO:</strong> {modalAlbum.album_year}</p>
-              <p><strong>DURAÇÃO DO ÁLBUM:</strong> {modalAlbum.album_duration}</p>
-              <p><strong>TOTAL DE FAIXAS:</strong> {modalAlbum.total_tracks}</p>
-              <p><strong>IDIOMA:</strong> {modalAlbum.artist_language?.toUpperCase()}</p>
-              <p><strong>ORIGEM:</strong> {modalAlbum.artist_country?.toUpperCase()}</p>
-              <p><strong>DATA DE ENTRADA:</strong> {modalAlbum.album_date ? new Date(modalAlbum.album_date).toLocaleDateString('pt-BR') : '-'}</p>
+              <p><strong>DURAÇÃO DO ÁLBUM:</strong> {modalAlbum.album_duration || '-'}</p>
+              <p><strong>TOTAL DE FAIXAS:</strong> {modalAlbum.total_tracks || '-'}</p>
+              <p><strong>IDIOMA:</strong> {modalAlbum.artist_language?.toUpperCase() || '-'}</p>
+              <p><strong>ORIGEM:</strong> {modalAlbum.artist_country?.toUpperCase() || '-'}</p>
+              <p><strong>DATA DE AUDIÇÃO:</strong> {modalAlbum.album_date ? new Date(modalAlbum.album_date).toLocaleDateString('pt-BR') : '-'}</p>
             </div>
             <button onClick={() => setModalAlbum(null)} style={styles.closeModalBtn}>FECHAR</button>
           </div>
@@ -306,104 +334,30 @@ export default function Albums() {
   );
 }
 
-// --- ESTILOS INLINE COM IDENTIDADE BEBAS NEUE / ROBOTO MISTURADA ---
+// --- ARQUITETURA DE ESTILOS INLINE IDENTICA A ARTISTS.JSX ---
 const styles = {
-  container: {
+  viewWrapper: {
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
     fontFamily: "'Bebas Neue', cursive",
     maxWidth: '480px',
     margin: '0 auto',
     backgroundColor: '#fff',
-    padding: '12px',
-    color: '#333',
-    overflowX: 'auto'
+    position: 'relative',
+    boxSizing: 'border-box'
   },
-  headerTabs: {
-    display: 'flex',
-    gap: '6px',
-    overflowX: 'auto',
-    marginBottom: '14px',
-    paddingBottom: '4px'
-  },
-  tabBtn: {
-    fontFamily: "'Bebas Neue', cursive",
-    padding: '6px 14px',
-    border: '1px solid #e2e8f0',
-    borderRadius: '10px',
-    backgroundColor: '#fff',
-    color: '#64748b',
-    fontSize: '15px',
-    whiteSpace: 'nowrap',
-    cursor: 'pointer',
-    letterSpacing: '0.5px'
-  },
-  activeTab: {
-    backgroundColor: '#5d51e7',
-    color: '#fff',
-    borderColor: '#5d51e7'
-  },
-  searchInput: {
-    fontFamily: "'Roboto', sans-serif",
-    width: '100%',
-    padding: '10px 14px',
-    borderRadius: '14px',
-    border: '1px solid #e2e8f0',
-    fontSize: '14px',
-    boxSizing: 'border-box',
-    marginBottom: '14px'
-  },
-  filterBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '14px'
-  },
-  label: {
-    fontSize: '14px',
-    color: '#1e293b',
-    letterSpacing: '0.3px'
-  },
-  select: {
-    fontFamily: "'Bebas Neue', cursive",
-    padding: '6px 24px 6px 10px',
-    borderRadius: '12px',
-    border: '2px solid #000',
-    fontSize: '14px',
-    backgroundColor: '#fff',
-    cursor: 'pointer',
-    letterSpacing: '0.5px'
-  },
-  helpBtn: {
-    backgroundColor: '#6c5ce7',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    width: '26px',
-    height: '26px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    cursor: 'pointer'
-  },
-  clearFilterBtn: {
-    fontFamily: "'Bebas Neue', cursive",
-    backgroundColor: '#fee2e2',
-    color: '#e97b78',
-    border: 'none',
-    padding: '6px 12px',
-    borderRadius: '8px',
-    fontSize: '13px',
-    cursor: 'pointer',
-    letterSpacing: '0.5px'
-  },
-  recordsCount: {
-    fontSize: '15px',
-    color: '#64748b',
-    marginBottom: '12px',
-    letterSpacing: '0.3px'
+  scrollableContent: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '12px 12px 0 12px',
+    boxSizing: 'border-box'
   },
   listContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px'
+    gap: '10px',
+    paddingBottom: '20px'
   },
   albumRow: {
     display: 'flex',
@@ -465,27 +419,126 @@ const styles = {
     cursor: 'pointer',
     boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
   },
-  pagination: {
+  footerBar: {
+    height: '45px',
+    background: '#f1f1f1',
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: '20px',
-    gap: '20px',
-    padding: '10px 0'
+    justifyContent: 'flex-start',
+    borderTop: '1px solid #ddd',
+    padding: '0 10px',
+    gap: '8px',
+    zIndex: 950,
+    boxSizing: 'border-box'
   },
-  pageBtn: {
-    fontFamily: "'Bebas Neue', cursive",
-    padding: '4px 16px',
-    borderRadius: '8px',
-    border: '1px solid #cbd5e1',
-    backgroundColor: '#fff',
+  btnFooter: {
+    background: 'none',
+    border: 'none',
+    fontSize: '20px',
     cursor: 'pointer',
-    fontSize: '18px'
+    padding: '2px 6px',
+    display: 'flex',
+    alignItems: 'center',
+    height: '100%',
+    fontFamily: "'Bebas Neue', cursive"
   },
-  pageIndicator: {
+  footerSelect: {
+    fontFamily: "'Bebas Neue', cursive",
+    borderRadius: '4px',
     fontSize: '15px',
-    color: '#64748b'
+    height: '26px',
+    padding: '0 4px',
+    cursor: 'pointer'
   },
+  clearBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#e97b78',
+    fontSize: '13px',
+    cursor: 'pointer',
+    fontFamily: "'Bebas Neue', cursive",
+    height: '100%'
+  },
+  footerCounter: {
+    fontSize: '14px',
+    marginLeft: 'auto',
+    color: '#555',
+    fontWeight: 'bold',
+    letterSpacing: '0.3px'
+  },
+  searchOverlay: {
+    position: 'fixed',
+    bottom: '45px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '100%',
+    maxWidth: '480px',
+    background: 'white',
+    padding: '8px 15px',
+    boxShadow: '0 -3px 10px rgba(0,0,0,0.15)',
+    zIndex: 999,
+    display: 'flex',
+    gap: '10px',
+    boxSizing: 'border-box'
+  },
+  searchFieldsInput: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
+    fontSize: '14px',
+    fontFamily: "'Roboto', sans-serif"
+  },
+  overlayOkBtn: {
+    background: '#2c3e50',
+    color: 'white',
+    border: 'none',
+    padding: '0 15px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontFamily: "'Bebas Neue', cursive",
+    fontSize: '14px'
+  },
+  sortOverlay: {
+    position: 'fixed',
+    bottom: '45px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '100%',
+    maxWidth: '480px',
+    background: '#fff',
+    padding: '12px 15px',
+    boxShadow: '0 -3px 10px rgba(0,0,0,0.15)',
+    zIndex: 999,
+    boxSizing: 'border-box',
+    borderTopLeftRadius: '12px',
+    borderTopRightRadius: '12px'
+  },
+  sortOverlayTitle: {
+    fontSize: '14px',
+    color: '#555',
+    marginBottom: '8px',
+    letterSpacing: '0.5px'
+  },
+  sortGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
+  },
+  sortMenuBtn: (isActive) => ({
+    width: '100%',
+    textAlign: 'left',
+    padding: '8px 12px',
+    border: 'none',
+    borderRadius: '6px',
+    backgroundColor: isActive ? '#5d51e7' : '#f1f5f9',
+    color: isActive ? '#fff' : '#333',
+    fontFamily: "'Bebas Neue', cursive",
+    fontSize: '14px',
+    cursor: 'pointer',
+    letterSpacing: '0.3px',
+    transition: 'all 0.15s'
+  }),
   modalOverlay: {
     position: 'fixed',
     top: 0,
