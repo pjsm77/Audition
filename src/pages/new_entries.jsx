@@ -1,11 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-// Importe o seu cliente do Supabase aqui. Exemplo:
-// import { supabase } from '../supabaseClient';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient'; // Ajuste o caminho de acordo com a sua estrutura de pastas
 
-// Caso prefira manter as constantes locais temporariamente, descomente as linhas abaixo:
-// import { createClient } from '@supabase/supabase-js';
-// const supabase = createClient('https://qdawxpcwkadhfwqhnpsd.supabase.co', 'sb_publishable_W6LnlxFB_jpBKDN2cn5oKQ_j_g1OZO2');
-
+export default function NewEntries() {
 export default function NewEntries() {
   // Estados do Formulário e Controle
   const [deezerUrl, setDeezerUrl] = useState('');
