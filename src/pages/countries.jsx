@@ -170,11 +170,11 @@ export default function Countries() {
                   
                   {/* Bandeira + Nome do País em Caixa Alta */}
                   <td style={{ ...tdStyle, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e0e0e0' }}>
-                    <img 
-                      src={`https://flagcdn.com/32x24/${flagCode}.png`} 
-                      style={{ width: '15px', height: '11px', border: '0.5px solid #bbb', display: 'inline-block' }}
-                      alt="" 
-                    />
+                  <img 
+  src={`https://flagcdn.com/32x24/${flagCode}.png`} 
+  style={{ width: '24px', height: '18px', border: '0.5px solid #bbb', display: 'inline-block', objectFit: 'cover' }}
+  alt="" 
+/>
                     <span style={{ fontSize: '15px', letterSpacing: '0.3px', color: '#000' }}>
                       {item.country_name ? item.country_name.toUpperCase() : '-'}
                     </span>
