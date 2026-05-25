@@ -6,7 +6,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-const PLAYLIST_ID = '11172145064';
+const PLAYLIST_ID = '11114';
 
 export default function Discover() {
   const [playlistTracks, setPlaylistTracks] = useState([]);
