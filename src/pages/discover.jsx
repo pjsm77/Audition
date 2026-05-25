@@ -118,20 +118,31 @@ export default function Discover() {
   }
 
   return (
-    // Layout flex vertical rígido (estilo countries.jsx) para destravar o scroll nativo perfeitamente
     <div className="w-full text-slate-100 bg-slate-900" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* Cabeçalho Fixo */}
-      <header className="p-6 border-b border-slate-800 bg-slate-900 flex-none">
-        <h1 className="text-3xl font-bold tracking-tight">Discover Manager</h1>
-        {error && (
-          <div className="text-xs bg-red-500/10 border border-red-500/30 text-red-500 p-2 rounded mt-2">
-            Erro detectado: {error}
-          </div>
-        )}
-        <p className="text-slate-400 mt-1 text-sm">
-          Total de faixas encontradas na playlist: {playlistTracks.length}
-        </p>
+      <header className="p-6 border-b border-slate-800 bg-slate-900 flex-none flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Discover Manager</h1>
+          {error && (
+            <div className="text-xs bg-red-500/10 border border-red-500/30 text-red-500 p-2 rounded mt-2">
+              Erro detectado: {error}
+            </div>
+          )}
+          <p className="text-slate-400 mt-1 text-sm">
+            Total de faixas encontradas na playlist: {playlistTracks.length}
+          </p>
+        </div>
+        
+        {/* BOTÃO DIRETO PARA A PLAYLIST MÃE NO DEEZER */}
+        <a 
+          href={`https://www.deezer.com/playlist/${PLAYLIST_ID}`}
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm px-4 py-2.5 rounded-lg transition-colors shadow-sm self-start sm:self-center"
+        >
+          Ver Playlist no Deezer ↗
+        </a>
       </header>
 
       {/* Área de Filtros Fixa */}
@@ -190,6 +201,7 @@ export default function Discover() {
                         <img src={item.albumCover} alt={item.albumTitle} className="w-10 h-10 rounded bg-slate-800 object-cover flex-none" />
                       )}
                       <div>
+                        {/* Clicar no título leva para a faixa específica */}
                         <a href={item.trackLink} target="_blank" rel="noopener noreferrer" className="block text-slate-200 font-normal hover:text-indigo-400 hover:underline">
                           {item.trackTitle}
                         </a>
