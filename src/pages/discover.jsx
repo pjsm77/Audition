@@ -3,11 +3,14 @@ import { supabase } from '../supabaseClient';
 
 const PLAYLIST_ID = '11172145064';
 
-// Lista de proxies públicos para rodar em modo de rotação (Fallback se der 403/500)
+// Lista atualizada e especializada de proxies para rodar no Netlify
 const PROXIES = [
-  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  // 1. AllOrigins (Usando uma rota de fallback alternativa)
   (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-  (url) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`
+  // 2. Corsproxy.io (Excelente para localhost, mantido como segunda opção)
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  // 3. ThingProxy (Um proxy focado em requisições de APIs REST que limpa o cabeçalho Origin)
+  (url) => `https://thingproxy.freeboard.io/fetch/${url}`
 ];
 
 export default function Discover() {
@@ -28,7 +31,7 @@ export default function Discover() {
       let supabaseSet = new Set();
       let errorMessages = [];
 
-      // 1. BUSCA NA TBL_ARTISTS (Apenas ler deezer_id sem travar)
+      // 1. BUSCA NA TBL_ARTISTS (Supabase)
       try {
         const { data: supabaseArtists, error: sbError } = await supabase
           .from('tbl_artists')
@@ -44,52 +47,56 @@ export default function Discover() {
           supabaseSet = idsSet;
         }
       } catch (sbErr) {
-        console.error("Erro Supabase tbl_artists:", sbErr);
-        errorMessages.push(`Supabase: ${sbErr.message || 'Erro de conexão'}`);
+        console.error("Erro Supabase:", sbErr);
+        errorMessages.push(`Supabase: ${sbErr.message}`);
       }
 
-      // 2. BUSCA NO DEEZER COM PAGINAÇÃO AMPLIADA E ROTATÓRIA DE PROXY
+      // 2. BUSCA NO DEEZER COM ROTATÓRIA DE PROXY ADAPTADA PARA PRODUÇÃO
       try {
         let nextUrl = `https://api.deezer.com/playlist/${PLAYLIST_ID}/tracks`;
         let pagesFetched = 0;
-        const maxPages = 40; // 40 páginas x 25 itens = Até 1000 músicas tratadas com segurança
-        let proxyIndex = 0; // Começa tentando o primeiro proxy da lista
+        const maxPages = 40; 
+        let proxyIndex = 0;
 
         while (nextUrl && pagesFetched < maxPages) {
           let success = false;
           let attempts = 0;
           let data = null;
 
-          // Tenta os proxies disponíveis caso o atual falhe ou dê 403
           while (!success && attempts < PROXIES.length) {
             const currentProxyFunc = PROXIES[(proxyIndex + attempts) % PROXIES.length];
             const targetUrl = currentProxyFunc(nextUrl);
 
             try {
-              const response = await fetch(targetUrl);
+              // Adicionado um timeout para o Netlify não prender a requisição infinitamente
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+              const response = await fetch(targetUrl, { signal: controller.signal });
+              clearTimeout(timeoutId);
               
               if (!response.ok) {
-                throw new Error(`Status ${response.status}`);
+                throw new Error(`HTTP ${response.status}`);
               }
 
               const rawResult = await response.json();
               
-              // O AllOrigins envelopa o JSON dentro de um campo '.contents' como string
+              // Tratamento robusto: AllOrigins encapsula em .contents, outros proxies jogam direto
               if (rawResult && typeof rawResult === 'object' && 'contents' in rawResult) {
-                data = JSON.parse(rawResult.contents);
+                // Certifica que se vier string dentro de contents, faz o parse corretamente
+                data = typeof rawResult.contents === 'string' ? JSON.parse(rawResult.contents) : rawResult.contents;
               } else {
                 data = rawResult;
               }
 
               if (data && !data.error) {
                 success = true;
-                // Mantém o índice do proxy que funcionou para acelerar as próximas páginas
                 proxyIndex = (proxyIndex + attempts) % PROXIES.length; 
               } else if (data && data.error) {
                 throw new Error(data.error.message);
               }
             } catch (fetchErr) {
-              console.warn(`Proxy índice ${(proxyIndex + attempts) % PROXIES.length} falhou. Tentando o próximo...`, fetchErr.message);
+              console.warn(`Proxy ${(proxyIndex + attempts) % PROXIES.length} falhou no Netlify:`, fetchErr.message);
               attempts++;
             }
           }
@@ -99,12 +106,11 @@ export default function Discover() {
             nextUrl = data.next ? data.next : null;
             pagesFetched++;
           } else {
-            // Se nenhum dos proxies funcionou para esta página, interrompe o laço
-            throw new Error("Todos os proxies falharam ou foram bloqueados (Erro 403/500).");
+            throw new Error("Os proxies públicos falharam em responder no ambiente do Netlify.");
           }
         }
       } catch (deezerErr) {
-        console.error("Erro fatal na paginação do Deezer:", deezerErr);
+        console.error("Erro fatal Deezer:", deezerErr);
         errorMessages.push(`Deezer: ${deezerErr.message}`);
       }
 
@@ -120,7 +126,7 @@ export default function Discover() {
     fetchData();
   }, []);
 
-  // 3. PROCESSAMENTO DOS FILTROS
+  // 3. PROCESSAMENTO DOS FILTROS (Imutável, baseado no código funcional)
   const filteredData = useMemo(() => {
     return playlistTracks
       .map((track, index) => {
@@ -161,7 +167,6 @@ export default function Discover() {
   }
 
   return (
-    // Alterado para um layout flex vertical rígido (estilo countries.jsx) para destravar o scroll independentemente da rota global
     <div className="w-full text-slate-100 bg-slate-900" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* Cabeçalho Fixo */}
@@ -169,7 +174,7 @@ export default function Discover() {
         <h1 className="text-3xl font-bold tracking-tight">Discover Manager</h1>
         {error && (
           <div className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 p-2 rounded mt-2">
-            Aviso de Instabilidade: {error} (Exibindo dados recuperados em cache/fallback)
+            Aviso de Instabilidade: {error}
           </div>
         )}
         <p className="text-slate-400 mt-1 text-sm">
@@ -201,14 +206,14 @@ export default function Discover() {
         </div>
       </div>
 
-      {/* ÁREA DA TABELA COM CONTROLE NATIVO DE SCROLL VERTICAL E HORIZONTAL LIBERADO */}
+      {/* Tabela de Scroll */}
       <div className="flex-1" style={{ overflowY: 'auto', overflowX: 'auto', width: '100%' }}>
         <table className="w-full text-left border-collapse min-w-[700px]">
           <thead className="sticky top-0 bg-slate-850 z-10 border-b border-slate-700 shadow-md">
             <tr>
-              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-800">Artista</th>
-              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-800">Música / Álbum</th>
-              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-800">Status</th>
+              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-850">Artista</th>
+              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-850">Música / Álbum</th>
+              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-850">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 bg-slate-900">
@@ -260,7 +265,6 @@ export default function Discover() {
           </tbody>
         </table>
       </div>
-
     </div>
   );
 }
