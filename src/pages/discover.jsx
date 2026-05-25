@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-// Utilizando a sua conexão centralizada que já funciona
 import { supabase } from '../supabaseClient';
 
 const PLAYLIST_ID = '11172145064';
+
+// Lista de proxies públicos para rodar em modo de rotação (Fallback se der 403/500)
+const PROXIES = [
+  (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  (url) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`
+];
 
 export default function Discover() {
   const [playlistTracks, setPlaylistTracks] = useState([]);
@@ -22,82 +28,99 @@ export default function Discover() {
       let supabaseSet = new Set();
       let errorMessages = [];
 
-      // --- 1. BUSCA NO SUPABASE (Com limite de segurança para evitar Statement Timeout) ---
+      // 1. BUSCA NA TBL_ARTISTS (Apenas ler deezer_id sem travar)
       try {
         const { data: supabaseArtists, error: sbError } = await supabase
           .from('tbl_artists')
           .select('deezer_id')
-          .not('deezer_id', 'is', null)
-          .limit(5000); // Evita travar o banco caso a tabela esteja massiva ou sem índices temporariamente
+          .not('deezer_id', 'is', null);
 
         if (sbError) throw sbError;
 
-        if (supabaseArtists && supabaseArtists.length > 0) {
+        if (supabaseArtists) {
           const idsSet = new Set(
-            supabaseArtists
-              .map(a => a.deezer_id?.toString().trim())
-              .filter(Boolean)
+            supabaseArtists.map(a => a.deezer_id?.toString().trim()).filter(Boolean)
           );
           supabaseSet = idsSet;
         }
       } catch (sbErr) {
-        console.error("Erro na tbl_artists (Supabase):", sbErr);
-        // Não trava a execução se o banco der timeout, apenas avisa no console
-        errorMessages.push(`Banco (Timeout/Instável): ${sbErr.message || '57014'}`);
+        console.error("Erro Supabase tbl_artists:", sbErr);
+        errorMessages.push(`Supabase: ${sbErr.message || 'Erro de conexão'}`);
       }
 
-      // --- 2. BUSCA NO DEEZER (Com chaveamento de Proxy resiliente) ---
+      // 2. BUSCA NO DEEZER COM PAGINAÇÃO AMPLIADA E ROTATÓRIA DE PROXY
       try {
         let nextUrl = `https://api.deezer.com/playlist/${PLAYLIST_ID}/tracks`;
         let pagesFetched = 0;
-        const maxPages = 10; // Reduzido para acelerar o carregamento inicial e evitar gargalos
+        const maxPages = 40; // 40 páginas x 25 itens = Até 1000 músicas tratadas com segurança
+        let proxyIndex = 0; // Começa tentando o primeiro proxy da lista
 
         while (nextUrl && pagesFetched < maxPages) {
-          // Trocado para o corsproxy.io, que é consideravelmente mais estável que o allorigins
-          const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(nextUrl)}`;
-          
-          const response = await fetch(proxyUrl);
-          
-          if (!response.ok) {
-            throw new Error(`Proxy falhou com status ${response.status}`);
-          }
-          
-          const data = await response.json();
-          
-          if (data.error) {
-            throw new Error(`Deezer API: ${data.error.message}`);
+          let success = false;
+          let attempts = 0;
+          let data = null;
+
+          // Tenta os proxies disponíveis caso o atual falhe ou dê 403
+          while (!success && attempts < PROXIES.length) {
+            const currentProxyFunc = PROXIES[(proxyIndex + attempts) % PROXIES.length];
+            const targetUrl = currentProxyFunc(nextUrl);
+
+            try {
+              const response = await fetch(targetUrl);
+              
+              if (!response.ok) {
+                throw new Error(`Status ${response.status}`);
+              }
+
+              const rawResult = await response.json();
+              
+              // O AllOrigins envelopa o JSON dentro de um campo '.contents' como string
+              if (rawResult && typeof rawResult === 'object' && 'contents' in rawResult) {
+                data = JSON.parse(rawResult.contents);
+              } else {
+                data = rawResult;
+              }
+
+              if (data && !data.error) {
+                success = true;
+                // Mantém o índice do proxy que funcionou para acelerar as próximas páginas
+                proxyIndex = (proxyIndex + attempts) % PROXIES.length; 
+              } else if (data && data.error) {
+                throw new Error(data.error.message);
+              }
+            } catch (fetchErr) {
+              console.warn(`Proxy índice ${(proxyIndex + attempts) % PROXIES.length} falhou. Tentando o próximo...`, fetchErr.message);
+              attempts++;
+            }
           }
 
-          if (data.data && data.data.length > 0) {
+          if (success && data && data.data) {
             tracksFetched = [...tracksFetched, ...data.data];
+            nextUrl = data.next ? data.next : null;
+            pagesFetched++;
           } else {
-            break;
+            // Se nenhum dos proxies funcionou para esta página, interrompe o laço
+            throw new Error("Todos os proxies falharam ou foram bloqueados (Erro 403/500).");
           }
-          
-          nextUrl = data.next ? data.next : null;
-          pagesFetched++;
         }
       } catch (deezerErr) {
-        console.error("Erro ao buscar dados do Deezer via Proxy:", deezerErr);
-        errorMessages.push(`Deezer/Proxy: ${deezerErr.message}`);
+        console.error("Erro fatal na paginação do Deezer:", deezerErr);
+        errorMessages.push(`Deezer: ${deezerErr.message}`);
       }
 
-      // Alimenta os estados com o que foi possível obter
       setCollectionArtistsIds(supabaseSet);
       setPlaylistTracks(tracksFetched);
 
-      // Só exibe a tela de erro fatal se a lista de músicas do Deezer vier totalmente vazia
       if (errorMessages.length > 0 && tracksFetched.length === 0) {
         setError(errorMessages.join(' | '));
       }
-
       setLoading(false);
     }
 
     fetchData();
   }, []);
 
-  // --- 3. FILTROS E CRUZAMENTO ---
+  // 3. PROCESSAMENTO DOS FILTROS
   const filteredData = useMemo(() => {
     return playlistTracks
       .map((track, index) => {
@@ -131,33 +154,36 @@ export default function Discover() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64 text-slate-400 bg-slate-900">
-        <p className="animate-pulse">Sincronizando faixas locais com a API do Deezer...</p>
+      <div className="flex justify-center items-center h-screen w-full text-slate-400 bg-slate-900">
+        <p className="animate-pulse text-lg">Sincronizando tbl_artists com a Playlist do Deezer...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto text-slate-100 bg-slate-900 min-h-screen">
-      <header className="mb-8">
+    // Alterado para um layout flex vertical rígido (estilo countries.jsx) para destravar o scroll independentemente da rota global
+    <div className="w-full text-slate-100 bg-slate-900" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Cabeçalho Fixo */}
+      <header className="p-6 border-b border-slate-800 bg-slate-900 flex-none">
         <h1 className="text-3xl font-bold tracking-tight">Discover Manager</h1>
         {error && (
           <div className="text-xs bg-amber-500/10 border border-amber-500/30 text-amber-400 p-2 rounded mt-2">
-            Aviso de Instabilidade: {error} (Mostrando dados parciais)
+            Aviso de Instabilidade: {error} (Exibindo dados recuperados em cache/fallback)
           </div>
         )}
-        <p className="text-slate-400 mt-2">
-          Total de faixas carregadas da playlist: {playlistTracks.length}
+        <p className="text-slate-400 mt-1 text-sm">
+          Total de faixas encontradas na playlist: {playlistTracks.length}
         </p>
       </header>
 
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      {/* Área de Filtros Fixa */}
+      <div className="p-6 bg-slate-900/50 border-b border-slate-800 flex-none flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <input
             type="text"
             placeholder="Buscar por artista, música ou álbum..."
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -175,38 +201,39 @@ export default function Discover() {
         </div>
       </div>
 
-      {/* Grid */}
-      <div className="overflow-x-auto bg-slate-800 border border-slate-700 rounded-xl">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-700 bg-slate-850">
-              <th className="p-4 text-sm font-semibold text-slate-400">Artista</th>
-              <th className="p-4 text-sm font-semibold text-slate-400">Música / Álbum</th>
-              <th className="p-4 text-sm font-semibold text-slate-400">Status</th>
+      {/* ÁREA DA TABELA COM CONTROLE NATIVO DE SCROLL VERTICAL E HORIZONTAL LIBERADO */}
+      <div className="flex-1" style={{ overflowY: 'auto', overflowX: 'auto', width: '100%' }}>
+        <table className="w-full text-left border-collapse min-w-[700px]">
+          <thead className="sticky top-0 bg-slate-850 z-10 border-b border-slate-700 shadow-md">
+            <tr>
+              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-800">Artista</th>
+              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-800">Música / Álbum</th>
+              <th className="p-4 text-sm font-semibold text-slate-400 bg-slate-800">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-700/50">
+          <tbody className="divide-y divide-slate-800/60 bg-slate-900">
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="3" className="p-8 text-center text-slate-500">
-                  Nenhum registro encontrado.
+                <td colSpan="3" className="p-8 text-center text-slate-500 bg-slate-900">
+                  Nenhum registro correspondente aos filtros.
                 </td>
               </tr>
             ) : (
               filteredData.map((item) => (
-                <tr key={item.rowKey} className="hover:bg-slate-750/40 transition-colors">
+                <tr key={item.rowKey} className="hover:bg-slate-800/40 transition-colors">
                   <td className="p-4">
                     <a href={item.artistLink} target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-400 hover:underline">
                       {item.artistName}
                     </a>
                   </td>
+                  
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       {item.albumCover && (
-                        <img src={item.albumCover} alt={item.albumTitle} className="w-10 h-10 rounded bg-slate-700 object-cover" />
+                        <img src={item.albumCover} alt={item.albumTitle} className="w-10 h-10 rounded bg-slate-800 object-cover flex-none" />
                       )}
                       <div>
-                        <a href={item.trackLink} target="_blank" rel="noopener noreferrer" className="block text-slate-200 hover:text-indigo-400 hover:underline">
+                        <a href={item.trackLink} target="_blank" rel="noopener noreferrer" className="block text-slate-200 font-normal hover:text-indigo-400 hover:underline">
                           {item.trackTitle}
                         </a>
                         <a href={item.albumLink} target="_blank" rel="noopener noreferrer" className="block text-xs text-slate-400 hover:underline mt-0.5">
@@ -215,6 +242,7 @@ export default function Discover() {
                       </div>
                     </div>
                   </td>
+                  
                   <td className="p-4">
                     {item.isInCollection ? (
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -232,6 +260,7 @@ export default function Discover() {
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }
