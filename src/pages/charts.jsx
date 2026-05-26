@@ -61,7 +61,7 @@ export default function MusicCharts() {
       data: {
         labels: chartData.map(d => d.data_label),
         datasets: [{
-          label: 'Quantidade',
+          label: 'Qty',
           data: chartData.map(d => d.quantidade),
           backgroundColor: '#2c3e50', // Azul escuro sóbrio combinando com o tema claro
           hoverBackgroundColor: '#1a252f',
@@ -115,9 +115,9 @@ export default function MusicCharts() {
       {/* Topo / Cabeçalho de Seleção no estilo das tabelas */}
       <div style={{ display: 'flex', background: '#f1f1f1', borderBottom: '2px solid #ddd', height: '45px', alignItems: 'center', padding: '0 15px', gap: '20px' }}>
         {[
-          { id: 'track', label: 'MÚSICAS' },
-          { id: 'album', label: 'ÁLBUMS' },
-          { id: 'artist', label: 'ARTISTAS' }
+          { id: 'track', label: 'TRACKS' },
+          { id: 'album', label: 'ALBUMS' },
+          { id: 'artist', label: 'ARTISTS' }
         ].map(item => (
           <label key={item.id} style={{ fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <input
@@ -139,7 +139,7 @@ export default function MusicCharts() {
       <div style={{ flex: 1, padding: '15px', position: 'relative', minHeight: 0 }}>
         {loading && (
           <div style={{ position: 'absolute', color: '#666', fontSize: '24px' }}>
-            CARREGANDO LINHA DO TEMPO...
+            Loading...
           </div>
         )}
         <canvas ref={canvasRef} id="drillChart"></canvas>
@@ -160,10 +160,10 @@ export default function MusicCharts() {
             fontSize: '14px'
           }}
         >
-          {currentLevel === 'year' ? 'VISÃO ANUAL' : `« VOLTAR PARA ANUAL (${selectedYear})`}
+          {currentLevel === 'year' ? 'ANUAL' : `« BACK TO ANUAL (${selectedYear})`}
         </button>
         <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>
-          {currentLevel === 'year' ? 'HISTÓRICO ANUAL' : `DETALHE MENSAL - ${selectedYear}`}
+          {currentLevel === 'year' ? 'ANUAL' : `MONTHLY - ${selectedYear}`}
         </span>
       </div>
 

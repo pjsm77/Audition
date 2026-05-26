@@ -92,7 +92,7 @@ export default function Languages() {
   if (loading) {
     return (
       <div style={{ padding: '20px', color: '#666', fontSize: '24px', fontFamily: "'Bebas Neue', cursive" }}>
-        CARREGANDO ESTATÍSTICAS DE IDIOMAS...
+        Loading...
       </div>
     );
   }

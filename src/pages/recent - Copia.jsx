@@ -40,8 +40,7 @@ export default function Recent() {
           if (error || !data || data.length === 0) break;
           
           loadedData = [...loadedData, ...data];
-          // Mudado para 'en-US' para manter consistência no agrupamento por chaves de data
-          const uniqueDays = new Set(loadedData.map(item => new Date(item.date).toLocaleDateString('en-US')));
+          const uniqueDays = new Set(loadedData.map(item => new Date(item.date).toLocaleDateString('pt-BR')));
           daysFound = uniqueDays.size;
           offset += 500;
         }
@@ -74,7 +73,7 @@ export default function Recent() {
     const groups = {};
     dataSet.forEach(item => {
       if (!item.date) return;
-      const dateKey = new Date(item.date).toLocaleDateString('en-US');
+      const dateKey = new Date(item.date).toLocaleDateString('pt-BR');
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(item);
     });
@@ -154,10 +153,10 @@ export default function Recent() {
     document.body.appendChild(s);
   };
 
-  if (loading) return <div style={{ padding: '20px', color: '#888', backgroundColor: '#121212', minHeight: '100vh' }}>Loading scrobbles...</div>;
+  if (loading) return <div style={{ padding: '20px', color: '#888', backgroundColor: '#121212', height: '100vh' }}>Carregando scrobbles...</div>;
 
   return (
-    <div style={{ backgroundColor: '#121212', color: '#e0e0e0', fontFamily: 'Segoe UI, Roboto, sans-serif', minHeight: '100vh', padding: '10px', boxSizing: 'border-box', overflowY: 'auto' }}>
+    <div style={{ backgroundColor: '#121212', color: '#e0e0e0', fontFamily: 'Segoe UI, Roboto, sans-serif', minHeight: '100vh', padding: '10px', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: '1000px', margin: 'auto' }}>
         
         {/* GRÁFICO DE BARRAS */}
@@ -200,9 +199,8 @@ export default function Recent() {
         <div style={{ background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
           {currentDayData ? (
             <>
-              {/* Traduzido para en-US aqui */}
               <div style={{ background: '#252525', padding: '6px 15px', fontWeight: 'bold', color: '#ba0000', textTransform: 'capitalize', borderBottom: '2px solid #ba0000', fontSize: '13px' }}>
-                {new Date(currentDayData[0].date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit' })}
+                {new Date(currentDayData[0].date).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
               </div>
 
               {currentDayData.map((item, idx) => (
@@ -225,15 +223,14 @@ export default function Recent() {
                     <div style={{ color: '#e0e0e0', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.artist}</div>
                     <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.album || '—'}</div>
                     <div style={{ color: '#888', fontSize: '10px', opacity: 0.7 }}>
-                      {/* Formato de hora traduzido para en-US (12h AM/PM ou conforme localidade) */}
-                      {new Date(item.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(item.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
                 </div>
               ))}
             </>
           ) : (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>No data found for the applied filters.</div>
+            <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Nenhum dado encontrado para os filtros aplicados.</div>
           )}
         </div>
 
@@ -244,17 +241,17 @@ export default function Recent() {
             onClick={() => { setCurrentPage(prev => prev - 1); window.scrollTo(0, 0); }}
             style={{ background: '#333', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: currentPage === 0 ? 0.15 : 1 }}
           >
-            Previous
+            Anterior
           </button>
           <span style={{ fontSize: '11px', color: '#888' }}>
-            Day {currentPage + 1} of {currentGroups.length || 1}
+            Dia {currentPage + 1} de {currentGroups.length || 1}
           </span>
           <button 
             disabled={(currentPage + 1) >= currentGroups.length} 
             onClick={() => { setCurrentPage(prev => prev + 1); window.scrollTo(0, 0); }}
             style={{ background: '#333', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: (currentPage + 1) >= currentGroups.length ? 0.15 : 1 }}
           >
-            Next
+            Próxima
           </button>
         </div>
 

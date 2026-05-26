@@ -288,7 +288,7 @@ export default function Artists() {
   const totalPages = Math.ceil(filteredData.length / limit) || 1;
 
   if (loading) {
-    return <div style={{ padding: '20px', color: '#666', fontSize: '24px', fontFamily: "'Bebas Neue', cursive" }}>CARREGANDO ECOSSISTEMA MUSICAL...</div>;
+    return <div style={{ padding: '20px', color: '#666', fontSize: '24px', fontFamily: "'Bebas Neue', cursive" }}>Loading...</div>;
   }
 
   return (

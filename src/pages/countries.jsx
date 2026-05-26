@@ -117,7 +117,7 @@ export default function Countries() {
   if (loading) {
     return (
       <div style={{ padding: '20px', color: '#666', fontSize: '24px', fontFamily: "'Bebas Neue', cursive" }}>
-        CARREGANDO ESTATÍSTICAS GEOGRÁFICAS...
+        Loading...
       </div>
     );
   }

@@ -333,19 +333,19 @@ export default function NewEntries() {
     <div style={styles.body}>
       <div style={styles.container}>
         <div style={styles.card}>
-          <h3 style={styles.titleHeader}>Sincronizador Master</h3>
+          <h3 style={styles.titleHeader}>New entries</h3>
           
           <div style={styles.flexGap}>
             <button style={{ ...styles.btnMain, ...styles.btnAccent }} onClick={handlePasteFromClipboard}>
-              📋 COLAR
+              📋 PASTE
             </button>
             <button style={{ ...styles.btnMain, ...styles.btnClean }} onClick={handleClear}>
-              🗑️ LIMPAR
+              🗑️ CLEAR
             </button>
           </div>
 
           <div style={styles.formGroup}>
-            <label style={styles.label}>Link Deezer</label>
+            <label style={styles.label}>Deezer link</label>
             <input 
               type="text" 
               style={styles.input} 
