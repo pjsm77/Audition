@@ -103,7 +103,7 @@ export default function Discover() {
           albumTitle: track.album?.title || 'ÁLBUM DESCONHECIDO',
           albumLink: track.album?.id ? `https://www.deezer.com/album/${track.album.id}` : '#',
           albumCover: track.album?.cover_medium || '',
-          albumYear: track.album?.release_date ? new Date(track.album.release_date).getFullYear() : (track.release_date ? new Date(track.release_date).getFullYear() : '----'),
+          albumYear: track.album?.release_date ? new Date(track.album.release_date).getFullYear() : (track.release_date ? new Date(track.release_date).getFullYear() : ''),
           isInCollection
         };
       })
@@ -138,9 +138,9 @@ export default function Discover() {
   };
 
   const getStatusFilterLabel = () => {
-    if (statusFilter === 'all') return 'STATUS: TODOS';
-    if (statusFilter === 'not_in_collection') return 'STATUS: PENDENTES';
-    return 'STATUS: NA COLEÇÃO';
+    if (statusFilter === 'all') return 'STATUS: ALL';
+    if (statusFilter === 'not_in_collection') return 'STATUS: PENDING';
+    return 'STATUS: COLLECTION';
   };
 
   const clearFilters = () => {
@@ -277,7 +277,7 @@ export default function Discover() {
             type="text" 
             value={search} 
             onChange={(e) => { setPage(0); setSearch(e.target.value); }} 
-            placeholder="BUSCAR MÚSICA, ARTISTA OU ÁLBUM..." 
+            placeholder="SEARCH TRACK, ARTISTS OR ALBUM..." 
             style={styles.searchFieldsInput} 
           />
           <button onClick={() => setShowSearch(false)} style={styles.overlayOkBtn}>OK</button>
