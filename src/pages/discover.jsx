@@ -1,18 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
-// IMPORTAÇÃO CORRETA: Herdando a mesma instância centralizada que funciona no countries.jsx
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 const PLAYLIST_ID = '11172145064';
+const ITEMS_PER_PAGE = 50; // Paginar colocando 50 registros por página
 
 export default function Discover() {
+  // --- ESTADOS GLOBAIS DA PÁGINA ---
   const [playlistTracks, setPlaylistTracks] = useState([]);
   const [collectionArtistsIds, setCollectionArtistsIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estados dos Filtros
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); 
+  // Filtros e Busca (Mantendo a paginação e busca do padrão anterior)
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'in_collection', 'not_in_collection'
+  const [page, setPage] = useState(0);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Referência para auto-focar o input de busca ao abrir
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -33,12 +39,12 @@ export default function Discover() {
             .filter(Boolean)
         );
 
-        // 2. BUSCAR DADOS DA PLAYLIST DO DEEZER VIA EDGE FUNCTION EXCLUSIVA
+        // 2. BUSCAR DADOS DA PLAYLIST DO DEEZER (Preservando a ordem natural da playlist)
         let tracks = [];
         let nextUrl = `https://api.deezer.com/playlist/${PLAYLIST_ID}/tracks`;
         
         let pagesFetched = 0;
-        const maxPages = 40; // Aumentado para 40 para carregar com folga todos os 630+ registros da playlist
+        const maxPages = 40; 
 
         while (nextUrl && pagesFetched < maxPages) {
           const origin = window.location.origin;
@@ -75,8 +81,15 @@ export default function Discover() {
     fetchData();
   }, []);
 
-  // 3. CRUZAMENTO E FILTROS DE DADOS
-  const filteredData = useMemo(() => {
+  // Foco automático no input de busca ao abrir o overlay
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearch]);
+
+  // 3. PROCESSAMENTO DE FILTROS E MAPEAMENTO DOS DADOS (Sem ordenação manual para manter a da playlist)
+  const allFilteredData = useMemo(() => {
     return playlistTracks
       .map((track, index) => {
         const artistIdStr = track.artist?.id?.toString().trim();
@@ -84,191 +97,403 @@ export default function Discover() {
         
         return {
           rowKey: track.id ? `track-${track.id}-${index}` : `idx-${index}`,
-          artistName: track.artist?.name || 'Artista Sem Nome',
+          artistName: track.artist?.name || 'ARTISTA SEM NOME',
           artistLink: track.artist?.id ? `https://www.deezer.com/artist/${track.artist.id}` : '#',
-          trackTitle: track.title || 'Faixa Sem Título',
-          trackLink: track.link || '#',
-          albumTitle: track.album?.title || 'Álbum Desconhecido',
+          trackTitle: track.title || 'FAIXA SEM TÍTULO',
+          albumTitle: track.album?.title || 'ÁLBUM DESCONHECIDO',
           albumLink: track.album?.id ? `https://www.deezer.com/album/${track.album.id}` : '#',
-          // Mudado para cover_medium para evitar compressão pixelada no mobile
-          albumCover: track.album?.cover_medium || '', 
+          albumCover: track.album?.cover_medium || '',
+          albumYear: track.album?.release_date ? new Date(track.album.release_date).getFullYear() : (track.release_date ? new Date(track.release_date).getFullYear() : '----'),
           isInCollection
         };
       })
       .filter(item => {
         const matchesSearch = 
-          item.artistName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.trackTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.albumTitle.toLowerCase().includes(searchTerm.toLowerCase());
+          item.artistName.toLowerCase().includes(search.toLowerCase()) ||
+          item.trackTitle.toLowerCase().includes(search.toLowerCase()) ||
+          item.albumTitle.toLowerCase().includes(search.toLowerCase());
 
         if (statusFilter === 'in_collection') return matchesSearch && item.isInCollection;
         if (statusFilter === 'not_in_collection') return matchesSearch && !item.isInCollection;
         
         return matchesSearch;
       });
-  }, [playlistTracks, collectionArtistsIds, searchTerm, statusFilter]);
+  }, [playlistTracks, collectionArtistsIds, search, statusFilter]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen w-full text-slate-400 bg-slate-900">
-        <p className="animate-pulse text-lg font-medium">Sincronizando artistas com a Playlist do Deezer...</p>
-      </div>
-    );
+  // Paginação aplicada sobre os dados filtrados
+  const pagedData = useMemo(() => {
+    const from = page * ITEMS_PER_PAGE;
+    const to = from + ITEMS_PER_PAGE;
+    return allFilteredData.slice(from, to);
+  }, [allFilteredData, page]);
+
+  const totalCount = allFilteredData.length;
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE) || 1;
+
+  const handleStatusFilterToggle = () => {
+    setPage(0);
+    if (statusFilter === 'all') setStatusFilter('not_in_collection');
+    else if (statusFilter === 'not_in_collection') setStatusFilter('in_collection');
+    else setStatusFilter('all');
+  };
+
+  const getStatusFilterLabel = () => {
+    if (statusFilter === 'all') return 'STATUS: TODOS';
+    if (statusFilter === 'not_in_collection') return 'STATUS: PENDENTES';
+    return 'STATUS: NA COLEÇÃO';
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setPage(0);
+  };
+
+  if (loading && playlistTracks.length === 0) {
+    return <div style={{ padding: '20px', color: '#666', fontSize: '24px', fontFamily: "'Bebas Neue', cursive" }}>SINCRONIZANDO COM A PLAYLIST DO DEEZER...</div>;
   }
 
   return (
-    <div className="w-full min-h-screen text-slate-100 bg-slate-900 flex flex-col font-sans antialiased">
+    <div style={styles.viewWrapper}>
       
-      {/* Cabeçalho Fixo */}
-      <header className="p-4 sm:p-6 border-b border-slate-800 bg-slate-950/50 backdrop-blur flex-none flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Discover Manager</h1>
-          {error && (
-            <div className="text-xs bg-red-500/10 border border-red-500/30 text-red-400 p-2 rounded mt-2 max-w-xl">
-              Erro detectado: {error}
-            </div>
-          )}
-          <p className="text-slate-400 mt-1 text-xs sm:text-sm font-light">
-            Total de faixas encontradas na playlist: <span className="font-semibold text-indigo-400">{playlistTracks.length}</span>
-          </p>
+      {/* EXIBIÇÃO DE ERRO CASO OCORRA */}
+      {error && (
+        <div style={{ padding: '10px', backgroundColor: '#fde8e8', color: '#e74c3c', fontSize: '14px', fontFamily: "'Roboto', sans-serif", textAlign: 'center', borderBottom: '1px solid #f5c6cb' }}>
+          {error}
         </div>
+      )}
+
+      {/* ÁREA DE ROLAGEM INDEPENDENTE */}
+      <div style={styles.scrollableContent}>
+        <div style={styles.listContainer}>
+          {pagedData.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '18px' }}>NENHUMA MÚSICA ENCONTRADA</div>
+          ) : (
+            pagedData.map((item) => (
+              <div key={item.rowKey} style={styles.albumRow}>
+                <div style={styles.infoLeft}>
+                  {/* ÍCONE COM VISTO VERDE OU X VERMELHO NO LUGAR DA BANDEIRA */}
+                  <div 
+                    style={{
+                      ...styles.statusIconContainer,
+                      backgroundColor: item.isInCollection ? 'rgba(46, 204, 113, 0.15)' : 'rgba(231, 76, 60, 0.15)',
+                      border: item.isInCollection ? '1px solid #2ecc71' : '1px solid #e74c3c'
+                    }}
+                    title={item.isInCollection ? "Na Coleção" : "Pendente"}
+                  >
+                    {item.isInCollection ? '✅' : '❌'}
+                  </div>
+                  
+                  <div style={styles.textGroup}>
+                    {/* LINHA PRINCIPAL: Nome da Música (abre o álbum no Deezer) */}
+                    <div style={styles.albumHeaderLine}>
+                      <a 
+                        href={item.albumLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        style={styles.albumNameLink}
+                      >
+                        {item.trackTitle?.toUpperCase()}
+                      </a>
+                      <span style={styles.albumYearLink}>
+                        &nbsp;({item.albumYear})
+                      </span>
+                    </div>
+                    
+                    {/* LINHA SECUNDÁRIA: Nome do Artista (abre o artista no Deezer) - Sem colchetes de contagem */}
+                    <div style={styles.artistLine}>
+                      <a 
+                        href={item.artistLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        style={styles.artistNameLink}
+                      >
+                        {item.artistName?.toUpperCase()}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CAPA DA FAIXA */}
+                {item.albumCover && (
+                  <img
+                    src={item.albumCover}
+                    alt="Cover"
+                    style={styles.coverThumb}
+                  />
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* RODAPÉ FIXO ADAPTADO */}
+      <div style={styles.footerBar}>
+        <button style={styles.btnFooter} onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}>«</button>
         
+        <select 
+          style={styles.footerSelect} 
+          value={page + 1} 
+          onChange={(e) => setPage(Number(e.target.value) - 1)}
+        >
+          {Array.from({ length: totalPages }, (_, i) => (
+            <option key={i} value={i + 1}>PÁG {i + 1}</option>
+          ))}
+        </select>
+        
+        <button style={styles.btnFooter} onClick={() => { if ((page + 1) * ITEMS_PER_PAGE < totalCount) setPage(page + 1); }} disabled={(page + 1) * ITEMS_PER_PAGE >= totalCount}>»</button>
+        <button style={styles.btnFooter} onClick={() => setShowSearch(!showSearch)}>🔍</button>
+        
+        {/* FILTRO DE STATUS NO RODAPÉ */}
+        <button style={styles.btnFilterStatus} onClick={handleStatusFilterToggle}>
+          {getStatusFilterLabel()}
+        </button>
+
+        {/* LINK PARA A PLAYLIST MÃE NO DEEZER VIA ÍCONE */}
         <a 
           href={`https://www.deezer.com/playlist/${PLAYLIST_ID}`}
           target="_blank" 
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs sm:text-sm px-4 py-2.5 rounded-lg transition-colors shadow-lg shadow-indigo-600/10 self-stretch sm:self-center text-center"
+          style={styles.playlistIconLink}
+          title="Ver Playlist no Deezer"
         >
-          Ver Playlist no Deezer ↗
+          🎵
         </a>
-      </header>
-
-      {/* Área de Filtros */}
-      <div className="p-4 sm:p-6 bg-slate-900 border-b border-slate-800/60 flex-none flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Buscar por artista, música ou álbum..."
-            className="w-full bg-slate-800 border border-slate-700/70 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="w-full sm:w-56">
-          <select
-            className="w-full bg-slate-800 border border-slate-700/70 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">Todos os Status</option>
-            <option value="in_collection">Na Coleção (Limpar)</option>
-            <option value="not_in_collection">Fora da Coleção (Pendente)</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Conteúdo Dinâmico (Cards no Mobile / Tabela no Desktop) */}
-      <div className="flex-1 overflow-y-auto w-full p-4 sm:p-0">
         
-        {filteredData.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 text-sm">
-            Nenhum registro correspondente aos filtros.
-          </div>
-        ) : (
-          <>
-            {/* VISTA MOBILE: Grid de Cards (Escondido em telas 'sm' ou maiores) */}
-            <div className="block sm:hidden space-y-3">
-              {filteredData.map((item) => (
-                <div key={`${item.rowKey}-card`} className="bg-slate-800/40 border border-slate-800 rounded-xl p-3.5 flex gap-4 hover:border-slate-700 transition-all">
-                  {item.albumCover && (
-                    <img 
-                      src={item.albumCover} 
-                      alt={item.albumTitle} 
-                      className="w-16 h-16 rounded-lg bg-slate-800 object-cover flex-none shadow-md" 
-                    />
-                  )}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between gap-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <a href={item.artistLink} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-indigo-400 uppercase tracking-wider truncate hover:underline">
-                        {item.artistName}
-                      </a>
-                      {item.isInCollection ? (
-                        <span className="inline-flex flex-none items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          Na Coleção
-                        </span>
-                      ) : (
-                        <span className="inline-flex flex-none items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                          Pendente
-                        </span>
-                      )}
-                    </div>
-                    
-                    <a href={item.trackLink} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-100 truncate hover:text-indigo-300 transition-colors">
-                      {item.trackTitle}
-                    </a>
-                    
-                    <a href={item.albumLink} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 truncate hover:underline">
-                      Álbum: {item.albumTitle}
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* VISTA DESKTOP: Tabela Tradicional (Escondida no mobile) */}
-            <div className="hidden sm:block w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-slate-800/95 backdrop-blur z-10 border-b border-slate-700 shadow-sm">
-                  <tr>
-                    <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Artista</th>
-                    <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-400">Música / Álbum</th>
-                    <th className="p-4 text-xs font-semibold uppercase tracking-wider text-slate-400 w-40">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/40 bg-slate-900">
-                  {filteredData.map((item) => (
-                    <tr key={item.rowKey} className="hover:bg-slate-800/20 transition-colors">
-                      <td className="p-4 max-w-[200px] truncate">
-                        <a href={item.artistLink} target="_blank" rel="noopener noreferrer" className="font-medium text-indigo-400 hover:text-indigo-300 hover:underline transition-colors">
-                          {item.artistName}
-                        </a>
-                      </td>
-                      
-                      <td className="p-4">
-                        <div className="flex items-center gap-3.5">
-                          {item.albumCover && (
-                            <img src={item.albumCover} alt={item.albumTitle} className="w-10 h-10 rounded shadow-sm bg-slate-800 object-cover flex-none" />
-                          )}
-                          <div className="min-w-0">
-                            <a href={item.trackLink} target="_blank" rel="noopener noreferrer" className="block text-slate-200 text-sm font-normal hover:text-indigo-400 hover:underline truncate">
-                              {item.trackTitle}
-                            </a>
-                            <a href={item.albumLink} target="_blank" rel="noopener noreferrer" className="block text-xs text-slate-400 hover:text-slate-300 hover:underline mt-0.5 truncate">
-                              Álbum: {item.albumTitle}
-                            </a>
-                          </div>
-                        </div>
-                      </td>
-                      
-                      <td className="p-4">
-                        {item.isInCollection ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            Na Coleção
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            Pendente
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+        {search && (
+          <button style={styles.clearBtn} onClick={clearFilters}>CLEAR</button>
         )}
+        
+        {/* TOTAL DE TRACKS NO CANTO INFERIOR DIREITO */}
+        <span style={styles.footerCounter}>{totalCount} TRACKS</span>
       </div>
+
+      {/* OVERLAY DE BUSCA EM TEMPO REAL */}
+      {showSearch && (
+        <div style={styles.searchOverlay}>
+          <input 
+            ref={searchInputRef}
+            type="text" 
+            value={search} 
+            onChange={(e) => { setPage(0); setSearch(e.target.value); }} 
+            placeholder="BUSCAR MÚSICA, ARTISTA OU ÁLBUM..." 
+            style={styles.searchFieldsInput} 
+          />
+          <button onClick={() => setShowSearch(false)} style={styles.overlayOkBtn}>OK</button>
+        </div>
+      )}
+
     </div>
   );
 }
+
+// --- ARQUITETURA DE ESTILOS INLINE IDENTICA A ALBUMS.JSX ---
+const styles = {
+  viewWrapper: {
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: "'Bebas Neue', cursive",
+    maxWidth: '480px',
+    margin: '0 auto',
+    backgroundColor: '#fff',
+    position: 'relative',
+    boxSizing: 'border-box'
+  },
+  scrollableContent: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '12px 12px 0 12px',
+    boxSizing: 'border-box'
+  },
+  listContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    paddingBottom: '20px'
+  },
+  albumRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '8px 12px',
+    backgroundColor: '#f8fafc',
+    borderRadius: '14px',
+    border: '1px solid #f1f5f9'
+  },
+  infoLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flex: 1,
+    minWidth: 0 // Evita que textos longos estourem o flexbox
+  },
+  statusIconContainer: {
+    width: '32px',
+    height: '24px',
+    borderRadius: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '11px',
+    flexNone: 'none',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+  },
+  textGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    overflow: 'hidden',
+    width: '100%'
+  },
+  albumHeaderLine: {
+    fontSize: '16px',
+    color: '#1e293b',
+    letterSpacing: '0.3px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  albumNameLink: {
+    color: '#1e293b',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  albumYearLink: {
+    color: '#94a3b8',
+    fontFamily: "'Bebas Neue', cursive",
+    flexShrink: 0
+  },
+  artistLine: {
+    fontSize: '13px',
+    letterSpacing: '0.3px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  artistNameLink: {
+    color: '#64748b', // Cor neutra estilizada do ecossistema para links secundários
+    textDecoration: 'none',
+    cursor: 'pointer'
+  },
+  coverThumb: {
+    width: '54px',
+    height: '54px',
+    borderRadius: '10px',
+    objectFit: 'cover',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+    marginLeft: '10px',
+    flexShrink: 0
+  },
+  footerBar: {
+    height: '45px',
+    background: '#f1f1f1',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    borderTop: '1px solid #ddd',
+    padding: '0 10px',
+    gap: '8px',
+    zIndex: 950,
+    boxSizing: 'border-box'
+  },
+  btnFooter: {
+    background: 'none',
+    border: 'none',
+    fontSize: '20px',
+    cursor: 'pointer',
+    padding: '2px 4px',
+    display: 'flex',
+    alignItems: 'center',
+    height: '100%',
+    fontFamily: "'Bebas Neue', cursive"
+  },
+  footerSelect: {
+    fontFamily: "'Bebas Neue', cursive",
+    borderRadius: '4px',
+    fontSize: '15px',
+    height: '26px',
+    padding: '0 2px',
+    cursor: 'pointer'
+  },
+  btnFilterStatus: {
+    background: '#e2e8f0',
+    border: '1px solid #cbd5e1',
+    borderRadius: '5px',
+    color: '#334155',
+    fontSize: '11px',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    fontFamily: "'Bebas Neue', cursive",
+    letterSpacing: '0.3px',
+    display: 'flex',
+    alignItems: 'center',
+    height: '26px'
+  },
+  playlistIconLink: {
+    fontSize: '18px',
+    textDecoration: 'none',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: '0 4px',
+    height: '100%'
+  },
+  clearBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#e97b78',
+    fontSize: '13px',
+    cursor: 'pointer',
+    fontFamily: "'Bebas Neue', cursive",
+    height: '100%'
+  },
+  footerCounter: {
+    fontSize: '14px',
+    marginLeft: 'auto',
+    color: '#555',
+    fontWeight: 'bold',
+    letterSpacing: '0.3px',
+    whiteSpace: 'nowrap'
+  },
+  searchOverlay: {
+    position: 'fixed',
+    bottom: '45px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    width: '100%',
+    maxWidth: '480px',
+    background: 'white',
+    padding: '8px 15px',
+    boxShadow: '0 -3px 10px rgba(0,0,0,0.15)',
+    zIndex: 999,
+    display: 'flex',
+    gap: '10px',
+    boxSizing: 'border-box'
+  },
+  searchFieldsInput: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: '4px',
+    border: '1px solid #ccc',
+    fontSize: '14px',
+    fontFamily: "'Roboto', sans-serif"
+  },
+  overlayOkBtn: {
+    background: '#2c3e50',
+    color: 'white',
+    border: 'none',
+    padding: '0 15px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontFamily: "'Bebas Neue', cursive",
+    fontSize: '14px'
+  }
+};
