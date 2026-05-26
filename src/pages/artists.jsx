@@ -14,7 +14,7 @@ export default function Artists() {
   // Referência para o input de busca (Correção de Foco)
   const searchInputRef = useRef(null);
   
-  // Ordenação
+  // Ordenação Principal
   const [sortCol, setSortCol] = useState('scrobbles');
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -24,11 +24,12 @@ export default function Artists() {
   const [filterZeroScoreActive, setFilterZeroScoreActive] = useState(false);
   const [filterHighlightActive, setFilterHighlightActive] = useState(false);
 
-  // Detalhes do Artista (Overlay)
+  // Detalhes do Artista (Overlay) e Ordenação Interna
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [detailTab, setDetailTab] = useState('songs');
   const [detailData, setDetailData] = useState({ songs: [], albums: [] });
-  const [detailSortAsc, setDetailSortAsc] = useState(false);
+  const [detailSortCol, setDetailSortCol] = useState('count'); // Coluna atual de ordenação do modal
+  const [detailSortAsc, setDetailSortAsc] = useState(false);    // Direção da ordenação do modal
 
   // Modal de Rating
   const [ratingArtist, setRatingArtist] = useState(null);
@@ -126,7 +127,6 @@ export default function Artists() {
       return nameMatch && ratingMatch && zeroScoreMatch && highlightMatch && (currentFilter.type ? (countryMatch || cityMatch) : true);
     });
 
-    // SISTEMA DE ORDENAÇÃO SEGURO CONTRA QUEDAS (ANTILEGACY CRASH)
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
@@ -137,7 +137,6 @@ export default function Artists() {
         return sortAsc ? strA.localeCompare(strB) : strB.localeCompare(strA);
       }
 
-      // Tratamento numérico robusto para scrobbles, recência e anos vazios
       const numA = Number(valA) || 0;
       const numB = Number(valB) || 0;
 
@@ -154,6 +153,8 @@ export default function Artists() {
     if (!artistName) return;
     setSelectedArtist(artistName);
     setDetailData({ songs: [], albums: [] });
+    setDetailSortCol('count'); // Reseta para ordenar por total scrobbles desc
+    setDetailSortAsc(false);
     
     try {
       const [resSongs, resAlbums] = await Promise.all([
@@ -165,8 +166,8 @@ export default function Artists() {
         rank_artist: item.ranking_no_artista_unico,
         rank_global: item.ranking_geral_unico,
         count: item.total_scrobbles,
-        days: item.dias_ultima_execucao,
-        title: item.track_name
+        days: item.dias_ultima_execucao ?? 999999, // Fallback alto para nulos jogarem pro fim em asc
+        title: item.track_name || ''
       }));
 
       const aCnt = {};
@@ -236,6 +237,39 @@ export default function Artists() {
     setOffset(0);
   };
 
+  // Função para lidar com a ordenação das colunas internas do Modal
+  const handleDetailSort = (col) => {
+    if (detailSortCol === col) {
+      setDetailSortAsc(!detailSortAsc);
+    } else {
+      setDetailSortCol(col);
+      setDetailSortAsc(col === 'title' ? true : false); // Título padrão asc, numéricos desc
+    }
+  };
+
+  // Função auxiliar para ordenar as listas internas do Modal
+  const getSortedDetailData = () => {
+    const list = detailTab === 'songs' ? [...detailData.songs] : [...detailData.albums];
+    
+    list.sort((a, b) => {
+      let valA = a[detailSortCol];
+      let valB = b[detailSortCol];
+
+      if (detailSortCol === 'title') {
+        return detailSortAsc 
+          ? String(valA).localeCompare(String(valB)) 
+          : String(valB).localeCompare(String(valA));
+      }
+
+      // Ordenação Numérica (count ou days)
+      const numA = Number(valA) ?? 0;
+      const numB = Number(valB) ?? 0;
+      return detailSortAsc ? numA - numB : numB - numA;
+    });
+
+    return list;
+  };
+
   const toggleQuickFilter = (type, value) => {
     if (!value || value === '-') return;
     setCurrentFilter(currentFilter.type === type && currentFilter.value === value ? { type: null, value: null } : { type, value });
@@ -249,13 +283,6 @@ export default function Artists() {
     setFilterZeroScoreActive(false);
     setFilterHighlightActive(false);
     setOffset(0);
-  };
-
-  const getGRColor = (item) => {
-    if (item.status_rating === -1) return "#1DB954";
-    if (item.status_rating === -2) return "#ffc845";
-    if (item.status_rating === -3) return "#e97b78";
-    return "#777";
   };
 
   const getScoreBgColor = (score) => {
@@ -494,37 +521,33 @@ export default function Artists() {
                 <tr style={{ borderBottom: '1px solid #444', color: '#aaa' }}>
                   <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px', fontFamily: "'Bebas Neue', cursive" }}>#A</th>
                   <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', width: '30px', fontFamily: "'Bebas Neue', cursive" }}>#G</th>
-                  <th onClick={() => setDetailSortAsc(!detailSortAsc)} style={{ padding: '6px 4px', textAlign: 'right', cursor: 'pointer', background: 'transparent', position: 'static', width: '60px', fontFamily: "'Bebas Neue', cursive" }}>TOT ⇅</th>
-                  <th style={{ padding: '6px 4px', textAlign: 'center', background: 'transparent', position: 'static', width: '50px', fontFamily: "'Bebas Neue', cursive" }}>DIAS</th>
-                  <th style={{ padding: '6px 4px', textAlign: 'left', background: 'transparent', position: 'static', fontFamily: "'Bebas Neue', cursive" }}>TÍTULO</th>
+                  <th onClick={() => handleDetailSort('count')} style={{ padding: '6px 4px', textAlign: 'right', cursor: 'pointer', background: 'transparent', position: 'static', width: '60px', fontFamily: "'Bebas Neue', cursive", color: detailSortCol === 'count' ? '#1DB954' : '#aaa' }}>TOT ⇅</th>
+                  <th onClick={() => handleDetailSort('days')} style={{ padding: '6px 4px', textAlign: 'center', cursor: 'pointer', background: 'transparent', position: 'static', width: '50px', fontFamily: "'Bebas Neue', cursive", color: detailSortCol === 'days' ? '#1DB954' : '#aaa' }}>DAYS ⇅</th>
+                  <th onClick={() => handleDetailSort('title')} style={{ padding: '6px 4px', textAlign: 'left', cursor: 'pointer', background: 'transparent', position: 'static', fontFamily: "'Bebas Neue', cursive", color: detailSortCol === 'title' ? '#1DB954' : '#aaa' }}>TITLE ⇅</th>
                 </tr>
               </thead>
               <tbody>
-                {detailTab === 'songs' ? (
-                  detailData.songs
-                    .sort((a, b) => detailSortAsc ? a.count - b.count : b.count - a.count)
-                    .map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                {getSortedDetailData().map((row, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                    {detailTab === 'songs' ? (
+                      <>
                         <td style={{ padding: '6px 4px', color: '#1DB954', fontWeight: 'bold' }}>{row.rank_artist}</td>
                         <td style={{ padding: '6px 4px', color: '#777', fontSize: '10px' }}>{row.rank_global}</td>
                         <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>{row.count}</td>
-                        <td style={{ padding: '6px 4px', textAlign: 'center', fontSize: '10px' }}>{row.days}d</td>
+                        <td style={{ padding: '6px 4px', textAlign: 'center', fontSize: '10px' }}>{row.days === 999999 ? '-' : row.days}</td>
                         <td style={{ padding: '6px 4px', color: '#fff', fontWeight: 'bold', whiteSpace: 'normal' }}>{row.title}</td>
-                      </tr>
-                    ))
-                ) : (
-                  detailData.albums
-                    .sort((a, b) => detailSortAsc ? a.count - b.count : b.count - a.count)
-                    .map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #2a2a2a' }}>
+                      </>
+                    ) : (
+                      <>
                         <td style={{ padding: '6px 4px' }}>-</td>
                         <td style={{ padding: '6px 4px' }}>-</td>
                         <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>{row.count}</td>
-                        <td style={{ padding: '6px 4px' }}>-</td>
+                        <td style={{ padding: '6px 4px', textAlign: 'center', fontSize: '10px' }}>-</td>
                         <td style={{ padding: '6px 4px', color: '#fff', fontWeight: 'bold', whiteSpace: 'normal' }}>{row.title}</td>
-                      </tr>
-                    ))
-                )}
+                      </>
+                    )}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
