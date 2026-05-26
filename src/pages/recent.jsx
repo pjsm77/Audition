@@ -172,7 +172,21 @@ export default function Recent() {
   if (loading) return <div style={{ padding: '20px', color: '#888', backgroundColor: '#121212', minHeight: '100vh' }}>Loading scrobbles...</div>;
 
   return (
-    <div style={{ backgroundColor: '#121212', color: '#e0e0e0', fontFamily: 'Segoe UI, Roboto, sans-serif', minHeight: '100vh', padding: '10px', boxSizing: 'border-box', overflowY: 'auto' }}>
+    <div 
+    style={{ 
+      backgroundColor: '#121212', 
+      color: '#e0e0e0', 
+      fontFamily: 'Segoe UI, Roboto, sans-serif', 
+      
+      // MUDANÇAS CRUCIAIS AQUI:
+      height: '100vh',          // Força o componente a ocupar a tela inteira
+      overflowY: 'scroll',      // Força a aparição da barra de rolagem VERTICAL interna
+      WebkitOverflowScrolling: 'touch', // Garante rolagem suave e natural em celulares (iOS/Android)
+      
+      padding: '10px', 
+      boxSizing: 'border-box' 
+    }}
+  >
       <div style={{ maxWidth: '1000px', margin: 'auto' }}>
         
         {/* GRÁFICO DE BARRAS */}
