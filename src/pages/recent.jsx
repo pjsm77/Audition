@@ -21,6 +21,21 @@ export default function Recent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // --- FORÇAR LIBERAÇÃO DO SCROLL NO NAVEGADOR ---
+  useEffect(() => {
+    // Força o HTML e o Body do app a permitirem a rolagem de conteúdo
+    document.documentElement.style.overflow = 'auto';
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+    
+    // Limpa as propriedades caso mude de página/componente
+    return () => {
+      document.documentElement.style.overflow = '';
+      document.body.style.overflow = '';
+      document.body.style.height = '';
+    };
+  }, []);
+
   // --- 1. CARGA DOS DADOS IDÊNTICA AO SEU HTML ---
   useEffect(() => {
     async function initialLoad() {
@@ -40,7 +55,7 @@ export default function Recent() {
           if (error || !data || data.length === 0) break;
           
           loadedData = [...loadedData, ...data];
-          // Mudado para 'en-US' para manter consistência no agrupamento por chaves de data
+          // Agrupamento usando padrão 'en-US' para consistência das chaves de data
           const uniqueDays = new Set(loadedData.map(item => new Date(item.date).toLocaleDateString('en-US')));
           daysFound = uniqueDays.size;
           offset += 500;
@@ -200,7 +215,7 @@ export default function Recent() {
         <div style={{ background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
           {currentDayData ? (
             <>
-              {/* Traduzido para en-US aqui */}
+              {/* Formato de Data em Inglês */}
               <div style={{ background: '#252525', padding: '6px 15px', fontWeight: 'bold', color: '#ba0000', textTransform: 'capitalize', borderBottom: '2px solid #ba0000', fontSize: '13px' }}>
                 {new Date(currentDayData[0].date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit' })}
               </div>
@@ -225,7 +240,7 @@ export default function Recent() {
                     <div style={{ color: '#e0e0e0', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.artist}</div>
                     <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.album || '—'}</div>
                     <div style={{ color: '#888', fontSize: '10px', opacity: 0.7 }}>
-                      {/* Formato de hora traduzido para en-US (12h AM/PM ou conforme localidade) */}
+                      {/* Formato de Hora em Inglês (AM/PM) */}
                       {new Date(item.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
