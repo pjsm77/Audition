@@ -21,17 +21,18 @@ export default function Tracks() {
 
   const limit = 50;
 
-  // Carga inicial trazendo os dados da sua view 'scrobbles_unificados'
-  useEffect(() => {
+// Altere apenas a função loadData dentro do useEffect do tracks.jsx
+useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
         const { data, error } = await supabase
           .from('scrobbles_unificados')
-          .select('ranking_no_artista_unico, ranking_geral_unico, total_scrobbles, dias_ultima_execucao, track_name, artist');
-
+          .select('ranking_no_artista_unico, ranking_geral_unico, total_scrobbles, dias_ultima_execucao, track_name, artist')
+          .gte('total_scrobbles', 10); // 🔥 FILTRO ADICIONADO AQUI: Traz apenas com 10 ou mais scrobbles
+  
         if (error) throw error;
-
+  
         setFullRawData(data || []);
       } catch (err) {
         console.error("Erro geral na carga de faixas:", err);
@@ -41,7 +42,7 @@ export default function Tracks() {
     }
     loadData();
   }, []);
-
+  
   // Injeta o foco assim que a barra de busca abre
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
