@@ -2,6 +2,7 @@
 import { Routes, Route } from 'react-router-dom';
 import Artists from './pages/artists';
 import Albums from './pages/albums';
+import Tracks from './pages/tracks';
 import Countries from './pages/countries';
 import Languages from './pages/languages';
 import Discover from './pages/discover';
@@ -21,6 +22,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Artists />} />
         <Route path="/albums" element={<Albums />} />
+        <Route path='/tracks' element={<Tracks />} />
         <Route path="/countries" element={<Countries />} />
         <Route path="/languages" element={<Languages />} />
         <Route path="/discover" element={<Discover />} />
