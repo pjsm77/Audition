@@ -127,16 +127,18 @@ export default function Tracks() {
             <tr>
               <th style={thFixedStyle(0, '18px')}>N°</th>
               <th onClick={() => handleSort('ranking_no_artista_unico')} className="hide-mobile" style={{ ...thStyle, width: '25px', color: sortCol === 'ranking_no_artista_unico' ? '#1DB954' : '#000' }}>#A</th>
-              <th onClick={() => handleSort('ranking_geral_unico')} style={{ ...thStyle, width: '25px', color: sortCol === 'ranking_geral_unico' ? '#1DB954' : '#000' }}>#G</th>
+              <th onClick={() => handleSort('ranking_geral_unico')} style={{ ...thStyle, width: '35px', textAlign: 'right', color: sortCol === 'ranking_geral_unico' ? '#1DB954' : '#000' }}>#G</th>
               <th onClick={() => handleSort('total_scrobbles')} style={{ ...thStyle, width: '45px', textAlign: 'right', color: sortCol === 'total_scrobbles' ? '#1DB954' : '#000' }}>TOT</th>
               <th onClick={() => handleSort('dias_ultima_execucao')} style={{ ...thStyle, width: '35px', textAlign: 'center', color: sortCol === 'dias_ultima_execucao' ? '#1DB954' : '#000' }}>DAYS</th>
-              <th onClick={() => handleSort('track_name')} style={{ ...thStyle, color: sortCol === 'track_name' ? '#1DB954' : '#000' }}>TRACK</th>
-              <th onClick={() => handleSort('artist')} style={{ ...thStyle, width: '110px', color: sortCol === 'artist' ? '#1DB954' : '#000', borderLeft: '1px solid #ddd' }}>ARTIST</th>
+              <th onClick={() => handleSort('track_name')} style={{ ...thStyle, color: sortCol === 'track_name' ? '#1DB954' : '#000', paddingLeft: '6px' }}>TRACK</th>
+              <th onClick={() => handleSort('artist')} style={{ ...thStyle, width: '110px', color: sortCol === 'artist' ? '#1DB954' : '#000', borderLeft: '1px solid #ddd', paddingLeft: '6px' }}>ARTIST</th>
             </tr>
           </thead>
           <tbody>
             {pagedData.map((item, index) => {
-              const lastFmUrl = `https://www.last.fm/music/${encodeURIComponent(item.artist)}/_/${encodeURIComponent(item.track_name)}`;
+              // DEEZER CHALLENGE LINKS
+              const deezerTrackUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist + ' ' + item.track_name)}/track`;
+              const deezerArtistUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist)}/artist`;
 
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
@@ -150,8 +152,8 @@ export default function Tracks() {
                     {item.ranking_no_artista_unico}
                   </td>
 
-                  {/* Global Ranking (Now Visible Everywhere) */}
-                  <td style={{ ...tdStyle, color: '#777', fontSize: '9px', paddingLeft: '2px' }}>
+                  {/* Global Ranking - Aligned right to match space perfectly */}
+                  <td style={{ ...tdStyle, color: '#777', fontSize: '10px', textAlign: 'right', paddingRight: '2px' }}>
                     {item.ranking_geral_unico}
                   </td>
 
@@ -165,22 +167,33 @@ export default function Tracks() {
                     {item.dias_ultima_execucao === null ? '-' : item.dias_ultima_execucao}
                   </td>
 
-                  {/* Track Name */}
+                  {/* Track Name -> Opens Deezer Track */}
                   <td 
                     className="track-title"
-                    style={{ ...tdStyle, color: '#222', fontWeight: 'bold', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
-                    onClick={() => window.open(lastFmUrl, '_blank')}
-                    title={item.track_name}
+                    style={{ ...tdStyle, color: '#222', fontWeight: 'bold', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', paddingLeft: '6px' }}
+                    onClick={() => window.open(deezerTrackUrl, '_blank')}
+                    title={`Listen to "${item.track_name}" on Deezer`}
                   >
                     {item.track_name}
                   </td>
 
-                  {/* Artist Name */}
+                  {/* Artist Name -> Filter on single click, holding/title shows target info */}
                   <td 
                     className="artist-title"
-                    style={{ ...tdStyle, color: '#3498db', fontWeight: 'bold', fontSize: '12px', borderLeft: '1px solid #e0e0e0', paddingLeft: '4px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}
-                    onClick={() => { setOffset(0); setSelectedArtistFilter(item.artist); }}
-                    title={item.artist}
+                    style={{ ...tdStyle, color: '#3498db', fontWeight: 'bold', fontSize: '12px', borderLeft: '1px solid #e0e0e0', paddingLeft: '6px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}
+                    onClick={(e) => {
+                      // Se clicar segurando Ctrl/Cmd, ou se preferir o fluxo nativo: abre o Deezer. 
+                      // Caso queira que o clique duplo ou o clique normal faça um ou outro, deixei o padrão:
+                      // Clique normal filtra na tabela. Adicionei o comportamento de abrir o Deezer no link abaixo.
+                      if (e.metaKey || e.ctrlKey) {
+                        window.open(deezerArtistUrl, '_blank');
+                      } else {
+                        setOffset(0); 
+                        setSelectedArtistFilter(item.artist);
+                      }
+                    }}
+                    onDoubleClick={() => window.open(deezerArtistUrl, '_blank')}
+                    title={`Click to filter. Double-click to open ${item.artist} on Deezer`}
                   >
                     {item.artist.toUpperCase()}
                   </td>
