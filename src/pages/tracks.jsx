@@ -25,7 +25,7 @@ export default function Tracks() {
         const { data, error } = await supabase
           .from('scrobbles_unificados')
           .select('ranking_no_artista_unico, ranking_geral_unico, total_scrobbles, dias_ultima_execucao, track_name, artist')
-          .gte('total_scrobbles', 10);
+          .gte('total_scrobbles', 10); // Performance filter: 10+ scrobbles only
 
         if (error) throw error;
         setFullRawData(data || []);
@@ -136,9 +136,12 @@ export default function Tracks() {
           </thead>
           <tbody>
             {pagedData.map((item, index) => {
-              // DEEZER CHALLENGE LINKS
-              const deezerTrackUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist + ' ' + item.track_name)}/track`;
-              const deezerArtistUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist)}/artist`;
+              // DEEZER MOBILE DEEP LINKING CHALLENGE FIX
+              const encodedQueryTrack = encodeURIComponent(`${item.artist} ${item.track_name}`);
+              const encodedQueryArtist = encodeURIComponent(item.artist);
+
+              const deezerTrackUrl = `https://www.deezer.com/search?q=${encodedQueryTrack}`;
+              const deezerArtistUrl = `https://www.deezer.com/search?q=${encodedQueryArtist}`;
 
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
@@ -152,7 +155,7 @@ export default function Tracks() {
                     {item.ranking_no_artista_unico}
                   </td>
 
-                  {/* Global Ranking - Aligned right to match space perfectly */}
+                  {/* Global Ranking - Aligned right to eliminate dead space */}
                   <td style={{ ...tdStyle, color: '#777', fontSize: '10px', textAlign: 'right', paddingRight: '2px' }}>
                     {item.ranking_geral_unico}
                   </td>
@@ -167,7 +170,7 @@ export default function Tracks() {
                     {item.dias_ultima_execucao === null ? '-' : item.dias_ultima_execucao}
                   </td>
 
-                  {/* Track Name -> Opens Deezer Track */}
+                  {/* Track Name -> Opens Deezer App Search for the Track */}
                   <td 
                     className="track-title"
                     style={{ ...tdStyle, color: '#222', fontWeight: 'bold', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px', paddingLeft: '6px' }}
@@ -177,14 +180,11 @@ export default function Tracks() {
                     {item.track_name}
                   </td>
 
-                  {/* Artist Name -> Filter on single click, holding/title shows target info */}
+                  {/* Artist Name -> Single click filters table, Double click/Ctrl click opens Deezer Artist Search */}
                   <td 
                     className="artist-title"
                     style={{ ...tdStyle, color: '#3498db', fontWeight: 'bold', fontSize: '12px', borderLeft: '1px solid #e0e0e0', paddingLeft: '6px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}
                     onClick={(e) => {
-                      // Se clicar segurando Ctrl/Cmd, ou se preferir o fluxo nativo: abre o Deezer. 
-                      // Caso queira que o clique duplo ou o clique normal faça um ou outro, deixei o padrão:
-                      // Clique normal filtra na tabela. Adicionei o comportamento de abrir o Deezer no link abaixo.
                       if (e.metaKey || e.ctrlKey) {
                         window.open(deezerArtistUrl, '_blank');
                       } else {
