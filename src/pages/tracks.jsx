@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Tracks() {
-  // --- ESTADOS GLOBAIS DA PÁGINA ---
+  // --- GLOBAL PAGE STATES ---
   const [fullRawData, setFullRawData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +30,7 @@ export default function Tracks() {
         if (error) throw error;
         setFullRawData(data || []);
       } catch (err) {
-        console.error("Erro geral na carga de faixas:", err);
+        console.error("General error loading tracks:", err);
       } finally {
         setLoading(false);
       }
@@ -102,12 +102,12 @@ export default function Tracks() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive" }}>
       
-      {/* Injeção de estilo CSS para esconder colunas secundárias em telas menores que 480px */}
+      {/* CSS injection for text truncation and responsive tweaks */}
       <style>{`
         @media (max-width: 480px) {
           .hide-mobile { display: none !important; }
-          .track-title { max-width: 130px !important; }
-          .artist-title { max-width: 100px !important; }
+          .track-title { max-width: 110px !important; }
+          .artist-title { max-width: 90px !important; }
         }
       `}</style>
 
@@ -127,10 +127,10 @@ export default function Tracks() {
             <tr>
               <th style={thFixedStyle(0, '18px')}>N°</th>
               <th onClick={() => handleSort('ranking_no_artista_unico')} className="hide-mobile" style={{ ...thStyle, width: '25px', color: sortCol === 'ranking_no_artista_unico' ? '#1DB954' : '#000' }}>#A</th>
-              <th onClick={() => handleSort('ranking_geral_unico')} className="hide-mobile" style={{ ...thStyle, width: '25px', color: sortCol === 'ranking_geral_unico' ? '#1DB954' : '#000' }}>#G</th>
+              <th onClick={() => handleSort('ranking_geral_unico')} style={{ ...thStyle, width: '25px', color: sortCol === 'ranking_geral_unico' ? '#1DB954' : '#000' }}>#G</th>
               <th onClick={() => handleSort('total_scrobbles')} style={{ ...thStyle, width: '45px', textAlign: 'right', color: sortCol === 'total_scrobbles' ? '#1DB954' : '#000' }}>TOT</th>
               <th onClick={() => handleSort('dias_ultima_execucao')} style={{ ...thStyle, width: '35px', textAlign: 'center', color: sortCol === 'dias_ultima_execucao' ? '#1DB954' : '#000' }}>DAYS</th>
-              <th onClick={() => handleSort('track_name')} style={{ ...thStyle, color: sortCol === 'track_name' ? '#1DB954' : '#000' }}>TITLE</th>
+              <th onClick={() => handleSort('track_name')} style={{ ...thStyle, color: sortCol === 'track_name' ? '#1DB954' : '#000' }}>TRACK</th>
               <th onClick={() => handleSort('artist')} style={{ ...thStyle, width: '110px', color: sortCol === 'artist' ? '#1DB954' : '#000', borderLeft: '1px solid #ddd' }}>ARTIST</th>
             </tr>
           </thead>
@@ -140,42 +140,42 @@ export default function Tracks() {
 
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
-                  {/* Número da Linha Fixo */}
+                  {/* Sticky Line Number */}
                   <td style={tdFixedStyle(0, '18px', 'center', '#1DB954', index)}>
                     {offset + index + 1}
                   </td>
 
-                  {/* Ranking Artista (Escondido no Mobile) */}
+                  {/* Artist Ranking (Hidden on Mobile Portrait) */}
                   <td className="hide-mobile" style={{ ...tdStyle, color: '#1DB954', fontWeight: 'bold', paddingLeft: '2px' }}>
                     {item.ranking_no_artista_unico}
                   </td>
 
-                  {/* Ranking Geral (Escondido no Mobile) */}
-                  <td className="hide-mobile" style={{ ...tdStyle, color: '#777', fontSize: '9px' }}>
+                  {/* Global Ranking (Now Visible Everywhere) */}
+                  <td style={{ ...tdStyle, color: '#777', fontSize: '9px', paddingLeft: '2px' }}>
                     {item.ranking_geral_unico}
                   </td>
 
-                  {/* Total de Scrobbles */}
+                  {/* Total Scrobbles */}
                   <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 'bold', paddingRight: '4px', fontSize: '11px' }}>
                     {item.total_scrobbles}
                   </td>
 
-                  {/* Dias desde a última execução */}
+                  {/* Days Since Last Play */}
                   <td style={{ ...tdStyle, textAlign: 'center', fontSize: '10px', color: '#555' }}>
                     {item.dias_ultima_execucao === null ? '-' : item.dias_ultima_execucao}
                   </td>
 
-                  {/* Nome da Música (Com elipse se for muito grande no mobile) */}
+                  {/* Track Name */}
                   <td 
                     className="track-title"
-                    style={{ ...tdStyle, color: '#222', fontWeight: 'bold', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }}
+                    style={{ ...tdStyle, color: '#222', fontWeight: 'bold', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}
                     onClick={() => window.open(lastFmUrl, '_blank')}
                     title={item.track_name}
                   >
                     {item.track_name}
                   </td>
 
-                  {/* Nome do Artista (Com elipse se for muito grande no mobile) */}
+                  {/* Artist Name */}
                   <td 
                     className="artist-title"
                     style={{ ...tdStyle, color: '#3498db', fontWeight: 'bold', fontSize: '12px', borderLeft: '1px solid #e0e0e0', paddingLeft: '4px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '110px' }}
@@ -191,7 +191,7 @@ export default function Tracks() {
         </table>
       </div>
 
-      {/* RODAPÉ DO PAGINADOR */}
+      {/* FOOTER PAGINATION CONTROL */}
       <div style={{ height: '40px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 8px', gap: '5px', zIndex: 950 }}>
         <button style={btnFooterStyle} onClick={() => setOffset(Math.max(0, offset - limit))}>«</button>
         <select 
@@ -210,10 +210,10 @@ export default function Tracks() {
           <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '11px', padding: '2px 4px' }} onClick={clearFilters}>CLR</button>
         )}
         
-        <span style={{ fontSize: '12px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} FAIXAS</span>
+        <span style={{ fontSize: '12px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} TRACKS</span>
       </div>
 
-      {/* BUSCA EM OVERLAY */}
+      {/* OVERLAY SEARCH BAR */}
       {showSearch && (
         <div style={{ position: 'fixed', bottom: '40px', left: 0, width: '100%', background: 'white', padding: '6px 10px', boxShadow: '0 -2px 8px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '8px', boxSizing: 'border-box' }}>
           <input 
@@ -221,8 +221,8 @@ export default function Tracks() {
             type="text" 
             value={searchTerm} 
             onChange={(e) => { setOffset(0); setSearchTerm(e.target.value); }} 
-            placeholder="BUSCAR FAIXA OU ARTISTA..." 
-            style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', fontFamily: "'Roboto', sans-serif" }} 
+            placeholder="SEARCH TRACK OR ARTIST..." 
+            style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px', fontFamily: "'Roboto', sans-serif" }}
           />
           <button onClick={() => setShowSearch(false)} style={{ background: '#2c3e50', color: 'white', border: 'none', padding: '0 10px', borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', cursive", fontSize: '13px' }}>OK</button>
         </div>
@@ -232,7 +232,7 @@ export default function Tracks() {
   );
 }
 
-// --- ESTILOS INLINE ULTRA-COMPACTOS ---
+// --- ULTRA-COMPACT INLINE STYLES ---
 const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '4px 2px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', fontSize: '11px' };
 const tdStyle = { padding: '4px 2px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.1', cursor: 'pointer', fontFamily: "'Bebas Neue', cursive" };
 const btnFooterStyle = { background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer', padding: '2px 6px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
