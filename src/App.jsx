@@ -5,10 +5,11 @@ import Albums from './pages/albums';
 import Tracks from './pages/tracks';
 import Countries from './pages/countries';
 import Languages from './pages/languages';
+import Trending from './pages/trending';
+import Charts from './pages/charts';
 import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
-import Charts from './pages/charts';
 import Links from './pages/links';
 import NewEntries from './pages/new_entries'; // Importação da nova página
 import FloatingMenu from './components/FloatingMenu';
@@ -25,10 +26,11 @@ export default function App() {
         <Route path='/tracks' element={<Tracks />} />
         <Route path="/countries" element={<Countries />} />
         <Route path="/languages" element={<Languages />} />
+        <Route path="/trending" element={<Trending />} />
+        <Route path="/charts" element={<Charts />} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/stats" element={<Stats />} />
         <Route path="/recent" element={<Recent />} />
-        <Route path="/charts" element={<Charts />} />
         <Route path="/links" element={<Links />} />
         <Route path="/new-entries" element={<NewEntries />} /> {/* Nova rota incluída */}
         {/* Caso tenha /albums ou outras rotas no menu, elas apontarão para cá */}
