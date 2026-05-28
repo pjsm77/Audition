@@ -11,13 +11,16 @@ export default function Trending() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   
+  // Quick click filter for countries (by country_name)
+  const [activeCountryFilter, setActiveCountryFilter] = useState(null);
+
   // Default Sorting: Score Descending
   const [sortCol, setSortCol] = useState('score');
   const [sortAsc, setSortAsc] = useState(false);
 
   const limit = 30; // 30 items per page
 
-  // ISO Flag Mapping dictionary matching your dynamic query text names
+  // ISO Flag Mapping dictionary
   const countryMap = {
     "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
     "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
@@ -46,7 +49,7 @@ export default function Trending() {
       setLoading(true);
       try {
         const { data, error } = await supabase
-          .from('vw_trending_artists_30_days')
+          .from('v_trending_artists_30_days')
           .select('*');
 
         if (error) throw error;
@@ -65,11 +68,14 @@ export default function Trending() {
 
   useEffect(() => {
     let result = fullRawData.filter(item => {
+      const nameText = (item.artist || "").toLowerCase();
+      const countryText = (item.country_name || "").toLowerCase();
       const term = searchTerm.toLowerCase();
-      return (
-        (item.artist || "").toLowerCase().includes(term) ||
-        (item.country_name || "").toLowerCase().includes(term)
-      );
+
+      const matchesSearch = nameText.includes(term) || countryText.includes(term);
+      const matchesCountryFilter = !activeCountryFilter || item.country_name === activeCountryFilter;
+
+      return matchesSearch && matchesCountryFilter;
     });
 
     // DINAMIC SORT ENGINE
@@ -93,7 +99,7 @@ export default function Trending() {
     });
 
     setFilteredData(result);
-  }, [fullRawData, searchTerm, sortCol, sortAsc]);
+  }, [fullRawData, searchTerm, activeCountryFilter, sortCol, sortAsc]);
 
   const handleSort = (col) => {
     if (sortCol === col) {
@@ -109,12 +115,28 @@ export default function Trending() {
     setOffset(0);
   };
 
-  // Helper method to set color based on tbl_artists rating checks
+  const toggleCountryFilter = (countryName) => {
+    if (!countryName || countryName === '[desconhecido]') return;
+    if (activeCountryFilter === countryName) {
+      setActiveCountryFilter(null); // Desmarca se clicar de novo
+    } else {
+      setActiveCountryFilter(countryName);
+      setOffset(0);
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setActiveCountryFilter(null);
+    setOffset(0);
+  };
+
+  // Official color codes imported straight from your artists.jsx
   const getArtistColor = (rating) => {
-    if (rating === 3) return '#4caf50'; // Green
-    if (rating === 2) return '#ff9800'; // Orange
-    if (rating === 1) return '#f44336'; // Red
-    return '#000000'; // Default black (unrated)
+    if (rating === 1) return "#e97b78"; // Red soft
+    if (rating === 2) return "#f8c039"; // Yellow/Orange
+    if (rating === 3) return "#6dbe99"; // Green soft
+    return "#AAAAAA"; // Default unrated
   };
 
   const pagedData = filteredData.slice(offset, offset + limit);
@@ -165,32 +187,48 @@ export default function Trending() {
             {pagedData.map((item, index) => {
               const flagCode = countryMap[(item.country_name || "").toLowerCase().trim()] || "un";
               const artistColor = getArtistColor(item.rating);
+              const deezerUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist)}`;
               
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
                   
                   {/* Position Index Box */}
-                  <td style={tdFixedStyle('fixed', 0, '28px', 'center', '#b5b5b5', index)}>
+                  <td style={tdFixedStyle('fixed', 0, '28px', 'center', '#1DB954', index)}>
                     {offset + index + 1}
                   </td>
                   
-                  {/* Flag + Colored Artist Name on Restricted Width */}
+                  {/* Flag (Filters on Click) + Colored Artist Name (Opens Deezer on Click) */}
                   <td style={{ ...tdStyle, display: 'flex', alignItems: 'center', gap: '5px', borderBottom: '1px solid #e0e0e0' }}>
                     <img 
                       src={`https://flagcdn.com/32x24/${flagCode}.png`} 
-                      style={{ width: '18px', height: '13px', border: '0.5px solid #bbb', display: 'inline-block', objectFit: 'cover', flexShrink: 0 }}
+                      style={{ 
+                        width: '18px', 
+                        height: '13px', 
+                        border: activeCountryFilter === item.country_name ? '2px solid #1DB954' : '0.5px solid #bbb', 
+                        display: 'inline-block', 
+                        objectFit: 'cover', 
+                        flexShrink: 0, 
+                        cursor: 'pointer' 
+                      }}
+                      onClick={() => toggleCountryFilter(item.country_name)}
+                      title={`Filter by ${item.country_name}`}
                       alt="" 
                     />
-                    <span style={{ 
-                      fontSize: '14px', 
-                      letterSpacing: '0.2px', 
-                      color: artistColor, 
-                      fontWeight: 'bold',
-                      maxWidth: '115px', 
-                      overflow: 'hidden', 
-                      textOverflow: 'ellipsis', 
-                      whiteSpace: 'nowrap' 
-                    }}>
+                    <span 
+                      onClick={() => window.open(deezerUrl, '_blank')}
+                      style={{ 
+                        fontSize: '14px', 
+                        letterSpacing: '0.2px', 
+                        color: artistColor, 
+                        fontWeight: 'bold',
+                        maxWidth: '115px', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis', 
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer'
+                      }}
+                      title="Open in Deezer"
+                    >
                       {item.artist ? item.artist.toUpperCase() : '-'}
                     </span>
                   </td>
@@ -237,8 +275,8 @@ export default function Trending() {
         <button style={btnFooterStyle} onClick={() => { if (offset + limit < filteredData.length) setOffset(offset + limit); }}>»</button>
         <button style={btnFooterStyle} onClick={() => setShowSearch(!showSearch)}>🔍</button>
         
-        {searchTerm && (
-          <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '12px' }} onClick={() => setSearchTerm('')}>CLEAR</button>
+        {(searchTerm || activeCountryFilter) && (
+          <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '12px' }} onClick={clearAllFilters}>CLEAR</button>
         )}
         
         <span style={{ fontSize: '13px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} ARTISTS</span>
