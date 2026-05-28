@@ -17,7 +17,7 @@ export default function FloatingMenu() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Mapeamento dos itens atualizado com TRENDING na posição 6 e reajuste das cores do pH
+  // Mapeamento dos itens com stroke="currentColor" fixado para herdar as cores do pH
   const menuItems = [
     { 
       to: "/", 
@@ -83,20 +83,9 @@ export default function FloatingMenu() {
       )
     },
     { 
-      to: "/trending", 
-      label: "Trending", 
-      color: "#8cc63f", // pH 5 - Verde Claro (Antiga cor do Charts)
-      icon: (
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-          <polyline points="17 6 23 6 23 12" />
-        </svg>
-      )
-    },
-    { 
       to: "/charts", 
       label: "Charts", 
-      color: "#39b54a", // pH 6 - Verde Médio
+      color: "#8cc63f", // pH 5 - Verde Claro
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="20" x2="18" y2="10" />
@@ -108,7 +97,7 @@ export default function FloatingMenu() {
     { 
       to: "/discover", 
       label: "Discover", 
-      color: "#00a651", // pH 7 - Verde Neutro
+      color: "#39b54a", // pH 6 - Verde Médio
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -119,7 +108,7 @@ export default function FloatingMenu() {
     { 
       to: "/stats", 
       label: "Stats", 
-      color: "#00a99d", // pH 8 - Ciano Esverdeado
+      color: "#00a651", // pH 7 - Verde Neutro
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
@@ -130,7 +119,7 @@ export default function FloatingMenu() {
     { 
       to: "/dashboard", 
       label: "Dashboard", 
-      color: "#29abe2", // pH 9 - Ciano/Azul Claro
+      color: "#00a99d", // pH 8 - Ciano Esverdeado
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="7" height="9" />
@@ -143,7 +132,7 @@ export default function FloatingMenu() {
     { 
       to: "/recent", 
       label: "Recent", 
-      color: "#0071bc", // pH 10 - Azul Royal
+      color: "#29abe2", // pH 9 - Ciano/Azul Claro
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -154,7 +143,7 @@ export default function FloatingMenu() {
     { 
       to: "/links", 
       label: "Links", 
-      color: "#1b1464", // pH 11 - Azul Escuro / Índigo
+      color: "#0071bc", // pH 10 - Azul Royal
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -165,7 +154,7 @@ export default function FloatingMenu() {
     { 
       to: "/new-entries", 
       label: "New Entries", 
-      color: "#3e3a94", // pH 12 - Violeta Médio
+      color: "#1b1464", // pH 11 - Azul Escuro / Índigo
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -177,7 +166,7 @@ export default function FloatingMenu() {
     { 
       to: "/debug", 
       label: "Debug", 
-      color: "#722e85", // pH 13 - Roxo/Violeta Escuro
+      color: "#3e3a94", // pH 12 - Violeta Médio
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
