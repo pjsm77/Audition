@@ -49,7 +49,7 @@ export default function Trending() {
       setLoading(true);
       try {
         const { data, error } = await supabase
-          .from('v_trending_artists_30_days')
+          .from('vw_trending_artists_30_days')
           .select('*');
 
         if (error) throw error;
