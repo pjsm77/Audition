@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Trending() {
-  // --- ESTADOS GLOBAIS DA PÁGINA ---
+  // --- STATE MANAGEMENT ---
   const [fullRawData, setFullRawData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,13 +11,13 @@ export default function Trending() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   
-  // Ordenação Padrão: Artistas por Score desc
+  // Default Sorting: Score Descending
   const [sortCol, setSortCol] = useState('score');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const limit = 30; // Mostrar 30 por página
+  const limit = 30; // 30 items per page
 
-  // Dicionário de conversão idêntico para renderizar as flags corretas do país do artista
+  // ISO Flag Mapping dictionary matching your dynamic query text names
   const countryMap = {
     "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
     "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
@@ -52,11 +52,10 @@ export default function Trending() {
         if (error) throw error;
 
         let base = data || [];
-        // Ordenação inicial estrita baseada na View: score desc
         base.sort((a, b) => b.score - a.score);
         setFullRawData(base);
       } catch (err) {
-        console.error("Erro na carga do trending:", err);
+        console.error("Error loading trending views:", err);
       } finally {
         setLoading(false);
       }
@@ -73,7 +72,7 @@ export default function Trending() {
       );
     });
 
-    // ENGINE DE ORDENAÇÃO DINÂMICO
+    // DINAMIC SORT ENGINE
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
@@ -90,8 +89,6 @@ export default function Trending() {
       if (numA === numB) {
         return String(a.artist || "").localeCompare(String(b.artist || ""));
       }
-      // Para a coluna 'days', se quisermos ver quem tocamos mais recentemente no topo (0 dias), a lógica invertida pode ser interessante. 
-      // Mas mantendo o padrão numérico do seu motor original:
       return sortAsc ? numA - numB : numB - numA;
     });
 
@@ -103,7 +100,6 @@ export default function Trending() {
       setSortAsc(!sortAsc);
     } else {
       setSortCol(col);
-      // Exceção do nome do artista: inicia alfabético (true). Todos os outros numéricos iniciam desc (false)
       if (col === 'artist') {
         setSortAsc(true);
       } else {
@@ -113,13 +109,21 @@ export default function Trending() {
     setOffset(0);
   };
 
+  // Helper method to set color based on tbl_artists rating checks
+  const getArtistColor = (rating) => {
+    if (rating === 3) return '#4caf50'; // Green
+    if (rating === 2) return '#ff9800'; // Orange
+    if (rating === 1) return '#f44336'; // Red
+    return '#000000'; // Default black (unrated)
+  };
+
   const pagedData = filteredData.slice(offset, offset + limit);
   const totalPages = Math.ceil(filteredData.length / limit) || 1;
 
   if (loading) {
     return (
       <div style={{ padding: '20px', color: '#666', fontSize: '24px', fontFamily: "'Bebas Neue', cursive" }}>
-        Loading...
+        LOADING...
       </div>
     );
   }
@@ -127,7 +131,7 @@ export default function Trending() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive", backgroundColor: '#ffffff' }}>
       
-      {/* WRAPPER COM SCROLL VERTICAL E HORIZONTAL NATIVO LIBERADO */}
+      {/* MOBILE OPTIMIZED CONTAINER SCROLL VIEW */}
       <div 
         className="table-wrapper" 
         style={{ 
@@ -138,11 +142,11 @@ export default function Trending() {
           position: 'relative'
         }}
       >
-        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '14px', minWidth: '600px' }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '13px', minWidth: '100%' }}>
           <thead>
             <tr>
-              <th onClick={() => handleSort('score')} style={thFixedStyle('fixed', 0, '35px', 'center')}>#</th>
-              <th onClick={() => handleSort('artist')} style={thStyle}>ARTISTA</th>
+              <th onClick={() => handleSort('score')} style={thFixedStyle('fixed', 0, '28px', 'center')}>#</th>
+              <th onClick={() => handleSort('artist')} style={thStyle}>ARTIST</th>
               <th onClick={() => handleSort('score')} style={{ ...thStyle, textAlign: 'center' }}>
                 SCO {sortCol === 'score' ? (sortAsc ? '▲' : '▼') : ''}
               </th>
@@ -159,46 +163,55 @@ export default function Trending() {
           </thead>
           <tbody>
             {pagedData.map((item, index) => {
-              // Resgata o código exato da flag usando o padrão do countryMap
               const flagCode = countryMap[(item.country_name || "").toLowerCase().trim()] || "un";
+              const artistColor = getArtistColor(item.rating);
               
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
                   
-                  {/* Posição Global Fixa à esquerda */}
-                  <td style={tdFixedStyle('fixed', 0, '35px', 'center', '#b5b5b5', index)}>
+                  {/* Position Index Box */}
+                  <td style={tdFixedStyle('fixed', 0, '28px', 'center', '#b5b5b5', index)}>
                     {offset + index + 1}
                   </td>
                   
-                  {/* Bandeira + Nome do Artista em Caixa Alta */}
-                  <td style={{ ...tdStyle, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e0e0e0' }}>
+                  {/* Flag + Colored Artist Name on Restricted Width */}
+                  <td style={{ ...tdStyle, display: 'flex', alignItems: 'center', gap: '5px', borderBottom: '1px solid #e0e0e0' }}>
                     <img 
                       src={`https://flagcdn.com/32x24/${flagCode}.png`} 
-                      style={{ width: '24px', height: '18px', border: '0.5px solid #bbb', display: 'inline-block', objectFit: 'cover' }}
+                      style={{ width: '18px', height: '13px', border: '0.5px solid #bbb', display: 'inline-block', objectFit: 'cover', flexShrink: 0 }}
                       alt="" 
                     />
-                    <span style={{ fontSize: '15px', letterSpacing: '0.3px', color: '#000' }}>
+                    <span style={{ 
+                      fontSize: '14px', 
+                      letterSpacing: '0.2px', 
+                      color: artistColor, 
+                      fontWeight: 'bold',
+                      maxWidth: '115px', 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap' 
+                    }}>
                       {item.artist ? item.artist.toUpperCase() : '-'}
                     </span>
                   </td>
 
-                  {/* Score de Frescor (Negrito com destaque) */}
-                  <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 'bold', color: '#000', fontSize: '15px' }}>
+                  {/* Weight Score */}
+                  <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 'bold', color: '#000', fontSize: '14px' }}>
                     {item.score}
                   </td>
 
-                  {/* Total de Scrobbles brutos */}
+                  {/* Raw Playback Count */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.scrobbles}
                   </td>
 
-                  {/* Faixas Distintas */}
+                  {/* Distinct Track Count */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.tracks}
                   </td>
 
-                  {/* Dias desde a última reprodução (Ativo, em fonte preta normal) */}
-                  <td style={{ ...tdStyle, textAlign: 'center', color: '#000', fontSize: '15px' }}>
+                  {/* Days elapsed since last play */}
+                  <td style={{ ...tdStyle, textAlign: 'center', color: '#000', fontSize: '14px' }}>
                     {item.days}
                   </td>
 
@@ -209,36 +222,36 @@ export default function Trending() {
         </table>
       </div>
 
-      {/* RODAPÉ DO PAGINADOR */}
-      <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 10px', gap: '10px', zIndex: 950 }}>
+      {/* FOOTER PAGINATION CONTROL BOX */}
+      <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 8px', gap: '8px', zIndex: 950 }}>
         <button style={btnFooterStyle} onClick={() => setOffset(Math.max(0, offset - limit))}>«</button>
         <select 
-          style={{ fontFamily: "'Bebas Neue', cursive", borderRadius: '4px', fontSize: '15px', height: '26px', padding: '0 4px' }} 
+          style={{ fontFamily: "'Bebas Neue', cursive", borderRadius: '4px', fontSize: '14px', height: '26px', padding: '0 2px' }} 
           value={Math.floor(offset / limit) + 1} 
           onChange={(e) => setOffset((Number(e.target.value) - 1) * limit)}
         >
           {Array.from({ length: totalPages }, (_, i) => (
-            <option key={i} value={i + 1}>PÁG {i + 1}</option>
+            <option key={i} value={i + 1}>PAGE {i + 1}</option>
           ))}
         </select>
         <button style={btnFooterStyle} onClick={() => { if (offset + limit < filteredData.length) setOffset(offset + limit); }}>»</button>
         <button style={btnFooterStyle} onClick={() => setShowSearch(!showSearch)}>🔍</button>
         
-        {(searchTerm) && (
-          <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '13px' }} onClick={() => setSearchTerm('')}>CLEAR</button>
+        {searchTerm && (
+          <button style={{ ...btnFooterStyle, color: '#e97b78', fontSize: '12px' }} onClick={() => setSearchTerm('')}>CLEAR</button>
         )}
         
-        <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} ARTISTAS</span>
+        <span style={{ fontSize: '13px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} ARTISTS</span>
       </div>
 
-      {/* OVERLAY DE BUSCA FLUTUANTE EM TEMPO REAL */}
+      {/* OVERLAY SEARCH CONTAINER WINDOW */}
       {showSearch && (
         <div style={{ position: 'fixed', bottom: '45px', left: 0, width: '100%', background: 'white', padding: '8px 15px', boxShadow: '0 -3px 10px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '10px', boxSizing: 'border-box' }}>
           <input 
             type="text" 
             value={searchTerm} 
             onChange={(e) => { setOffset(0); setSearchTerm(e.target.value); }} 
-            placeholder="BUSCAR ARTISTA OU PAÍS..." 
+            placeholder="SEARCH ARTIST OR COUNTRY..." 
             style={{ flex: 1, padding: '8px 12px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px', fontFamily: "'Roboto', sans-serif" }} 
           />
           <button onClick={() => setShowSearch(false)} style={{ background: '#2c3e50', color: 'white', border: 'none', padding: '0 15px', borderRadius: '4px', cursor: 'pointer', fontFamily: "'Bebas Neue', cursive" }}>OK</button>
@@ -249,15 +262,15 @@ export default function Trending() {
   );
 }
 
-// --- CONFIGURAÇÕES DE ESTILO AUXILIARES ---
-const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 4px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', selectNone: 'none' };
-const tdStyle = { padding: '4px 4px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive" };
-const btnFooterStyle = { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '2px 8px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
+// --- OPTIMIZED STYLINGS ---
+const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 3px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', selectNone: 'none' };
+const tdStyle = { padding: '4px 3px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive" };
+const btnFooterStyle = { background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 6px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
 
 const thFixedStyle = (pos, left, width, align = 'left') => ({
-  background: '#f1f1f1', position: 'sticky', top: 0, left: left, width: width, minWidth: width, maxWidth: width, zIndex: 910, padding: '5px 4px', borderBottom: '2px solid #ddd', textAlign: align, fontFamily: "'Bebas Neue', cursive", cursor: 'pointer'
+  background: '#f1f1f1', position: 'sticky', top: 0, left: left, width: width, minWidth: width, maxWidth: width, zIndex: 910, padding: '5px 3px', borderBottom: '2px solid #ddd', textAlign: align, fontFamily: "'Bebas Neue', cursive"
 });
 
 const tdFixedStyle = (pos, left, width, align, color, index) => ({
-  position: 'sticky', left: left, width: width, minWidth: width, maxWidth: width, zIndex: 400, backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', color: color, textAlign: align, padding: '4px 4px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive"
+  position: 'sticky', left: left, width: width, minWidth: width, maxWidth: width, zIndex: 400, backgroundColor: index % 2 === 0 ? '#fff' : '#f8f8f8', color: color, textAlign: align, padding: '4px 3px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive"
 });
