@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 
 export default function FloatingMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const [chartsOpen, setChartsOpen] = useState(false); // Controla a expansão do submenu Charts
   const menuRef = useRef(null);
 
   // Fecha o menu se o usuário clicar em qualquer lugar fora dele
@@ -12,14 +11,13 @@ export default function FloatingMenu() {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
-        setChartsOpen(false); // Fecha o submenu também ao clicar fora
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Mapeamento dos itens com todos os SVGs originais preservados
+  // Mapeamento dos itens atualizado com TRENDING na posição 6 e reajuste das cores do pH
   const menuItems = [
     { 
       to: "/", 
@@ -87,7 +85,7 @@ export default function FloatingMenu() {
     { 
       to: "/trending", 
       label: "Trending", 
-      color: "#8cc63f", // pH 5 - Verde Claro
+      color: "#8cc63f", // pH 5 - Verde Claro (Antiga cor do Charts)
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -96,20 +94,16 @@ export default function FloatingMenu() {
       )
     },
     { 
+      to: "/charts", 
       label: "Charts", 
       color: "#39b54a", // pH 6 - Verde Médio
-      isParent: true,
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="20" x2="18" y2="10" />
           <line x1="12" y1="20" x2="12" y2="4" />
           <line x1="6" y1="20" x2="6" y2="14" />
         </svg>
-      ),
-      subItems: [
-        { to: "/charts/top10", label: "Top 10" },
-        { to: "/charts/scrobbles", label: "Scrobbles" }
-      ]
+      )
     },
     { 
       to: "/discover", 
@@ -199,57 +193,19 @@ export default function FloatingMenu() {
         className={`floating-menu-options ${isOpen ? 'active' : ''}`} 
         style={{...styles.options, display: isOpen ? 'flex' : 'none'}}
       >
-        {menuItems.map((item, index) => {
-          if (item.isParent) {
-            return (
-              <div key={item.label} style={{ display: 'flex', flexDirection: 'column' }}>
-                {/* Botão de Controle do Item Pai (Charts) */}
-                <div 
-                  style={{ ...styles.item, cursor: 'pointer' }} 
-                  onClick={() => setChartsOpen(!chartsOpen)}
-                >
-                  <span style={styles.number}>{index + 1}</span>
-                  <span style={{...styles.iconWrapper, color: item.color}}>{item.icon}</span>
-                  <span style={{ flexGrow: 1 }}>{item.label}</span>
-                  <span style={{ fontSize: '10px', opacity: 0.5, fontFamily: 'sans-serif' }}>
-                    {chartsOpen ? '▲' : '▼'}
-                  </span>
-                </div>
-                
-                {/* Subitens recuados */}
-                {chartsOpen && item.subItems.map((sub, subIndex) => (
-                  <Link
-                    key={sub.to}
-                    to={sub.to}
-                    onClick={() => {
-                      setIsOpen(false);
-                      setChartsOpen(false);
-                    }}
-                    style={styles.subItem}
-                  >
-                    <span style={styles.subNumber}>{index + 1}.{subIndex + 1}</span>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: item.color, marginRight: '12px' }} />
-                    <span>{sub.label}</span>
-                  </Link>
-                ))}
-              </div>
-            );
-          }
-
-          return (
-            <Link 
-              key={item.to}
-              to={item.to} 
-              className="menu-item" 
-              onClick={() => setIsOpen(false)} 
-              style={styles.item}
-            >
-              <span style={styles.number}>{index + 1}</span>
-              <span style={{...styles.iconWrapper, color: item.color}}>{item.icon}</span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        {menuItems.map((item, index) => (
+          <Link 
+            key={item.to}
+            to={item.to} 
+            className="menu-item" 
+            onClick={() => setIsOpen(false)} 
+            style={styles.item}
+          >
+            <span style={styles.number}>{index + 1}</span>
+            <span style={{...styles.iconWrapper, color: item.color}}>{item.icon}</span>
+            <span>{item.label}</span>
+          </Link>
+        ))}
       </div>
 
       <button className="floating-menu-btn" onClick={() => setIsOpen(!isOpen)} style={styles.button}>
@@ -276,7 +232,7 @@ const styles = {
     bottom: '20px', 
     left: '20px', 
     zIndex: 9999, 
-    fontFamily: \"'Bebas Neue', cursive\",
+    fontFamily: "'Bebas Neue', cursive",
     letterSpacing: '0.8px'
   },
   button: { 
@@ -317,17 +273,6 @@ const styles = {
     borderBottom: '1px solid #f5f5f5',
     transition: 'background-color 0.15s ease'
   },
-  subItem: {
-    display: 'flex', 
-    alignItems: 'center', 
-    padding: '8px 14px 8px 28px', 
-    color: '#555', 
-    textDecoration: 'none', 
-    fontSize: '16px', 
-    backgroundColor: '#fafafa',
-    borderBottom: '1px solid #f5f5f5',
-    transition: 'background-color 0.15s ease'
-  },
   number: { 
     marginRight: '8px', 
     color: '#95a5a6', 
@@ -335,15 +280,6 @@ const styles = {
     width: '18px', 
     display: 'inline-block',
     textAlign: 'center',
-    fontFamily: 'sans-serif'
-  },
-  subNumber: {
-    marginRight: '12px', 
-    color: '#bdc3c7', 
-    fontSize: '10px', 
-    width: '22px', 
-    display: 'inline-block',
-    textAlign: 'left',
     fontFamily: 'sans-serif'
   },
   iconWrapper: {
