@@ -1,6 +1,6 @@
 // src/pages/top10.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient'; // Ajuste o caminho se o seu cliente do Supabase estiver noutro diretório
+import { supabase } from '../supabaseClient'; // Ajuste o caminho se o seu cliente do Supabase estiver noutro diretório
 
 export default function Top10Charts() {
   // Define o mês inicial (Maio de 2026, baseado no seu layout)
