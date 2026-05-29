@@ -4,27 +4,25 @@ import { Link } from 'react-router-dom';
 
 export default function FloatingMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const [chartsOpen, setChartsOpen] = useState(false); // Controla a expansão do submenu Charts
+  const [chartsOpen, setChartsOpen] = useState(false); // Controla a sanfona de Charts
   const menuRef = useRef(null);
 
-  // Fecha o menu se o usuário clicar em qualquer lugar fora dele
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsOpen(false);
-        setChartsOpen(false); // Fecha o submenu também ao clicar fora
+        setChartsOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Mapeamento dos itens com todos os SVGs originais preservados e subitens incluídos em Charts
   const menuItems = [
     { 
       to: "/", 
       label: "Artists", 
-      color: "#e6224c", // pH 0 - Vermelho
+      color: "#e6224c",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -37,7 +35,7 @@ export default function FloatingMenu() {
     { 
       to: "/albums", 
       label: "Albums", 
-      color: "#f15a24", // pH 1 - Laranja Escuro
+      color: "#f15a24",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -48,7 +46,7 @@ export default function FloatingMenu() {
     { 
       to: "/tracks", 
       label: "Tracks", 
-      color: "#f9a01b", // pH 2 - Laranja Claro
+      color: "#f9a01b",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 18V5l12-2v13" />
@@ -60,7 +58,7 @@ export default function FloatingMenu() {
     { 
       to: "/countries", 
       label: "Countries", 
-      color: "#ffd400", // pH 3 - Amarelo Escuro
+      color: "#ffd400",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -72,7 +70,7 @@ export default function FloatingMenu() {
     { 
       to: "/languages", 
       label: "Languages", 
-      color: "#cedc00", // pH 4 - Amarelo Lima
+      color: "#cedc00",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m5 8 6 6" />
@@ -87,7 +85,7 @@ export default function FloatingMenu() {
     { 
       to: "/trending", 
       label: "Trending", 
-      color: "#8cc63f", // pH 5 - Verde Claro
+      color: "#8cc63f",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -97,7 +95,7 @@ export default function FloatingMenu() {
     },
     { 
       label: "Charts", 
-      color: "#39b54a", // pH 6 - Verde Médio
+      color: "#39b54a",
       isParent: true,
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -114,7 +112,7 @@ export default function FloatingMenu() {
     { 
       to: "/discover", 
       label: "Discover", 
-      color: "#00a651", // pH 7 - Verde Neutro
+      color: "#00a651",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -125,7 +123,7 @@ export default function FloatingMenu() {
     { 
       to: "/stats", 
       label: "Stats", 
-      color: "#00a99d", // pH 8 - Ciano Esverdeado
+      color: "#00a99d",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
@@ -136,7 +134,7 @@ export default function FloatingMenu() {
     { 
       to: "/dashboard", 
       label: "Dashboard", 
-      color: "#29abe2", // pH 9 - Ciano/Azul Claro
+      color: "#29abe2",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="7" height="9" />
@@ -149,7 +147,7 @@ export default function FloatingMenu() {
     { 
       to: "/recent", 
       label: "Recent", 
-      color: "#0071bc", // pH 10 - Azul Royal
+      color: "#0071bc",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -160,7 +158,7 @@ export default function FloatingMenu() {
     { 
       to: "/links", 
       label: "Links", 
-      color: "#1b1464", // pH 11 - Azul Escuro / Índigo
+      color: "#1b1464",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -171,7 +169,7 @@ export default function FloatingMenu() {
     { 
       to: "/new-entries", 
       label: "New Entries", 
-      color: "#3e3a94", // pH 12 - Violeta Médio
+      color: "#3e3a94",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -183,7 +181,7 @@ export default function FloatingMenu() {
     { 
       to: "/debug", 
       label: "Debug", 
-      color: "#722e85", // pH 13 - Roxo/Violeta Escuro
+      color: "#722e85",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -203,7 +201,6 @@ export default function FloatingMenu() {
           if (item.isParent) {
             return (
               <div key={item.label} style={{ display: 'flex', flexDirection: 'column' }}>
-                {/* Botão de Controle do Item Pai (Charts) */}
                 <div 
                   style={{ ...styles.item, cursor: 'pointer' }} 
                   onClick={() => setChartsOpen(!chartsOpen)}
@@ -211,12 +208,11 @@ export default function FloatingMenu() {
                   <span style={styles.number}>{index + 1}</span>
                   <span style={{...styles.iconWrapper, color: item.color}}>{item.icon}</span>
                   <span style={{ flexGrow: 1 }}>{item.label}</span>
-                  <span style={{ fontSize: '10px', opacity: 0.5, fontFamily: 'sans-serif' }}>
+                  <span style={{ fontSize: '10px', opacity: 0.5 }}>
                     {chartsOpen ? '▲' : '▼'}
                   </span>
                 </div>
                 
-                {/* Subitens recuados */}
                 {chartsOpen && item.subItems.map((sub, subIndex) => (
                   <Link
                     key={sub.to}
@@ -276,7 +272,7 @@ const styles = {
     bottom: '20px', 
     left: '20px', 
     zIndex: 9999, 
-    fontFamily: '"Bebas Neue", cursive', // Corrigido aspas para evitar Parse Error no Vite
+    fontFamily: '"Bebas Neue", cursive',
     letterSpacing: '0.8px'
   },
   button: { 
@@ -290,15 +286,14 @@ const styles = {
     cursor: 'pointer', 
     display: 'flex', 
     alignItems: 'center', 
-    justifyContent: 'center',
-    transition: 'transform 0.2s ease'
+    justifyContent: 'center'
   },
   options: { 
     position: 'absolute', 
     bottom: '60px', 
     left: 0, 
     width: '240px', 
-    maxHeight: '580px', 
+    maxHeight: '500px', 
     overflowY: 'auto', 
     backgroundColor: 'white', 
     borderRadius: '8px', 
@@ -314,19 +309,17 @@ const styles = {
     color: '#333', 
     textDecoration: 'none', 
     fontSize: '18px', 
-    borderBottom: '1px solid #f5f5f5',
-    transition: 'background-color 0.15s ease'
+    borderBottom: '1px solid #f5f5f5'
   },
   subItem: {
     display: 'flex', 
     alignItems: 'center', 
-    padding: '8px 14px 8px 28px', // Recuo visual para alinhar subitens
+    padding: '8px 14px 8px 28px', 
     color: '#555', 
     textDecoration: 'none', 
     fontSize: '16px', 
     backgroundColor: '#fafafa',
-    borderBottom: '1px solid #f5f5f5',
-    transition: 'background-color 0.15s ease'
+    borderBottom: '1px solid #f5f5f5'
   },
   number: { 
     marginRight: '8px', 
