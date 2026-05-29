@@ -19,7 +19,7 @@ export default function FloatingMenu() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Mapeamento dos itens com todos os SVGs originais preservados
+  // Mapeamento dos itens com todos os SVGs originais preservados e subitens incluídos em Charts
   const menuItems = [
     { 
       to: "/", 
@@ -276,7 +276,7 @@ const styles = {
     bottom: '20px', 
     left: '20px', 
     zIndex: 9999, 
-    fontFamily: \"'Bebas Neue', cursive\",
+    fontFamily: '"Bebas Neue", cursive', // Corrigido aspas para evitar Parse Error no Vite
     letterSpacing: '0.8px'
   },
   button: { 
@@ -320,7 +320,7 @@ const styles = {
   subItem: {
     display: 'flex', 
     alignItems: 'center', 
-    padding: '8px 14px 8px 28px', 
+    padding: '8px 14px 8px 28px', // Recuo visual para alinhar subitens
     color: '#555', 
     textDecoration: 'none', 
     fontSize: '16px', 
