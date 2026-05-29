@@ -4,10 +4,35 @@ import { supabase } from '../supabaseClient';
 
 export default function Top10Charts() {
   const [period, setPeriod] = useState('monthly'); // 'monthly' ou 'annually'
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1)); // Mês padrão: Novembro 2025
+  // Captura dinamicamente a data corrente do sistema (Maio de 2026)
+  const [currentDate, setCurrentDate] = useState(new Date()); 
   const [artists, setArtists] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Dicionário de conversão herdado fielmente de artists.jsx
+  const countryMap = {
+    "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
+    "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
+    "áustria": "at", "azerbaijão": "az", "bangladesh": "bd", "barbados": "bb", "bélgica": "be", 
+    "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
+    "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
+    "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
+    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
+    "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
+    "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
+    "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
+    "israel": "il", "itália": "it", "jamaica": "jm", "japão": "jp", "jordânia": "jo", "líbano": "lb",
+    "luxemburgo": "lu", "malásia": "my", "malta": "mt", "marrocos": "ma", "méxico": "mx", 
+    "mongólia": "mn", "montenegro": "me", "nigéria": "ng", "noruega": "no", "nova zelândia": "nz", 
+    "país de gales": "gb-wls", "países baixos": "nl", "holanda": "nl", "panamá": "pa", 
+    "paquistão": "pk", "paraguai": "py", "peru": "pe", "polônia": "pl", "portugal": "pt", 
+    "quênia": "ke", "quirguistão": "kg", "reino unido": "gb", "república checa": "cz", 
+    "romênia": "ro", "rússia": "ru", "sérvia": "rs", "síria": "sy", "sri lanka": "lk", 
+    "suécia": "se", "suíça": "ch", "tailândia": "th", "taiwan": "tw", "tajiquistão": "tj", 
+    "tunísia": "tn", "turquia": "tr", "ucrânia": "ua", "uruguai": "uy", "venezuela": "ve", 
+    "vietnã": "vn", "zâmbia": "zm", "zimbábue": "zw"
+  };
 
   const formatPeriodLabel = (date) => {
     if (period === 'annually') {
@@ -30,9 +55,9 @@ export default function Top10Charts() {
     );
   };
 
-  // Reseta o filtro voltando instantaneamente para o mês corrente padrão (Nov 2025)
+  // Reseta dinamicamente o filtro para a data real atual do sistema
   const handleResetToCurrent = () => {
-    setCurrentDate(new Date(2025, 10, 1));
+    setCurrentDate(new Date());
   };
 
   useEffect(() => {
@@ -76,16 +101,32 @@ export default function Top10Charts() {
     fetchTop10Data();
   }, [currentDate, period]);
 
-  const renderFlag = (countryCode) => {
-    if (!countryCode) return <span style={styles.flagPlaceholder}>—</span>;
-    const code = countryCode.toLowerCase();
+  // Função estrita de cores baseada em getNameColor de artists.jsx
+  const getRatingColor = (rating) => {
+    if (!rating) return '#AAAAAA'; // Artista sem rating é cinza #AAAAAA
+    const r = Number(rating);
+    if (r === 1) return "#e97b78"; // Coral
+    if (r === 2) return "#f8c039"; // Amarelo
+    if (r === 3) return "#6dbe99"; // Verde
+    return "#AAAAAA";
+  };
+
+  const renderFlag = (countryValue) => {
+    if (!countryValue) return <span style={styles.flagPlaceholder}>—</span>;
+    
+    const cleanValue = countryValue.trim().toLowerCase();
+    
+    // Se a view já devolver a sigla ISO de 2 letras (cc/country_code), usa direto.
+    // Caso contrário, busca a sigla correspondente no countryMap herdado.
+    const flagCode = cleanValue.length === 2 ? cleanValue : (countryMap[cleanValue] || "un");
+
     return (
       <img 
-        src={`https://flagcdn.com/16x12/${code}.png`} 
-        srcSet={`https://flagcdn.com/32x24/${code}.png 2x`}
+        src={`https://flagcdn.com/16x12/${flagCode}.png`} 
+        srcSet={`https://flagcdn.com/32x24/${flagCode}.png 2x`}
         width="14" 
         height="10" 
-        alt={countryCode}
+        alt={countryValue}
         style={styles.flagImage}
       />
     );
@@ -129,7 +170,6 @@ export default function Top10Charts() {
             </svg>
           </button>
 
-          {/* Ícone para retornar ao mês/período atual */}
           <button onClick={handleResetToCurrent} style={styles.todayBtn} title="Voltar ao período atual">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -160,8 +200,10 @@ export default function Top10Charts() {
                   }}
                 >
                   <span style={styles.rank}>{index + 1}</span>
-                  <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.country)}</span>
-                  <span style={styles.itemName}>{item.artist}</span>
+                  <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
+                  <span style={{...styles.itemName, color: getRatingColor(item.rating)}}>
+                    {item.artist}
+                  </span>
                   <span style={styles.count}>{item.scrobbles}</span>
                 </li>
               ))}
@@ -186,10 +228,12 @@ export default function Top10Charts() {
                   }}
                 >
                   <span style={styles.rank}>{index + 1}</span>
-                  <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.country)}</span>
+                  <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
                   <span style={styles.itemName}>{item.song}</span>
                   <span style={styles.count}>{item.scrobbles}</span>
-                  <span style={styles.artistDesktopLabel}>{item.artist}</span>
+                  <span style={{...styles.artistDesktopLabel, color: getRatingColor(item.rating)}}>
+                    {item.artist}
+                  </span>
                 </li>
               ))}
               {tracks.length === 0 && <p style={styles.noData}>NO ENTRIES FOUND</p>}
@@ -204,7 +248,7 @@ export default function Top10Charts() {
   );
 }
 
-// Injeção de Media Queries específicas para layout mobile condensado (em linha única)
+// Injeção de Media Queries específicas para layout mobile condensado
 const styleInjection = (
   <style dangerouslySetInnerHTML={{__html: `
     @media (max-width: 767px) {
@@ -232,7 +276,6 @@ const styleInjection = (
   `}} />
 );
 
-// Objeto de estilos comprimido baseado nas especificações exatas do artists.jsx
 const styles = {
   container: {
     padding: '4px 6px',
@@ -245,7 +288,7 @@ const styles = {
   controlHeaderRow: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'between',
+    justifyContent: 'space-between',
     width: '100%',
     borderBottom: '1px solid #eee',
     paddingBottom: '3px',
@@ -265,7 +308,7 @@ const styles = {
     transition: 'color 0.1s ease'
   },
   tabActive: {
-    color: '#39b54a', // Padrão verde do Charts do sistema
+    color: '#39b54a',
     fontWeight: 'bold'
   },
   navigationRight: {
@@ -311,7 +354,7 @@ const styles = {
   tablesVerticalStack: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px' // Espaçamento enxuto entre os dois blocos
+    gap: '14px'
   },
   section: {
     width: '100%'
@@ -331,7 +374,7 @@ const styles = {
   },
   headerRightSongScrobbles: {
     marginLeft: 'auto',
-    marginRight: '95px' // Mantém o alinhamento correto com os dados
+    marginRight: '95px'
   },
   headerArtistLabel: {
     width: '80px',
@@ -342,12 +385,12 @@ const styles = {
     padding: 0,
     margin: 0,
     border: '1px solid #e0e0e0',
-    borderRadius: '0px' // Cantos estritamente retos conforme artists.jsx
+    borderRadius: '0px'
   },
   listItem: {
     display: 'flex',
     alignItems: 'center',
-    padding: '3px 5px', // Padding super comprimido tirado do tdFixedStyle do artists.jsx
+    padding: '3px 5px',
     fontSize: '13px',
     borderBottom: '1px solid #e0e0e0',
     fontFamily: "'Bebas Neue', cursive",
@@ -377,7 +420,6 @@ const styles = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    color: '#000',
     flex: 1
   },
   count: {
@@ -391,7 +433,6 @@ const styles = {
     marginLeft: '15px',
     textAlign: 'left',
     textTransform: 'uppercase',
-    color: '#555',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
