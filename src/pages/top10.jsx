@@ -1,20 +1,19 @@
 // src/pages/top10.jsx
 import { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient'; // Ajuste o caminho se o seu cliente do Supabase estiver noutro diretório
+import { supabase } from '../lib/supabaseClient'; // Ajuste o caminho se necessário conforme seu projeto
 
 export default function Top10Charts() {
-  // Define o mês inicial (Maio de 2026, baseado no seu layout)
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 1)); 
+  // Inicializa o mês em Novembro de 2025 (conforme o print do seu app)
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1)); 
   const [artists, setArtists] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Formata a data para exibir no cabeçalho (Ex: "MAY 26")
+  // Formata a data para o cabeçalho (Ex: "NOV 25")
   const formatMonthYear = (date) => {
     return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }).toUpperCase();
   };
 
-  // Funções de navegação das setas (retroceder e avançar meses)
   const handlePrevMonth = () => {
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
@@ -23,41 +22,42 @@ export default function Top10Charts() {
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
-  // Efeito que monitoriza a mudança de mês e faz o fetch automático nas Views do banco
   useEffect(() => {
     async function fetchTop10() {
       setLoading(true);
       
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1; // Ajuste porque os meses em JS vão de 0 a 11
+      const targetYear = currentDate.getFullYear();
+      const targetMonth = currentDate.getMonth() + 1; // JS conta meses de 0 a 11
 
       try {
-        // 1. Procura os dados na View de Artistas filtrando pelo ano e mês selecionado
+        // 1. Consome a sua View Real de Artistas Mensais
         const { data: artistsData, error: errArt } = await supabase
-          .from('view_top10_artists') // Substitua pelo nome exato da sua View de Artistas se for diferente
+          .from('vw_top_artists_monthly')
           .select('*')
-          .eq('ano', year)
-          .eq('mes', month)
-          .order('scrobble_count', { ascending: false })
+          .eq('year', targetYear)
+          .eq('month', targetMonth)
+          .order('scrobbles', { ascending: false })      // Critério principal: Mais reproduções
+          .order('last_scrobble', { ascending: false })  // Desempate: Ouvido mais recentemente
           .limit(10);
 
-        // 2. Procura os dados na View de Músicas filtrando pelo ano e mês selecionado
+        // 2. Consome a sua View Real de Músicas Mensais
         const { data: tracksData, error: errTrack } = await supabase
-          .from('view_top10_tracks') // Substitua pelo nome exato da sua View de Músicas se for diferente
+          .from('vw_top_songs_monthly')
           .select('*')
-          .eq('ano', year)
-          .eq('mes', month)
-          .order('scrobble_count', { ascending: false })
+          .eq('year', targetYear)
+          .eq('month', targetMonth)
+          .order('scrobbles', { ascending: false })      // Critério principal
+          .order('last_scrobble', { ascending: false })  // Desempate
           .limit(10);
 
         if (!errArt) setArtists(artistsData || []);
         if (!errTrack) setTracks(tracksData || []);
         
-        if (errArt) console.error("Erro na view de artistas:", errArt);
-        if (errTrack) console.error("Erro na view de músicas:", errTrack);
+        if (errArt) console.error("Erro na view vw_top_artists_monthly:", errArt);
+        if (errTrack) console.error("Erro na view vw_top_songs_monthly:", errTrack);
 
       } catch (error) {
-        console.error("Erro ao carregar dados do Top 10:", error);
+        console.error("Erro de conexão ao buscar Top 10:", error);
       } finally {
         setLoading(false);
       }
@@ -104,10 +104,10 @@ export default function Top10Charts() {
             </div>
             <ol style={styles.list}>
               {artists.map((item, index) => (
-                <li key={item.artist_id || index} style={styles.listItem}>
+                <li key={item.artist + index} style={styles.listItem}>
                   <span style={styles.rank}>{index + 1}</span>
-                  <span style={styles.itemName}>XXX {item.artist_name}</span>
-                  <span style={styles.count}>{item.scrobble_count}</span>
+                  <span style={styles.itemName}>XXX {item.artist}</span>
+                  <span style={styles.count}>{item.scrobbles}</span>
                 </li>
               ))}
               {artists.length === 0 && <p style={styles.noData}>Nenhum scrobble registado este mês.</p>}
@@ -123,14 +123,14 @@ export default function Top10Charts() {
             </div>
             <ol style={styles.list}>
               {tracks.map((item, index) => (
-                <li key={item.track_id || index} style={styles.listItem}>
+                <li key={item.song + index} style={styles.listItem}>
                   <span style={styles.rank}>{index + 1}</span>
-                  <span style={styles.itemName}>XXX {item.track_title}</span>
-                  <span style={styles.count}>{item.scrobble_count}</span>
-                  <span style={styles.artistLabel}>{item.artist_name}</span>
+                  <span style={styles.itemName}>XXX {item.song}</span>
+                  <span style={styles.count}>{item.scrobbles}</span>
+                  <span style={styles.artistLabel}>{item.artist}</span>
                 </li>
               ))}
-              {tracks.length === 0 && <p style={styles.noData}>Nenhuma música registada este mês.</p>}
+              {tracks.length === 0 && <p style={styles.noData}>Nenhuma música registrada este mês.</p>}
             </ol>
           </div>
 
@@ -140,116 +140,22 @@ export default function Top10Charts() {
   );
 }
 
-// Estilização limpa e minimalista em monospace idêntica ao screenshot informativo
+// Estilização mantida intacta
 const styles = {
-  container: {
-    padding: '40px 20px',
-    maxWidth: '700px',
-    margin: '0 auto',
-    fontFamily: 'monospace',
-    color: '#000',
-    backgroundColor: '#fff'
-  },
-  periodTabs: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '60px',
-    fontSize: '15px',
-    marginBottom: '30px',
-    textTransform: 'uppercase'
-  },
-  navigationRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '50px',
-    marginBottom: '35px'
-  },
-  arrowBtn: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    outline: 'none'
-  },
-  monthTitle: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    letterSpacing: '1px',
-    margin: 0,
-    minWidth: '80px',
-    textAlign: 'center'
-  },
-  loading: {
-    textAlign: 'center',
-    fontSize: '14px',
-    padding: '40px 0',
-    color: '#666'
-  },
-  tablesGrid: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '45px'
-  },
-  section: {
-    width: '100%'
-  },
-  sectionHeader: {
-    display: 'flex',
-    fontWeight: 'bold',
-    borderBottom: '1px solid #000',
-    paddingBottom: '5px',
-    marginBottom: '10px',
-    fontSize: '13px'
-  },
-  list: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px'
-  },
-  listItem: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: '14px',
-    lineHeight: '1.4'
-  },
-  rank: {
-    width: '25px',
-    textAlign: 'left',
-    color: '#000'
-  },
-  itemName: {
-    textTransform: 'uppercase',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    paddingRight: '10px'
-  },
-  count: {
-    marginLeft: 'auto',
-    width: '40px',
-    textAlign: 'right',
-    fontWeight: 'normal'
-  },
-  artistLabel: {
-    width: '180px',
-    marginLeft: '20px',
-    textAlign: 'left',
-    textTransform: 'uppercase',
-    color: '#000',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-  noData: {
-    fontSize: '12px',
-    color: '#777',
-    fontStyle: 'italic',
-    marginTop: '5px'
-  }
+  container: { padding: '40px 20px', maxWidth: '700px', margin: '0 auto', fontFamily: 'monospace', color: '#000', backgroundColor: '#fff' },
+  periodTabs: { display: 'flex', justifyContent: 'center', gap: '60px', fontSize: '15px', marginBottom: '30px', textTransform: 'uppercase' },
+  navigationRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '50px', marginBottom: '35px' },
+  arrowBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', outline: 'none' },
+  monthTitle: { fontSize: '20px', fontWeight: 'bold', letterSpacing: '1px', margin: 0, minWidth: '80px', textAlign: 'center' },
+  loading: { textAlign: 'center', fontSize: '14px', padding: '40px 0', color: '#666' },
+  tablesGrid: { display: 'flex', flexDirection: 'column', gap: '45px' },
+  section: { width: '100%' },
+  sectionHeader: { display: 'flex', fontWeight: 'bold', borderBottom: '1px solid #000', paddingBottom: '5px', marginBottom: '10px', fontSize: '13px' },
+  list: { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' },
+  listItem: { display: 'flex', alignItems: 'center', fontSize: '14px', lineHeight: '1.4' },
+  rank: { width: '25px', textAlign: 'left', color: '#000' },
+  itemName: { textTransform: 'uppercase', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: '10px' },
+  count: { marginLeft: 'auto', width: '40px', textAlign: 'right' },
+  artistLabel: { width: '180px', marginLeft: '20px', textAlign: 'left', textTransform: 'uppercase', color: '#000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  noData: { fontSize: '12px', color: '#777', fontStyle: 'italic', marginTop: '5px' }
 };
