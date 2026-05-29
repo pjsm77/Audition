@@ -6,7 +6,8 @@ import Tracks from './pages/tracks';
 import Countries from './pages/countries';
 import Languages from './pages/languages';
 import Trending from './pages/trending';
-import Charts from './pages/charts'; // Gerenciará internamente as subrotas /scrobbles e /top10
+import Charts from './pages/charts';       // Sua página original que agora serve como "Scrobbles"
+import Top10Charts from './pages/top10';   // Sua página específica que consome a view do Top 10
 import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
@@ -17,6 +18,7 @@ import FloatingMenu from './components/FloatingMenu';
 export default function App() {
   return (
     <div className="app-container">
+      {/* O menu flutuante fica ativo globalmente em todas as páginas */}
       <FloatingMenu />
       
       <Routes>
@@ -27,8 +29,11 @@ export default function App() {
         <Route path="/languages" element={<Languages />} />
         <Route path="/trending" element={<Trending />} />
         
-        {/* Usamos /* para que o componente Charts possa renderizar os subitens internamente */}
-        <Route path="/charts/*" element={<Charts />} />
+        {/* Ajuste perfeito para os subitens de Charts se separarem sem conflito */}
+        <Route path="/charts/scrobbles" element={<Charts />} />
+        <Route path="/charts/top10" element={<Top10Charts />} />
+        {/* Fallback caso você clique no título principal "/charts" ir direto para Scrobbles */}
+        <Route path="/charts" element={<Charts />} />
 
         <Route path="/discover" element={<Discover />} />
         <Route path="/stats" element={<Stats />} />
