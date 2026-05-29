@@ -55,6 +55,7 @@ export default function Top10Charts() {
     );
   };
 
+  // Reseta dinamicamente o filtro para a data real atual do sistema
   const handleResetToCurrent = () => {
     setCurrentDate(new Date());
   };
@@ -69,7 +70,7 @@ export default function Top10Charts() {
       const songView = period === 'monthly' ? 'vw_top_songs_monthly' : 'vw_top_songs_annually';
 
       try {
-        // Query Artistas - Puxa também a coluna de link ou deezer_id agrupado se necessário
+        // Query Artistas
         let artQuery = supabase.from(artistView).select('*').eq('year', targetYear);
         if (period === 'monthly') artQuery = artQuery.eq('month', targetMonth);
         
@@ -100,8 +101,9 @@ export default function Top10Charts() {
     fetchTop10Data();
   }, [currentDate, period]);
 
+  // Função estrita de cores baseada em getNameColor de artists.jsx
   const getRatingColor = (rating) => {
-    if (!rating) return '#AAAAAA'; 
+    if (!rating) return '#AAAAAA'; // Artista sem rating é cinza #AAAAAA
     const r = Number(rating);
     if (r === 1) return "#e97b78"; // Coral
     if (r === 2) return "#f8c039"; // Amarelo
@@ -111,7 +113,11 @@ export default function Top10Charts() {
 
   const renderFlag = (countryValue) => {
     if (!countryValue) return <span style={styles.flagPlaceholder}>—</span>;
+    
     const cleanValue = countryValue.trim().toLowerCase();
+    
+    // Se a view já devolver a sigla ISO de 2 letras (cc/country_code), usa direto.
+    // Caso contrário, busca a sigla correspondente no countryMap herdado.
     const flagCode = cleanValue.length === 2 ? cleanValue : (countryMap[cleanValue] || "un");
 
     return (
@@ -126,19 +132,13 @@ export default function Top10Charts() {
     );
   };
 
-  // Função auxiliar para determinar qual a URL de destino do artista
-  const getArtistLink = (item) => {
-    // Se a sua view trouxer o deezer_id mapeado da tbl_artists, você pode gerar o link direto
-    if (item.deezer_id) return `https://www.deezer.com/artist/${item.deezer_id}`;
-    // Caso contrário, usa a coluna de link capturada no scrobble
-    return item.artist_link || null;
-  };
-
   return (
     <div className="top10-compact-page" style={styles.container}>
       
       {/* Linha Única Superior de Controle e Filtros */}
       <div style={styles.controlHeaderRow}>
+        
+        {/* Esquerda: Tipo de Filtro Temporal */}
         <div style={styles.periodTabsLeft}>
           <span 
             onClick={() => setPeriod('monthly')} 
@@ -154,6 +154,7 @@ export default function Top10Charts() {
           </span>
         </div>
 
+        {/* Direita: Navegação + Ícone de Mês Atual */}
         <div style={styles.navigationRight}>
           <button onClick={handlePrev} style={styles.arrowBtn} aria-label="Anterior">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3">
@@ -190,39 +191,22 @@ export default function Top10Charts() {
               <span style={styles.headerRightScrobbles}>SRC</span>
             </div>
             <ol style={styles.list}>
-              {artists.map((item, index) => {
-                const artistUrl = getArtistLink(item);
-                return (
-                  <li 
-                    key={item.artist + index} 
-                    style={{
-                      ...styles.listItem, 
-                      backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8'
-                    }}
-                  >
-                    <span style={styles.rank}>{index + 1}</span>
-                    <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
-                    
-                    {/* Nome do Artista com link clicável */}
-                    <span style={styles.itemNameWrapper}>
-                      {artistUrl ? (
-                        <a 
-                          href={artistUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          style={{...styles.linkItem, color: getRatingColor(item.rating)}}
-                        >
-                          {item.artist}
-                        </a>
-                      ) : (
-                        <span style={{color: getRatingColor(item.rating)}}>{item.artist}</span>
-                      )}
-                    </span>
-
-                    <span style={styles.count}>{item.scrobbles}</span>
-                  </li>
-                );
-              })}
+              {artists.map((item, index) => (
+                <li 
+                  key={item.artist + index} 
+                  style={{
+                    ...styles.listItem, 
+                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8'
+                  }}
+                >
+                  <span style={styles.rank}>{index + 1}</span>
+                  <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
+                  <span style={{...styles.itemName, color: getRatingColor(item.rating)}}>
+                    {item.artist}
+                  </span>
+                  <span style={styles.count}>{item.scrobbles}</span>
+                </li>
+              ))}
               {artists.length === 0 && <p style={styles.noData}>NO ENTRIES FOUND</p>}
             </ol>
           </div>
@@ -235,55 +219,23 @@ export default function Top10Charts() {
               <span style={styles.headerArtistLabel}>ART</span>
             </div>
             <ol style={styles.list}>
-              {tracks.map((item, index) => {
-                const artistUrl = getArtistLink(item);
-                return (
-                  <li 
-                    key={item.song + index} 
-                    style={{
-                      ...styles.listItem, 
-                      backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8'
-                    }}
-                  >
-                    <span style={styles.rank}>{index + 1}</span>
-                    <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
-                    
-                    {/* Nome da Música com link clicável */}
-                    <span style={styles.itemNameWrapper}>
-                      {item.song_link ? (
-                        <a 
-                          href={item.song_link} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          style={styles.linkSongItem}
-                        >
-                          {item.song}
-                        </a>
-                      ) : (
-                        <span>{item.song}</span>
-                      )}
-                    </span>
-
-                    <span style={styles.count}>{item.scrobbles}</span>
-                    
-                    {/* Nome do Artista Lateral com link clicável */}
-                    <span style={styles.artistDesktopLabel}>
-                      {artistUrl ? (
-                        <a 
-                          href={artistUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          style={{...styles.linkItem, color: getRatingColor(item.rating)}}
-                        >
-                          {item.artist}
-                        </a>
-                      ) : (
-                        <span style={{color: getRatingColor(item.rating)}}>{item.artist}</span>
-                      )}
-                    </span>
-                  </li>
-                );
-              })}
+              {tracks.map((item, index) => (
+                <li 
+                  key={item.song + index} 
+                  style={{
+                    ...styles.listItem, 
+                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8'
+                  }}
+                >
+                  <span style={styles.rank}>{index + 1}</span>
+                  <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
+                  <span style={styles.itemName}>{item.song}</span>
+                  <span style={styles.count}>{item.scrobbles}</span>
+                  <span style={{...styles.artistDesktopLabel, color: getRatingColor(item.rating)}}>
+                    {item.artist}
+                  </span>
+                </li>
+              ))}
               {tracks.length === 0 && <p style={styles.noData}>NO ENTRIES FOUND</p>}
             </ol>
           </div>
@@ -463,24 +415,12 @@ const styles = {
     fontSize: '10px',
     color: '#ccc'
   },
-  itemNameWrapper: {
-    flex: 1,
+  itemName: {
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
-  },
-  linkItem: {
-    textDecoration: 'none',
-    textTransform: 'uppercase',
-    outline: 'none',
-    cursor: 'pointer'
-  },
-  linkSongItem: {
-    color: '#000000',
-    textDecoration: 'none',
-    textTransform: 'uppercase',
-    outline: 'none',
-    cursor: 'pointer'
+    flex: 1
   },
   count: {
     marginLeft: 'auto',
@@ -492,6 +432,7 @@ const styles = {
     width: '80px',
     marginLeft: '15px',
     textAlign: 'left',
+    textTransform: 'uppercase',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
