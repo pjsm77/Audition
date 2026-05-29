@@ -4,7 +4,6 @@ import { supabase } from '../supabaseClient';
 
 export default function Top10Charts() {
   const [period, setPeriod] = useState('monthly'); // 'monthly' ou 'annually'
-  // Captura dinamicamente a data corrente do sistema (Maio de 2026)
   const [currentDate, setCurrentDate] = useState(new Date()); 
   const [artists, setArtists] = useState([]);
   const [tracks, setTracks] = useState([]);
@@ -69,7 +68,7 @@ export default function Top10Charts() {
       const songView = period === 'monthly' ? 'vw_top_songs_monthly' : 'vw_top_songs_annually';
 
       try {
-        // Query Artistas - Puxa também a coluna de link ou deezer_id agrupado se necessário
+        // Query Artistas
         let artQuery = supabase.from(artistView).select('*').eq('year', targetYear);
         if (period === 'monthly') artQuery = artQuery.eq('month', targetMonth);
         
@@ -100,8 +99,9 @@ export default function Top10Charts() {
     fetchTop10Data();
   }, [currentDate, period]);
 
+  // Função estrita de cores baseada em getNameColor de artists.jsx
   const getRatingColor = (rating) => {
-    if (!rating) return '#AAAAAA'; 
+    if (!rating) return '#AAAAAA'; // Artista sem rating é cinza #AAAAAA
     const r = Number(rating);
     if (r === 1) return "#e97b78"; // Coral
     if (r === 2) return "#f8c039"; // Amarelo
@@ -126,11 +126,11 @@ export default function Top10Charts() {
     );
   };
 
-  // Função auxiliar para determinar qual a URL de destino do artista
+  // Função para mapear a URL de destino do artista (Prioridade: Deezer)
   const getArtistLink = (item) => {
-    // Se a sua view trouxer o deezer_id mapeado da tbl_artists, você pode gerar o link direto
-    if (item.deezer_id) return `https://www.deezer.com/artist/${item.deezer_id}`;
-    // Caso contrário, usa a coluna de link capturada no scrobble
+    if (item.deezer_id && String(item.deezer_id).trim() !== '') {
+      return `https://www.deezer.com/artist/${String(item.deezer_id).trim()}`;
+    }
     return item.artist_link || null;
   };
 
@@ -473,14 +473,22 @@ const styles = {
     textDecoration: 'none',
     textTransform: 'uppercase',
     outline: 'none',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    display: 'inline-block',
+    width: '100%',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
   },
   linkSongItem: {
     color: '#000000',
     textDecoration: 'none',
     textTransform: 'uppercase',
     outline: 'none',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    display: 'inline-block',
+    width: '100%',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
   },
   count: {
     marginLeft: 'auto',
