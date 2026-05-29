@@ -6,8 +6,8 @@ import Tracks from './pages/tracks';
 import Countries from './pages/countries';
 import Languages from './pages/languages';
 import Trending from './pages/trending';
-import Charts from './pages/charts'; // Esta passará a ser a página de Scrobbles ou o container
-import Top10Charts from './pages/top10'; // Nova página criada anteriormente
+import Charts from './pages/charts'; // Esta página original passa a ser o "Scrobbles"
+import Top10Charts from './pages/top10'; // A sua nova página do Top 10 com desempate
 import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
@@ -18,6 +18,7 @@ import FloatingMenu from './components/FloatingMenu';
 export default function App() {
   return (
     <div className="app-container">
+      {/* O menu flutuante fica ativo globalmente em todas as páginas */}
       <FloatingMenu />
       
       <Routes>
@@ -28,9 +29,9 @@ export default function App() {
         <Route path="/languages" element={<Languages />} />
         <Route path="/trending" element={<Trending />} />
         
-        {/* Configuração de rotas aninhadas para Charts */}
+        {/* Configuração de rotas aninhadas para os Charts */}
         <Route path="/charts">
-          {/* Se o usuário acessar apenas /charts, ele pode ser redirecionado para /charts/scrobbles */}
+          {/* Se o utilizador tentar aceder a /charts diretamente, ele é redirecionado para /charts/scrobbles */}
           <Route index element={<Navigate to="/charts/scrobbles" replace />} />
           <Route path="scrobbles" element={<Charts />} />
           <Route path="top10" element={<Top10Charts />} />
