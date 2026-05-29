@@ -3,15 +3,11 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Top10Charts() {
-  // Estados para controle de período, navegação e dados
   const [period, setPeriod] = useState('monthly'); // 'monthly' ou 'annually'
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1)); // Inicia em Novembro 2025
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 10, 1)); // Mês padrão: Novembro 2025
   const [artists, setArtists] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Aba ativa no Mobile para ver um ou outro sem rolar a tela (Padrão: Artists)
-  const [activeTabMobile, setActiveTabMobile] = useState('artists');
 
   const formatPeriodLabel = (date) => {
     if (period === 'annually') {
@@ -32,6 +28,11 @@ export default function Top10Charts() {
       ? new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
       : new Date(prev.getFullYear() + 1, prev.getMonth(), 1)
     );
+  };
+
+  // Reseta o filtro voltando instantaneamente para o mês corrente padrão (Nov 2025)
+  const handleResetToCurrent = () => {
+    setCurrentDate(new Date(2025, 10, 1));
   };
 
   useEffect(() => {
@@ -82,8 +83,8 @@ export default function Top10Charts() {
       <img 
         src={`https://flagcdn.com/16x12/${code}.png`} 
         srcSet={`https://flagcdn.com/32x24/${code}.png 2x`}
-        width="15" 
-        height="11" 
+        width="14" 
+        height="10" 
         alt={countryCode}
         style={styles.flagImage}
       />
@@ -91,65 +92,60 @@ export default function Top10Charts() {
   };
 
   return (
-    <div className="top10-page-container" style={styles.container}>
+    <div className="top10-compact-page" style={styles.container}>
       
-      {/* 1. Seletores Superiores de Período (Monthly / Annually) */}
-      <div style={styles.periodTabs}>
-        <span 
-          onClick={() => setPeriod('monthly')} 
-          style={{...styles.tabLink, ...(period === 'monthly' ? styles.tabActive : {})}}
-        >
-          Monthly
-        </span>
-        <span 
-          onClick={() => setPeriod('annually')} 
-          style={{...styles.tabLink, ...(period === 'annually' ? styles.tabActive : {})}}
-        >
-          Annually
-        </span>
-      </div>
+      {/* Linha Única Superior de Controle e Filtros */}
+      <div style={styles.controlHeaderRow}>
+        
+        {/* Esquerda: Tipo de Filtro Temporal */}
+        <div style={styles.periodTabsLeft}>
+          <span 
+            onClick={() => setPeriod('monthly')} 
+            style={{...styles.tabLink, ...(period === 'monthly' ? styles.tabActive : {})}}
+          >
+            Monthly
+          </span>
+          <span 
+            onClick={() => setPeriod('annually')} 
+            style={{...styles.tabLink, ...(period === 'annually' ? styles.tabActive : {})}}
+          >
+            Annually
+          </span>
+        </div>
 
-      {/* 2. Barra de Navegação Temporal (Setas + Data) */}
-      <div style={styles.navigationRow}>
-        <button onClick={handlePrev} style={styles.arrowBtn}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <h2 style={styles.periodTitle}>{formatPeriodLabel(currentDate)}</h2>
-        <button onClick={handleNext} style={styles.arrowBtn}>
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
+        {/* Direita: Navegação + Ícone de Mês Atual */}
+        <div style={styles.navigationRight}>
+          <button onClick={handlePrev} style={styles.arrowBtn} aria-label="Anterior">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+          
+          <h2 style={styles.periodTitle}>{formatPeriodLabel(currentDate)}</h2>
+          
+          <button onClick={handleNext} style={styles.arrowBtn} aria-label="Próximo">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
 
-      {/* 3. Sub-abas exclusivas para Mobile (Evitam a rolagem vertical da tela) */}
-      <div style={styles.mobileToggleRow}>
-        <button 
-          onClick={() => setActiveTabMobile('artists')}
-          style={{...styles.mobileTabButton, ...(activeTabMobile === 'artists' ? styles.mobileTabButtonActive : {})}}
-        >
-          TOP 10 ARTISTS
-        </button>
-        <button 
-          onClick={() => setActiveTabMobile('tracks')}
-          style={{...styles.mobileTabButton, ...(activeTabMobile === 'tracks' ? styles.mobileTabButtonActive : {})}}
-        >
-          TOP 10 TRACKS
-        </button>
+          {/* Ícone para retornar ao mês/período atual */}
+          <button onClick={handleResetToCurrent} style={styles.todayBtn} title="Voltar ao período atual">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <div style={styles.loading}>LOADING DATA...</div>
+        <div style={styles.loading}>LOADING...</div>
       ) : (
-        <div style={styles.tablesGrid}>
+        <div style={styles.tablesVerticalStack}>
           
-          {/* COLUNA: TOP 10 ARTISTS (Visível no Desktop ou se aba ativa no Mobile) */}
-          <div style={{
-            ...styles.section, 
-            display: activeTabMobile === 'artists' ? 'block' : 'none'
-          }} className="desktop-visible-block">
+          {/* BLOCO 1: TOP 10 ARTISTS */}
+          <div style={styles.section}>
             <div style={styles.sectionHeader}>
               <span>TOP 10 ARTISTS</span>
               <span style={styles.headerRightScrobbles}>SRC</span>
@@ -173,11 +169,8 @@ export default function Top10Charts() {
             </ol>
           </div>
 
-          {/* COLUNA: TOP 10 TRACKS (Visível no Desktop ou se aba ativa no Mobile) */}
-          <div style={{
-            ...styles.section, 
-            display: activeTabMobile === 'tracks' ? 'block' : 'none'
-          }} className="desktop-visible-block">
+          {/* BLOCO 2: TOP 10 TRACKS */}
+          <div style={styles.section}>
             <div style={styles.sectionHeader}>
               <span>TOP 10 TRACKS</span>
               <span style={styles.headerRightSongScrobbles}>SCR</span>
@@ -194,10 +187,7 @@ export default function Top10Charts() {
                 >
                   <span style={styles.rank}>{index + 1}</span>
                   <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.country)}</span>
-                  <div style={styles.songMetaWrapper}>
-                    <span style={styles.itemName}>{item.song}</span>
-                    <span style={styles.artistMobileSubLabel}>{item.artist}</span>
-                  </div>
+                  <span style={styles.itemName}>{item.song}</span>
                   <span style={styles.count}>{item.scrobbles}</span>
                   <span style={styles.artistDesktopLabel}>{item.artist}</span>
                 </li>
@@ -209,76 +199,79 @@ export default function Top10Charts() {
         </div>
       )}
 
-      {/* Injeção de Media Query CSS nativa para tratar a responsividade lado-a-lado no Desktop */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @media (min-width: 768px) {
-          .top10-page-container .desktop-visible-block {
-            display: block !important;
-          }
-          .top10-page-container [class*="mobileToggleRow"] {
-            display: none !important;
-          }
-          .top10-page-container [class*="tablesGrid"] {
-            flex-direction: row !important;
-            gap: 25px !important;
-          }
-          .top10-page-container [class*="artistMobileSubLabel"] {
-            display: none !important;
-          }
-        }
-        @media (max-width: 767px) {
-          .top10-page-container [class*="artistDesktopLabel"] {
-            display: none !important;
-          }
-          .top10-page-container [class*="headerArtistLabel"] {
-            display: none !important;
-          }
-          .top10-page-container [class*="headerRightSongScrobbles"] {
-            margin-right: 5px !important;
-          }
-        }
-      `}} />
-
+      {styleInjection}
     </div>
   );
 }
 
-// Estilos extraídos estritamente baseados na densidade de dados do artists.jsx
+// Injeção de Media Queries específicas para layout mobile condensado (em linha única)
+const styleInjection = (
+  <style dangerouslySetInnerHTML={{__html: `
+    @media (max-width: 767px) {
+      .top10-compact-page [class*="artistDesktopLabel"] {
+        display: block !important;
+        width: 85px !important;
+        min-width: 85px !important;
+        max-width: 85px !important;
+        margin-left: 10px !important;
+        font-size: 11px !important;
+      }
+      .top10-compact-page [class*="headerArtistLabel"] {
+        display: block !important;
+        width: 85px !important;
+        margin-left: 10px !important;
+        font-size: 12px !important;
+      }
+      .top10-compact-page [class*="headerRightSongScrobbles"] {
+        margin-right: 0px !important;
+      }
+      .top10-compact-page [class*="count"] {
+        width: 30px !important;
+      }
+    }
+  `}} />
+);
+
+// Objeto de estilos comprimido baseado nas especificações exatas do artists.jsx
 const styles = {
   container: {
-    padding: '12px 8px',
-    maxWidth: '1000px',
+    padding: '4px 6px',
+    maxWidth: '680px',
     margin: '0 auto',
     color: '#000',
     backgroundColor: '#fff',
-    overflowY: 'auto', // Permite rolar caso a viewport seja extremamente pequena
     minHeight: '100vh'
   },
-  periodTabs: {
+  controlHeaderRow: {
     display: 'flex',
-    justifyContent: 'center',
-    gap: '30px',
-    fontSize: '18px',
-    marginBottom: '8px',
+    alignItems: 'center',
+    justifyContent: 'between',
+    width: '100%',
+    borderBottom: '1px solid #eee',
+    paddingBottom: '3px',
+    marginBottom: '8px'
+  },
+  periodTabsLeft: {
+    display: 'flex',
+    gap: '15px',
+    fontSize: '15px',
+    fontFamily: "'Bebas Neue', cursive",
     textTransform: 'uppercase',
-    fontFamily: "'Bebas Neue', cursive"
+    flex: 1
   },
   tabLink: {
     cursor: 'pointer',
     color: '#aaa',
-    paddingBottom: '1px',
-    borderBottom: '2px solid transparent'
+    transition: 'color 0.1s ease'
   },
   tabActive: {
-    color: '#39b54a', // Padrão Verde do Charts do App
-    borderColor: '#39b54a'
+    color: '#39b54a', // Padrão verde do Charts do sistema
+    fontWeight: 'bold'
   },
-  navigationRow: {
+  navigationRight: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: '20px',
-    marginBottom: '14px'
+    gap: '8px'
   },
   arrowBtn: {
     background: 'none',
@@ -289,131 +282,112 @@ const styles = {
     alignItems: 'center',
     color: '#000'
   },
+  todayBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '2px 4px',
+    display: 'flex',
+    alignItems: 'center',
+    color: '#39b54a',
+    marginLeft: '2px'
+  },
   periodTitle: {
-    fontSize: '22px',
+    fontSize: '17px',
     margin: 0,
-    minWidth: '80px',
+    minWidth: '55px',
     textAlign: 'center',
     fontFamily: "'Bebas Neue', cursive",
-    letterSpacing: '0.5px'
-  },
-  mobileToggleRow: {
-    display: 'flex',
-    border: '1px solid #e0e0e0',
-    marginBottom: '12px',
-    borderRadius: '0px' // Mantendo o padrão reto de cantos do site
-  },
-  mobileTabButton: {
-    flex: 1,
-    padding: '8px 0',
-    border: 'none',
-    background: '#f1f1f1',
-    fontFamily: "'Bebas Neue', cursive",
-    fontSize: '15px',
-    color: '#666',
-    cursor: 'pointer'
-  },
-  mobileTabButtonActive: {
-    background: '#2c3e50',
-    color: '#fff'
+    letterSpacing: '0.3px',
+    color: '#000'
   },
   loading: {
     textAlign: 'center',
-    fontSize: '14px',
-    padding: '40px 0',
+    fontSize: '13px',
+    padding: '30px 0',
     fontFamily: "'Bebas Neue', cursive",
-    color: '#666'
+    color: '#888'
   },
-  tablesGrid: {
+  tablesVerticalStack: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0px'
+    gap: '14px' // Espaçamento enxuto entre os dois blocos
   },
   section: {
-    flex: 1,
     width: '100%'
   },
   sectionHeader: {
     display: 'flex',
     borderBottom: '2px solid #ddd',
-    paddingBottom: '3px',
+    paddingBottom: '2px',
     marginBottom: '2px',
-    fontSize: '14px',
+    fontSize: '13px',
     fontFamily: "'Bebas Neue', cursive",
     color: '#000'
   },
   headerRightScrobbles: {
     marginLeft: 'auto',
-    marginRight: '5px'
+    marginRight: '2px'
   },
   headerRightSongScrobbles: {
     marginLeft: 'auto',
-    marginRight: '105px'
+    marginRight: '95px' // Mantém o alinhamento correto com os dados
   },
   headerArtistLabel: {
-    width: '90px',
+    width: '80px',
     textAlign: 'left'
   },
   list: {
     listStyle: 'none',
     padding: 0,
     margin: 0,
-    border: '1px solid #e0e0e0'
+    border: '1px solid #e0e0e0',
+    borderRadius: '0px' // Cantos estritamente retos conforme artists.jsx
   },
   listItem: {
     display: 'flex',
     alignItems: 'center',
-    padding: '4px 6px', // Compacto igual ao tdFixedStyle do artists.jsx
+    padding: '3px 5px', // Padding super comprimido tirado do tdFixedStyle do artists.jsx
     fontSize: '13px',
     borderBottom: '1px solid #e0e0e0',
     fontFamily: "'Bebas Neue', cursive",
-    lineHeight: '1.2'
+    lineHeight: '1.2',
+    whiteSpace: 'nowrap'
   },
   rank: {
-    width: '20px',
+    width: '18px',
     color: '#888'
   },
   flagWrapper: {
     display: 'flex',
     alignItems: 'center',
-    marginRight: '8px',
-    width: '16px',
+    marginRight: '6px',
+    width: '15px',
     justifyContent: 'center'
   },
   flagImage: {
-    boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
+    boxShadow: '0 1px 1px rgba(0,0,0,0.1)'
   },
   flagPlaceholder: {
-    fontSize: '11px',
+    fontSize: '10px',
     color: '#ccc'
-  },
-  songMetaWrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden'
   },
   itemName: {
     textTransform: 'uppercase',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    color: '#000'
-  },
-  artistMobileSubLabel: {
-    fontSize: '10px',
-    color: '#777',
-    fontFamily: 'monospace',
-    textTransform: 'uppercase',
-    marginTop: '1px'
+    color: '#000',
+    flex: 1
   },
   count: {
     marginLeft: 'auto',
-    width: '35px',
+    width: '32px',
     textAlign: 'right',
     color: '#39b54a'
   },
   artistDesktopLabel: {
-    width: '90px',
+    width: '80px',
     marginLeft: '15px',
     textAlign: 'left',
     textTransform: 'uppercase',
@@ -423,9 +397,9 @@ const styles = {
     textOverflow: 'ellipsis'
   },
   noData: {
-    fontSize: '13px',
+    fontSize: '12px',
     color: '#888',
-    padding: '10px',
+    padding: '8px',
     margin: 0,
     textAlign: 'center',
     fontFamily: "'Bebas Neue', cursive"
