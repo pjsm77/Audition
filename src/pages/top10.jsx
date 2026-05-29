@@ -9,8 +9,10 @@ export default function Top10Charts() {
   const [artists, setArtists] = useState([]);
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Aba ativa no Mobile para ver um ou outro sem rolar a tela (Padrão: Artists)
+  const [activeTabMobile, setActiveTabMobile] = useState('artists');
 
-  // Formata o período exibido no topo (Ex: "NOV 25" ou "2025")
   const formatPeriodLabel = (date) => {
     if (period === 'annually') {
       return date.getFullYear().toString();
@@ -18,7 +20,6 @@ export default function Top10Charts() {
     return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }).toUpperCase();
   };
 
-  // Navegação das setas (retrocede ou avança 1 mês ou 1 ano dependendo do modo)
   const handlePrev = () => {
     setCurrentDate(prev => period === 'monthly' 
       ? new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
@@ -39,37 +40,33 @@ export default function Top10Charts() {
       const targetYear = currentDate.getFullYear();
       const targetMonth = currentDate.getMonth() + 1;
 
-      // Define dinamicamente quais Views ler baseando-se no botão ativo (Monthly ou Annually)
       const artistView = period === 'monthly' ? 'vw_top_artists_monthly' : 'vw_top_artists_annually';
       const songView = period === 'monthly' ? 'vw_top_songs_monthly' : 'vw_top_songs_annually';
 
       try {
-        // 1. Query para o Ranking de Artistas
+        // Query Artistas
         let artQuery = supabase.from(artistView).select('*').eq('year', targetYear);
         if (period === 'monthly') artQuery = artQuery.eq('month', targetMonth);
         
         const { data: artistsData, error: errArt } = await artQuery
           .order('scrobbles', { ascending: false })
-          .order('last_scrobble', { ascending: false }) // Critério de desempate
+          .order('last_scrobble', { ascending: false })
           .limit(10);
 
-        // 2. Query para o Ranking de Músicas
+        // Query Músicas
         let trackQuery = supabase.from(songView).select('*').eq('year', targetYear);
         if (period === 'monthly') trackQuery = trackQuery.eq('month', targetMonth);
 
         const { data: tracksData, error: errTrack } = await trackQuery
           .order('scrobbles', { ascending: false })
-          .order('last_scrobble', { ascending: false }) // Critério de desempate
+          .order('last_scrobble', { ascending: false })
           .limit(10);
 
         if (!errArt) setArtists(artistsData || []);
         if (!errTrack) setTracks(tracksData || []);
 
-        if (errArt) console.error("Erro na view de artistas:", errArt);
-        if (errTrack) console.error("Erro na view de músicas:", errTrack);
-
       } catch (error) {
-        console.error("Erro geral na busca do Top 10:", error);
+        console.error("Erro ao buscar dados do Top 10:", error);
       } finally {
         setLoading(false);
       }
@@ -78,7 +75,6 @@ export default function Top10Charts() {
     fetchTop10Data();
   }, [currentDate, period]);
 
-  // Renderiza a bandeira do país usando o country_code salvo no banco (Ex: 'AU', 'BR', 'US')
   const renderFlag = (countryCode) => {
     if (!countryCode) return <span style={styles.flagPlaceholder}>—</span>;
     const code = countryCode.toLowerCase();
@@ -86,8 +82,8 @@ export default function Top10Charts() {
       <img 
         src={`https://flagcdn.com/16x12/${code}.png`} 
         srcSet={`https://flagcdn.com/32x24/${code}.png 2x`}
-        width="16" 
-        height="12" 
+        width="15" 
+        height="11" 
         alt={countryCode}
         style={styles.flagImage}
       />
@@ -95,9 +91,9 @@ export default function Top10Charts() {
   };
 
   return (
-    <div className="top10-page" style={styles.container}>
+    <div className="top10-page-container" style={styles.container}>
       
-      {/* Seletores de Período: alteram dinamicamente as views correspondentes */}
+      {/* 1. Seletores Superiores de Período (Monthly / Annually) */}
       <div style={styles.periodTabs}>
         <span 
           onClick={() => setPeriod('monthly')} 
@@ -113,30 +109,47 @@ export default function Top10Charts() {
         </span>
       </div>
 
-      {/* Barra de Navegação Temporal */}
+      {/* 2. Barra de Navegação Temporal (Setas + Data) */}
       <div style={styles.navigationRow}>
-        <button onClick={handlePrev} style={styles.arrowBtn} aria-label="Anterior">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <button onClick={handlePrev} style={styles.arrowBtn}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        
         <h2 style={styles.periodTitle}>{formatPeriodLabel(currentDate)}</h2>
-        
-        <button onClick={handleNext} style={styles.arrowBtn} aria-label="Próximo">
-          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <button onClick={handleNext} style={styles.arrowBtn}>
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </button>
       </div>
 
+      {/* 3. Sub-abas exclusivas para Mobile (Evitam a rolagem vertical da tela) */}
+      <div style={styles.mobileToggleRow}>
+        <button 
+          onClick={() => setActiveTabMobile('artists')}
+          style={{...styles.mobileTabButton, ...(activeTabMobile === 'artists' ? styles.mobileTabButtonActive : {})}}
+        >
+          TOP 10 ARTISTS
+        </button>
+        <button 
+          onClick={() => setActiveTabMobile('tracks')}
+          style={{...styles.mobileTabButton, ...(activeTabMobile === 'tracks' ? styles.mobileTabButtonActive : {})}}
+        >
+          TOP 10 TRACKS
+        </button>
+      </div>
+
       {loading ? (
-        <div style={styles.loading}>A carregar dados do banco de dados...</div>
+        <div style={styles.loading}>LOADING DATA...</div>
       ) : (
         <div style={styles.tablesGrid}>
           
-          {/* TABELA: TOP 10 ARTISTS */}
-          <div style={styles.section}>
+          {/* COLUNA: TOP 10 ARTISTS (Visível no Desktop ou se aba ativa no Mobile) */}
+          <div style={{
+            ...styles.section, 
+            display: activeTabMobile === 'artists' ? 'block' : 'none'
+          }} className="desktop-visible-block">
             <div style={styles.sectionHeader}>
               <span>TOP 10 ARTISTS</span>
               <span style={styles.headerRightScrobbles}>SRC</span>
@@ -147,7 +160,7 @@ export default function Top10Charts() {
                   key={item.artist + index} 
                   style={{
                     ...styles.listItem, 
-                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f7f7f7' // Fundo alternado Branco / Cinza claro
+                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8'
                   }}
                 >
                   <span style={styles.rank}>{index + 1}</span>
@@ -156,16 +169,19 @@ export default function Top10Charts() {
                   <span style={styles.count}>{item.scrobbles}</span>
                 </li>
               ))}
-              {artists.length === 0 && <p style={styles.noData}>Nenhum registo encontrado para este período.</p>}
+              {artists.length === 0 && <p style={styles.noData}>NO ENTRIES FOUND</p>}
             </ol>
           </div>
 
-          {/* TABELA: TOP 10 TRACKS */}
-          <div style={styles.section}>
+          {/* COLUNA: TOP 10 TRACKS (Visível no Desktop ou se aba ativa no Mobile) */}
+          <div style={{
+            ...styles.section, 
+            display: activeTabMobile === 'tracks' ? 'block' : 'none'
+          }} className="desktop-visible-block">
             <div style={styles.sectionHeader}>
               <span>TOP 10 TRACKS</span>
               <span style={styles.headerRightSongScrobbles}>SCR</span>
-              <span>ART</span>
+              <span style={styles.headerArtistLabel}>ART</span>
             </div>
             <ol style={styles.list}>
               {tracks.map((item, index) => (
@@ -173,185 +189,245 @@ export default function Top10Charts() {
                   key={item.song + index} 
                   style={{
                     ...styles.listItem, 
-                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f7f7f7' // Fundo alternado Branco / Cinza claro
+                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8'
                   }}
                 >
                   <span style={styles.rank}>{index + 1}</span>
                   <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.country)}</span>
-                  <span style={styles.itemName}>{item.song}</span>
+                  <div style={styles.songMetaWrapper}>
+                    <span style={styles.itemName}>{item.song}</span>
+                    <span style={styles.artistMobileSubLabel}>{item.artist}</span>
+                  </div>
                   <span style={styles.count}>{item.scrobbles}</span>
-                  <span style={styles.artistLabel}>{item.artist}</span>
+                  <span style={styles.artistDesktopLabel}>{item.artist}</span>
                 </li>
               ))}
-              {tracks.length === 0 && <p style={styles.noData}>Nenhum registo encontrado para este período.</p>}
+              {tracks.length === 0 && <p style={styles.noData}>NO ENTRIES FOUND</p>}
             </ol>
           </div>
 
         </div>
       )}
+
+      {/* Injeção de Media Query CSS nativa para tratar a responsividade lado-a-lado no Desktop */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media (min-width: 768px) {
+          .top10-page-container .desktop-visible-block {
+            display: block !important;
+          }
+          .top10-page-container [class*="mobileToggleRow"] {
+            display: none !important;
+          }
+          .top10-page-container [class*="tablesGrid"] {
+            flex-direction: row !important;
+            gap: 25px !important;
+          }
+          .top10-page-container [class*="artistMobileSubLabel"] {
+            display: none !important;
+          }
+        }
+        @media (max-width: 767px) {
+          .top10-page-container [class*="artistDesktopLabel"] {
+            display: none !important;
+          }
+          .top10-page-container [class*="headerArtistLabel"] {
+            display: none !important;
+          }
+          .top10-page-container [class*="headerRightSongScrobbles"] {
+            margin-right: 5px !important;
+          }
+        }
+      `}} />
+
     </div>
   );
 }
 
-// Estilos corporativos sincronizados com o padrão visual global do app
+// Estilos extraídos estritamente baseados na densidade de dados do artists.jsx
 const styles = {
   container: {
-    padding: '30px 20px',
-    maxWidth: '850px',
+    padding: '12px 8px',
+    maxWidth: '1000px',
     margin: '0 auto',
-    fontFamily: "'Bebas Neue', Arial, sans-serif",
-    letterSpacing: '0.6px',
-    color: '#1a1a1a'
+    color: '#000',
+    backgroundColor: '#fff',
+    overflowY: 'auto', // Permite rolar caso a viewport seja extremamente pequena
+    minHeight: '100vh'
   },
   periodTabs: {
     display: 'flex',
     justifyContent: 'center',
-    gap: '45px',
-    fontSize: '22px',
-    marginBottom: '20px',
-    textTransform: 'uppercase'
+    gap: '30px',
+    fontSize: '18px',
+    marginBottom: '8px',
+    textTransform: 'uppercase',
+    fontFamily: "'Bebas Neue', cursive"
   },
   tabLink: {
     cursor: 'pointer',
-    color: '#95a5a6',
-    transition: 'color 0.2s ease, border-color 0.2s ease',
-    paddingBottom: '2px',
+    color: '#aaa',
+    paddingBottom: '1px',
     borderBottom: '2px solid transparent'
   },
   tabActive: {
-    color: '#39b54a', // Padrão Verde do item Charts
-    borderColor: '#39b54a',
-    fontWeight: 'bold'
+    color: '#39b54a', // Padrão Verde do Charts do App
+    borderColor: '#39b54a'
   },
   navigationRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '35px',
-    marginBottom: '35px'
+    gap: '20px',
+    marginBottom: '14px'
   },
   arrowBtn: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '6px',
+    padding: '2px',
     display: 'flex',
     alignItems: 'center',
-    color: '#2c3e50',
-    transition: 'color 0.2s ease'
+    color: '#000'
   },
   periodTitle: {
-    fontSize: '28px',
-    fontWeight: 'bold',
+    fontSize: '22px',
     margin: 0,
-    minWidth: '110px',
+    minWidth: '80px',
     textAlign: 'center',
-    color: '#2c3e50',
-    letterSpacing: '1px'
+    fontFamily: "'Bebas Neue', cursive",
+    letterSpacing: '0.5px'
+  },
+  mobileToggleRow: {
+    display: 'flex',
+    border: '1px solid #e0e0e0',
+    marginBottom: '12px',
+    borderRadius: '0px' // Mantendo o padrão reto de cantos do site
+  },
+  mobileTabButton: {
+    flex: 1,
+    padding: '8px 0',
+    border: 'none',
+    background: '#f1f1f1',
+    fontFamily: "'Bebas Neue', cursive",
+    fontSize: '15px',
+    color: '#666',
+    cursor: 'pointer'
+  },
+  mobileTabButtonActive: {
+    background: '#2c3e50',
+    color: '#fff'
   },
   loading: {
     textAlign: 'center',
-    fontSize: '15px',
-    padding: '60px 0',
-    fontFamily: 'monospace',
-    color: '#7f8c8d'
+    fontSize: '14px',
+    padding: '40px 0',
+    fontFamily: "'Bebas Neue', cursive",
+    color: '#666'
   },
   tablesGrid: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '45px'
+    gap: '0px'
   },
   section: {
+    flex: 1,
     width: '100%'
   },
   sectionHeader: {
     display: 'flex',
-    fontWeight: 'bold',
-    borderBottom: '2px solid #2c3e50',
-    paddingBottom: '5px',
-    marginBottom: '6px',
-    fontSize: '17px',
-    color: '#2c3e50'
+    borderBottom: '2px solid #ddd',
+    paddingBottom: '3px',
+    marginBottom: '2px',
+    fontSize: '14px',
+    fontFamily: "'Bebas Neue', cursive",
+    color: '#000'
   },
   headerRightScrobbles: {
     marginLeft: 'auto',
-    marginRight: '22px'
+    marginRight: '5px'
   },
   headerRightSongScrobbles: {
     marginLeft: 'auto',
-    marginRight: '148px'
+    marginRight: '105px'
+  },
+  headerArtistLabel: {
+    width: '90px',
+    textAlign: 'left'
   },
   list: {
     listStyle: 'none',
     padding: 0,
     margin: 0,
-    border: '1px solid #e2e8f0',
-    borderRadius: '5px',
-    overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+    border: '1px solid #e0e0e0'
   },
   listItem: {
     display: 'flex',
     alignItems: 'center',
-    padding: '11px 16px',
-    fontSize: '15px',
-    borderBottom: '1px solid #edf2f7',
-    fontFamily: 'monospace', // Mantém o alinhamento em grid perfeito dos dados textuais
-    letterSpacing: '0px'
+    padding: '4px 6px', // Compacto igual ao tdFixedStyle do artists.jsx
+    fontSize: '13px',
+    borderBottom: '1px solid #e0e0e0',
+    fontFamily: "'Bebas Neue', cursive",
+    lineHeight: '1.2'
   },
   rank: {
-    width: '30px',
-    fontWeight: 'bold',
-    color: '#a0aec0'
+    width: '20px',
+    color: '#888'
   },
   flagWrapper: {
     display: 'flex',
     alignItems: 'center',
-    marginRight: '14px',
-    width: '20px',
+    marginRight: '8px',
+    width: '16px',
     justifyContent: 'center'
   },
   flagImage: {
-    borderRadius: '1px',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+    boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
   },
   flagPlaceholder: {
-    fontSize: '13px',
-    color: '#cbd5e0'
+    fontSize: '11px',
+    color: '#ccc'
+  },
+  songMetaWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden'
   },
   itemName: {
     textTransform: 'uppercase',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    fontWeight: '600',
-    color: '#2d3748'
+    color: '#000'
+  },
+  artistMobileSubLabel: {
+    fontSize: '10px',
+    color: '#777',
+    fontFamily: 'monospace',
+    textTransform: 'uppercase',
+    marginTop: '1px'
   },
   count: {
     marginLeft: 'auto',
-    width: '55px',
+    width: '35px',
     textAlign: 'right',
-    fontWeight: 'bold',
-    color: '#39b54a' // Valor em verde conforme o padrão Charts
+    color: '#39b54a'
   },
-  artistLabel: {
-    width: '160px',
-    marginLeft: '30px',
+  artistDesktopLabel: {
+    width: '90px',
+    marginLeft: '15px',
     textAlign: 'left',
     textTransform: 'uppercase',
-    color: '#718096',
+    color: '#555',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    fontSize: '13.5px'
+    textOverflow: 'ellipsis'
   },
   noData: {
-    fontSize: '14px',
-    color: '#718096',
-    fontStyle: 'italic',
-    padding: '20px',
+    fontSize: '13px',
+    color: '#888',
+    padding: '10px',
     margin: 0,
     textAlign: 'center',
-    backgroundColor: '#fff'
+    fontFamily: "'Bebas Neue', cursive"
   }
 };
