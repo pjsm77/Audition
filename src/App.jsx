@@ -6,8 +6,8 @@ import Tracks from './pages/tracks';
 import Countries from './pages/countries';
 import Languages from './pages/languages';
 import Trending from './pages/trending';
-import Charts from './pages/charts';       // Sua página original que agora serve como "Scrobbles"
-import Top10Charts from './pages/top10';   // Sua página específica que consome a view do Top 10
+import Charts from './pages/charts';         // Carrega os seus Scrobbles reais do banco
+import Top10Charts from './pages/top10';     // Carrega o seu Top 10 real do banco
 import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
@@ -18,7 +18,6 @@ import FloatingMenu from './components/FloatingMenu';
 export default function App() {
   return (
     <div className="app-container">
-      {/* O menu flutuante fica ativo globalmente em todas as páginas */}
       <FloatingMenu />
       
       <Routes>
@@ -29,11 +28,10 @@ export default function App() {
         <Route path="/languages" element={<Languages />} />
         <Route path="/trending" element={<Trending />} />
         
-        {/* Ajuste perfeito para os subitens de Charts se separarem sem conflito */}
+        {/* Subrotas limpas e mapeadas diretamente para as suas respectivas páginas */}
         <Route path="/charts/scrobbles" element={<Charts />} />
         <Route path="/charts/top10" element={<Top10Charts />} />
-        {/* Fallback caso você clique no título principal "/charts" ir direto para Scrobbles */}
-        <Route path="/charts" element={<Charts />} />
+        <Route path="/charts" element={<Charts />} /> {/* Fallback de segurança */}
 
         <Route path="/discover" element={<Discover />} />
         <Route path="/stats" element={<Stats />} />
