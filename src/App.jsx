@@ -6,9 +6,9 @@ import Tracks from './pages/tracks';
 import Countries from './pages/countries';
 import Languages from './pages/languages';
 import Trending from './pages/trending';
-import Charts from './pages/charts';         // Carrega os seus Scrobbles reais do banco
-import Top10Charts from './pages/top10';     // Carrega o seu Top 10 real do banco
-import Profile from './pages/profile';       // Mapeamento da nova página de Perfil
+import Charts from './pages/charts';         
+import Top10Charts from './pages/top10';     
+import Profile from './pages/profile';       // IMPORTAÇÃO DA NOVA PÁGINA
 import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
@@ -29,14 +29,12 @@ export default function App() {
         <Route path="/languages" element={<Languages />} />
         <Route path="/trending" element={<Trending />} />
         
-        {/* Rotas de Perfil (Estática para testes e Dinâmica para o banco) */}
+        {/* ROTA DO PERFIL COM DADOS ESTÁTICOS */}
         <Route path="/profile" element={<Profile />} />
-        <Route path="/artist/:id" element={<Profile />} />
 
-        {/* Subrotas limpas e mapeadas diretamente para as suas respectivas páginas */}
         <Route path="/charts/scrobbles" element={<Charts />} />
         <Route path="/charts/top10" element={<Top10Charts />} />
-        <Route path="/charts" element={<Charts />} /> {/* Fallback de segurança */}
+        <Route path="/charts" element={<Charts />} /> 
 
         <Route path="/discover" element={<Discover />} />
         <Route path="/stats" element={<Stats />} />

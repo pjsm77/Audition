@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 export default function FloatingMenu() {
   const [isOpen, setIsOpen] = useState(false);
-  const [chartsOpen, setChartsOpen] = useState(false); // Controla a sanfona de Charts
+  const [chartsOpen, setChartsOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -177,8 +177,8 @@ export default function FloatingMenu() {
       )
     },
     { 
-      to: "/profile", // DIRECIONA CORRETAMENTE PARA A PÁGINA PROFILE
-      label: "Debug",   // MANTÉM O NOME TEXTUAL COMO "DEBUG" NO SEU MENU
+      to: "/profile", 
+      label: "Profile", // Trocado de 'Debug' para 'Profile'
       color: "#722e85",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -265,81 +265,12 @@ export default function FloatingMenu() {
 }
 
 const styles = {
-  container: { 
-    position: 'fixed', 
-    bottom: '20px', 
-    left: '20px', 
-    zIndex: 9999, 
-    fontFamily: '"Bebas Neue", cursive',
-    letterSpacing: '0.8px'
-  },
-  button: { 
-    width: '50px', 
-    height: '50px', 
-    borderRadius: '50%', 
-    backgroundColor: '#2c3e50', 
-    color: 'white', 
-    border: 'none', 
-    boxShadow: '0 4px 10px rgba(0,0,0,0.3)', 
-    cursor: 'pointer', 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center'
-  },
-  options: { 
-    position: 'absolute', 
-    bottom: '60px', 
-    left: 0, 
-    width: '240px', 
-    maxHeight: '500px', 
-    overflowY: 'auto', 
-    backgroundColor: 'white', 
-    borderRadius: '8px', 
-    boxShadow: '0 4px 15px rgba(0,0,0,0.2)', 
-    flexDirection: 'column', 
-    border: '1px solid #e0e0e0',
-    padding: '4px 0'
-  },
-  item: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    padding: '10px 14px', 
-    color: '#333', 
-    textDecoration: 'none', 
-    fontSize: '18px', 
-    borderBottom: '1px solid #f5f5f5'
-  },
-  subItem: {
-    display: 'flex', 
-    alignItems: 'center', 
-    padding: '8px 14px 8px 28px', 
-    color: '#555', 
-    textDecoration: 'none', 
-    fontSize: '16px', 
-    backgroundColor: '#fafafa',
-    borderBottom: '1px solid #f5f5f5'
-  },
-  number: { 
-    marginRight: '8px', 
-    color: '#95a5a6', 
-    fontSize: '11px', 
-    width: '18px', 
-    display: 'inline-block',
-    textAlign: 'center',
-    fontFamily: 'sans-serif'
-  },
-  subNumber: {
-    marginRight: '12px', 
-    color: '#bdc3c7', 
-    fontSize: '10px', 
-    width: '22px', 
-    display: 'inline-block',
-    textAlign: 'left',
-    fontFamily: 'sans-serif'
-  },
-  iconWrapper: {
-    display: 'flex',
-    alignItems: 'center',
-    marginRight: '10px'
-  }
+  container: { position: 'fixed', bottom: '20px', left: '20px', zIndex: 9999, fontFamily: 'sans-serif' },
+  button: { width: '50px', height: '50px', borderRadius: '50%', backgroundColor: '#2c3e50', color: 'white', border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  options: { position: 'absolute', bottom: '60px', left: 0, width: '240px', maxHeight: '500px', overflowY: 'auto', backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', flexDirection: 'column', border: '1px solid #e0e0e0', padding: '4px 0' },
+  item: { display: 'flex', alignItems: 'center', padding: '10px 14px', color: '#333', textDecoration: 'none', fontSize: '16px', borderBottom: '1px solid #f5f5f5' },
+  subItem: { display: 'flex', alignItems: 'center', padding: '8px 14px 8px 28px', color: '#555', textDecoration: 'none', fontSize: '14px', backgroundColor: '#fafafa', borderBottom: '1px solid #f5f5f5' },
+  number: { marginRight: '8px', color: '#95a5a6', fontSize: '11px', width: '18px', display: 'inline-block', textAlign: 'center' },
+  subNumber: { marginRight: '12px', color: '#bdc3c7', fontSize: '10px', width: '22px', display: 'inline-block', textAlign: 'left' },
+  iconWrapper: { display: 'flex', alignItems: 'center', marginRight: '10px' }
 };
