@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Top10Charts() {
-  const [period, setPeriod] = useState('monthly'); // 'monthly', 'annually' ou 'all'
+  const [period, setPeriod] = useState('monthly'); // 'monthly' ou 'annually'
   const [currentDate, setCurrentDate] = useState(new Date()); 
   const [artists, setArtists] = useState([]);
   const [tracks, setTracks] = useState([]);
@@ -34,13 +34,13 @@ export default function Top10Charts() {
   };
 
   const formatPeriodLabel = (date) => {
-    if (period === 'all') return 'ALL TIME';
-    if (period === 'annually') return date.getFullYear().toString();
+    if (period === 'annually') {
+      return date.getFullYear().toString();
+    }
     return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }).toUpperCase();
   };
 
   const handlePrev = () => {
-    if (period === 'all') return;
     setCurrentDate(prev => period === 'monthly' 
       ? new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
       : new Date(prev.getFullYear() - 1, prev.getMonth(), 1)
@@ -48,7 +48,6 @@ export default function Top10Charts() {
   };
 
   const handleNext = () => {
-    if (period === 'all') return;
     setCurrentDate(prev => period === 'monthly' 
       ? new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
       : new Date(prev.getFullYear() + 1, prev.getMonth(), 1)
@@ -65,23 +64,13 @@ export default function Top10Charts() {
       const targetYear = currentDate.getFullYear();
       const targetMonth = currentDate.getMonth() + 1;
 
-      // Mapeamento dinâmico das views baseado na seleção
-      const viewMap = {
-        monthly: { artist: 'vw_top_artists_monthly', song: 'vw_top_songs_monthly' },
-        annually: { artist: 'vw_top_artists_annually', song: 'vw_top_songs_annually' },
-        all: { artist: 'vw_top_artists_all', song: 'vw_top_songs_all' }
-      };
-
-      const artistView = viewMap[period].artist;
-      const songView = viewMap[period].song;
+      const artistView = period === 'monthly' ? 'vw_top_artists_monthly' : 'vw_top_artists_annually';
+      const songView = period === 'monthly' ? 'vw_top_songs_monthly' : 'vw_top_songs_annually';
 
       try {
         // Query Artistas
-        let artQuery = supabase.from(artistView).select('*');
-        if (period !== 'all') {
-          artQuery = artQuery.eq('year', targetYear);
-          if (period === 'monthly') artQuery = artQuery.eq('month', targetMonth);
-        }
+        let artQuery = supabase.from(artistView).select('*').eq('year', targetYear);
+        if (period === 'monthly') artQuery = artQuery.eq('month', targetMonth);
         
         const { data: artistsData, error: errArt } = await artQuery
           .order('scrobbles', { ascending: false })
@@ -89,11 +78,8 @@ export default function Top10Charts() {
           .limit(10);
 
         // Query Músicas
-        let trackQuery = supabase.from(songView).select('*');
-        if (period !== 'all') {
-          trackQuery = trackQuery.eq('year', targetYear);
-          if (period === 'monthly') trackQuery = trackQuery.eq('month', targetMonth);
-        }
+        let trackQuery = supabase.from(songView).select('*').eq('year', targetYear);
+        if (period === 'monthly') trackQuery = trackQuery.eq('month', targetMonth);
 
         const { data: tracksData, error: errTrack } = await trackQuery
           .order('scrobbles', { ascending: false })
@@ -115,11 +101,11 @@ export default function Top10Charts() {
 
   // Função estrita de cores baseada em getNameColor de artists.jsx
   const getRatingColor = (rating) => {
-    if (!rating) return '#AAAAAA'; 
+    if (!rating) return '#AAAAAA'; // Artista sem rating é cinza #AAAAAA
     const r = Number(rating);
-    if (r === 1) return "#e97b78"; 
-    if (r === 2) return "#f8c039"; 
-    if (r === 3) return "#6dbe99"; 
+    if (r === 1) return "#e97b78"; // Coral
+    if (r === 2) return "#f8c039"; // Amarelo
+    if (r === 3) return "#6dbe99"; // Verde
     return "#AAAAAA";
   };
 
@@ -140,6 +126,7 @@ export default function Top10Charts() {
     );
   };
 
+  // Função para mapear a URL de destino do artista (Prioridade: Deezer)
   const getArtistLink = (item) => {
     if (item.deezer_id && String(item.deezer_id).trim() !== '') {
       return `https://www.deezer.com/artist/${String(item.deezer_id).trim()}`;
@@ -165,43 +152,29 @@ export default function Top10Charts() {
           >
             Annually
           </span>
-          <span 
-            onClick={() => setPeriod('all')} 
-            style={{...styles.tabLink, ...(period === 'all' ? styles.tabActive : {})}}
-          >
-            All
-          </span>
         </div>
 
         <div style={styles.navigationRight}>
-          {period !== 'all' && (
-            <button onClick={handlePrev} style={styles.arrowBtn} aria-label="Anterior">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-          )}
+          <button onClick={handlePrev} style={styles.arrowBtn} aria-label="Anterior">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
           
-          <h2 style={{...styles.periodTitle, minWidth: period === 'all' ? '70px' : '55px'}}>
-            {formatPeriodLabel(currentDate)}
-          </h2>
+          <h2 style={styles.periodTitle}>{formatPeriodLabel(currentDate)}</h2>
           
-          {period !== 'all' && (
-            <>
-              <button onClick={handleNext} style={styles.arrowBtn} aria-label="Próximo">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
+          <button onClick={handleNext} style={styles.arrowBtn} aria-label="Próximo">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="3">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
 
-              <button onClick={handleResetToCurrent} style={styles.todayBtn} title="Voltar ao período atual">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
-            </>
-          )}
+          <button onClick={handleResetToCurrent} style={styles.todayBtn} title="Voltar ao período atual">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -230,6 +203,7 @@ export default function Top10Charts() {
                     <span style={styles.rank}>{index + 1}</span>
                     <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
                     
+                    {/* Nome do Artista com link clicável */}
                     <span style={styles.itemNameWrapper}>
                       {artistUrl ? (
                         <a 
@@ -274,6 +248,7 @@ export default function Top10Charts() {
                     <span style={styles.rank}>{index + 1}</span>
                     <span style={styles.flagWrapper}>{renderFlag(item.country_code || item.cc || item.country)}</span>
                     
+                    {/* Nome da Música com link clicável */}
                     <span style={styles.itemNameWrapper}>
                       {item.song_link ? (
                         <a 
@@ -291,6 +266,7 @@ export default function Top10Charts() {
 
                     <span style={styles.count}>{item.scrobbles}</span>
                     
+                    {/* Nome do Artista Lateral com link clicável */}
                     <span style={styles.artistDesktopLabel}>
                       {artistUrl ? (
                         <a 
@@ -320,6 +296,7 @@ export default function Top10Charts() {
   );
 }
 
+// Injeção de Media Queries específicas para layout mobile condensado
 const styleInjection = (
   <style dangerouslySetInnerHTML={{__html: `
     @media (max-width: 767px) {
@@ -385,8 +362,7 @@ const styles = {
   navigationRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    minHeight: '26px' // Mantém a altura consistente com ou sem setas
+    gap: '8px'
   },
   arrowBtn: {
     background: 'none',
@@ -410,6 +386,7 @@ const styles = {
   periodTitle: {
     fontSize: '17px',
     margin: 0,
+    minWidth: '55px',
     textAlign: 'center',
     fontFamily: "'Bebas Neue', cursive",
     letterSpacing: '0.3px',
