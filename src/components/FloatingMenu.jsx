@@ -214,7 +214,7 @@ export default function FloatingMenu() {
                 {chartsOpen && item.subItems.map((sub, subIndex) => (
                   <Link
                     key={sub.to}
-                    to={sub.to}
+                    to={sub.to.startsWith('/') ? sub.to : `/${sub.to}`}
                     onClick={() => {
                       setIsOpen(false);
                       setChartsOpen(false);
@@ -233,7 +233,7 @@ export default function FloatingMenu() {
           return (
             <Link 
               key={item.to}
-              to={item.to} 
+              to={item.to.startsWith('/') ? item.to : `/${item.to}`}
               className="menu-item" 
               onClick={() => setIsOpen(false)} 
               style={styles.item}
