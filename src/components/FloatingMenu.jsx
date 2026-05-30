@@ -177,8 +177,8 @@ export default function FloatingMenu() {
       )
     },
     { 
-      to: "/profile", 
-      label: "Profile", 
+      to: "/profile", // DIRECIONA CORRETAMENTE PARA A PÁGINA PROFILE
+      label: "Debug",   // MANTÉM O NOME TEXTUAL COMO "DEBUG" NO SEU MENU
       color: "#722e85",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -214,7 +214,7 @@ export default function FloatingMenu() {
                 {chartsOpen && item.subItems.map((sub, subIndex) => (
                   <Link
                     key={sub.to}
-                    to={sub.to.startsWith('/') ? sub.to : `/${sub.to}`}
+                    to={sub.to}
                     onClick={() => {
                       setIsOpen(false);
                       setChartsOpen(false);
@@ -233,7 +233,7 @@ export default function FloatingMenu() {
           return (
             <Link 
               key={item.to}
-              to={item.to.startsWith('/') ? item.to : `/${item.to}`}
+              to={item.to}
               className="menu-item" 
               onClick={() => setIsOpen(false)} 
               style={styles.item}
