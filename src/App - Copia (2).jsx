@@ -13,7 +13,6 @@ import Stats from './pages/stats';
 import Recent from './pages/recent';
 import Links from './pages/links';
 import NewEntries from './pages/new_entries'; 
-import Profile from './pages/profile';        // Importação da sua nova página de perfil
 import FloatingMenu from './components/FloatingMenu';
 
 export default function App() {
@@ -39,10 +38,6 @@ export default function App() {
         <Route path="/recent" element={<Recent />} />
         <Route path="/links" element={<Links />} />
         <Route path="/new-entries" element={<NewEntries />} />
-        
-        {/* Rotas para a página de perfil */}
-        <Route path="/profile" element={<Profile />} /> {/* Acesso direto para testes */}
-        <Route path="/profile/:artistName" element={<Profile />} /> {/* Acesso dinâmico por artista */}
       </Routes>
     </div>
   );
