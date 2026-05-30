@@ -8,7 +8,7 @@ import Languages from './pages/languages';
 import Trending from './pages/trending';
 import Charts from './pages/charts';         // Carrega os seus Scrobbles reais do banco
 import Top10Charts from './pages/top10';     // Carrega o seu Top 10 real do banco
-import Profile from './pages/profile';       // 1. IMPORTE A NOVA PÁGINA DE PERFIL AQUI
+import Profile from './pages/profile';       // Mapeamento da nova página de Perfil
 import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
@@ -29,11 +29,9 @@ export default function App() {
         <Route path="/languages" element={<Languages />} />
         <Route path="/trending" element={<Trending />} />
         
-        {/* 2. ADICIONE A ROTA DO PERFIL AQUI */}
-        {/* Usando :id para ficar pronto para o banco de dados dinâmico */}
-        <Route path="/artist/:id" element={<Profile />} />
-        {/* Rota estática temporária de teste caso queira acessar direto apenas digitando /profile */}
+        {/* Rotas de Perfil (Estática para testes e Dinâmica para o banco) */}
         <Route path="/profile" element={<Profile />} />
+        <Route path="/artist/:id" element={<Profile />} />
 
         {/* Subrotas limpas e mapeadas diretamente para as suas respectivas páginas */}
         <Route path="/charts/scrobbles" element={<Charts />} />
