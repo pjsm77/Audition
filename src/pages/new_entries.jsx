@@ -325,9 +325,14 @@ export default function NewEntries() {
     return `${mins}:${secs}`;
   };
 
-  const googleSearchUrl = rawData.album 
+  /*const googleSearchUrl = rawData.album 
     ? `https://www.google.com/search?q=${encodeURIComponent(`${rawData.album.artist.name} band origin city country`)}`
-    : '#';
+    : '#';*/
+
+  const googleSearchUrl = rawData.album 
+   ? `https://www.google.com/search?q=${encodeURIComponent(`city and country of origin of the artist ${rawData.album.artist.name} who released the album ${rawData.album.title}`)}`
+   : '#';
+
 
   return (
     <div style={styles.body}>
