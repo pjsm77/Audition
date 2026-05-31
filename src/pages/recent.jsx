@@ -21,25 +21,34 @@ export default function Recent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // --- FUNÇÃO PARA O SINALIZADOR DE STATUS ---
-  const getStatusIndicator = (latestDate) => {
-    const now = new Date();
-    const diffMs = now - new Date(latestDate);
-    const diffHours = diffMs / (1000 * 60 * 60);
+// --- FUNÇÃO ATUALIZADA PARA FORMATO HH:MM ---
+const getStatusIndicator = (latestDate) => {
+  const now = new Date();
+  const scrobbleTime = new Date(latestDate);
+  const diffMs = now - scrobbleTime;
+  
+  // Converte milissegundos para horas e minutos
+  const totalMinutes = Math.floor(diffMs / (1000 * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  
+  // Formata HH:MM com zeros à esquerda
+  const formattedDiff = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-    let color = '#f44336'; // Vermelho (>= 2h)
-    if (diffHours < 1) color = '#4caf50'; // Verde (< 1h)
-    else if (diffHours < 2) color = '#ffeb3b'; // Amarelo (< 2h)
+  // Lógica das cores
+  let color = '#f44336'; // Vermelho (>= 2h)
+  if (totalMinutes < 60) color = '#4caf50'; // Verde (< 1h)
+  else if (totalMinutes < 120) color = '#ffeb3b'; // Amarelo (< 2h)
 
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color }}></div>
-        <span style={{ fontSize: '10px', color: '#888', fontWeight: 'normal' }}>
-          {new Date(latestDate).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-        </span>
-      </div>
-    );
-  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color }}></div>
+      <span style={{ fontSize: '10px', color: '#888', fontWeight: 'bold' }}>
+        {formattedDiff}
+      </span>
+    </div>
+  );
+};
 
   useEffect(() => {
     document.documentElement.style.overflow = 'auto';
