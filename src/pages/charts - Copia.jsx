@@ -7,8 +7,7 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 Chart.register(...registerables, ChartDataLabels);
 
 export default function MusicCharts() {
-  // Estado inicial ajustado para scrobbles
-  const [entityType, setEntityType] = useState('scrobbles');
+  const [entityType, setEntityType] = useState('track');
   const [currentLevel, setCurrentLevel] = useState('year');
   const [selectedYear, setSelectedYear] = useState(null);
   const [chartData, setChartData] = useState([]);
@@ -64,7 +63,7 @@ export default function MusicCharts() {
         datasets: [{
           label: 'Qty',
           data: chartData.map(d => d.quantidade),
-          backgroundColor: '#2c3e50',
+          backgroundColor: '#2c3e50', // Azul escuro sóbrio combinando com o tema claro
           hoverBackgroundColor: '#1a252f',
           borderRadius: 4,
           indexAxis: 'y'
@@ -113,10 +112,9 @@ export default function MusicCharts() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive", backgroundColor: '#ffffff' }}>
       
-      {/* Cabeçalho de Seleção com nova ordem */}
+      {/* Topo / Cabeçalho de Seleção no estilo das tabelas */}
       <div style={{ display: 'flex', background: '#f1f1f1', borderBottom: '2px solid #ddd', height: '45px', alignItems: 'center', padding: '0 15px', gap: '20px' }}>
         {[
-          { id: 'scrobbles', label: 'SCROBBLES' },
           { id: 'track', label: 'TRACKS' },
           { id: 'album', label: 'ALBUMS' },
           { id: 'artist', label: 'ARTISTS' }
@@ -137,6 +135,7 @@ export default function MusicCharts() {
         ))}
       </div>
 
+      {/* Espaço do Gráfico */}
       <div style={{ flex: 1, padding: '15px', position: 'relative', minHeight: 0 }}>
         {loading && (
           <div style={{ position: 'absolute', color: '#666', fontSize: '24px' }}>
@@ -146,6 +145,7 @@ export default function MusicCharts() {
         <canvas ref={canvasRef} id="drillChart"></canvas>
       </div>
 
+      {/* Rodapé Padrão da sua aplicação */}
       <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', borderTop: '1px solid #ddd', padding: '0 15px' }}>
         <button 
           onClick={() => { if (currentLevel === 'month') { setCurrentLevel('year'); setSelectedYear(null); } }} 
@@ -164,7 +164,6 @@ export default function MusicCharts() {
         </button>
         <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>
           {currentLevel === 'year' ? 'ANUAL' : `MONTHLY - ${selectedYear}`}
-          {entityType === 'scrobbles' ? ' (TOTAL)' : ''}
         </span>
       </div>
 
