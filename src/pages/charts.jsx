@@ -20,8 +20,13 @@ export default function MusicCharts() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      let start = '2014-01-01';
-      let end = '2026-12-31';
+      
+      // Define o ano corrente dinamicamente
+      const currentYear = new Date().getFullYear();
+      
+      // Define os limites iniciais baseados no ano corrente
+      let start = '2014-01-01'; 
+      let end = `${currentYear}-12-31`;
 
       if (currentLevel === 'month' && selectedYear) {
         start = `${selectedYear}-01-01`;
