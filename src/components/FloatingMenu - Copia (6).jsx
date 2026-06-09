@@ -104,8 +104,7 @@ export default function FloatingMenu() {
       ),
       subItems: [
         { to: "/charts/top10", label: "Top 10" },
-        { to: "/charts/scrobbles", label: "Scrobbles" },
-        { to: "/charts/hall-of-fame", label: "Hall of Fame" }
+        { to: "/charts/scrobbles", label: "Scrobbles" }
       ]
     },
     { 
@@ -179,7 +178,7 @@ export default function FloatingMenu() {
     },
     { 
       to: "/profile", 
-      label: "Profile", 
+      label: "Profile", // Trocado de 'Debug' para 'Profile'
       color: "#722e85",
       icon: (
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -327,7 +326,7 @@ const styles = {
     width: '18px', 
     display: 'inline-block',
     textAlign: 'center',
-    fontFamily: 'sans-serif'
+    fontFamily: 'sans-serif' // Mantém os números pequenos legíveis
   },
   subNumber: {
     marginRight: '12px', 

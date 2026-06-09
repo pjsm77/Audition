@@ -8,8 +8,7 @@ import Languages from './pages/languages';
 import Trending from './pages/trending';
 import Charts from './pages/charts';         
 import Top10Charts from './pages/top10';     
-import HallOfFame from './pages/hall_of_fame'; // IMPORTAÇÃO DA NOVA PÁGINA DO BANCO
-import Profile from './pages/profile';       
+import Profile from './pages/profile';       // IMPORTAÇÃO DA NOVA PÁGINA
 import Discover from './pages/discover';
 import Stats from './pages/stats';
 import Recent from './pages/recent';
@@ -30,12 +29,11 @@ export default function App() {
         <Route path="/languages" element={<Languages />} />
         <Route path="/trending" element={<Trending />} />
         
+        {/* ROTA DO PERFIL COM DADOS ESTÁTICOS */}
         <Route path="/profile" element={<Profile />} />
 
-        {/* ROTAS DE GRÁFICOS / CHARTS */}
         <Route path="/charts/scrobbles" element={<Charts />} />
         <Route path="/charts/top10" element={<Top10Charts />} />
-        <Route path="/charts/hall-of-fame" element={<HallOfFame />} /> {/* NOVA ROTA DO HALL OF FAME */}
         <Route path="/charts" element={<Charts />} /> 
 
         <Route path="/discover" element={<Discover />} />
