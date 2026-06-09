@@ -82,7 +82,7 @@ export default function HallOfFame() {
       <div style={styles.grid}>
         {decades.map((decade) => (
           <div key={decade} style={styles.card}>
-            {/* Header exibe apenas o número da década */}
+            {/* Header exibe apenas o número da década com faixa ultra compacta */}
             <div style={styles.cardHeader}>
               <span style={styles.cardHeaderText}>{decade}</span>
             </div>
@@ -126,7 +126,7 @@ const styles = {
     backgroundImage: 'linear-gradient(135deg, #050505 0%, #121212 100%)',
     minHeight: '100vh',
     width: '100%',
-    padding: '10px 20px 80px 20px', // Reduzido padding superior ao mínimo e adicionado espaço inferior para o menu flutuante
+    padding: '10px 20px 80px 20px', 
     fontFamily: '"Montserrat", "Arial Black", -apple-system, sans-serif',
     color: '#FFFFFF',
     boxSizing: 'border-box'
@@ -152,7 +152,7 @@ const styles = {
   },
   header: {
     textAlign: 'center',
-    marginBottom: '8px',        // Espaço mínimo absoluto do título para as caixas
+    marginBottom: '8px',        
     marginTop: '5px',
     letterSpacing: '3px',
   },
@@ -169,7 +169,7 @@ const styles = {
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', 
-    gap: '12px',                // Reduzido espaçamento entre blocos
+    gap: '12px',                
     width: '100%',
     maxWidth: '1200px',
     margin: '0 auto',
@@ -186,15 +186,17 @@ const styles = {
   cardHeader: {
     background: 'linear-gradient(90deg, #9a741e 0%, #d4af37 50%, #9a741e 100%)',
     borderRadius: '3px 3px 0 0',
-    padding: '3px 10px',        // Cabeçalho da década extremamente fino
+    padding: '1px 10px',        // Reduzido o padding vertical ao mínimo absoluto (1px)
     textAlign: 'center',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)',
+    lineHeight: '12px',         // Espessura da linha controlada rigorosamente
   },
   cardHeaderText: {
     color: '#000000',
-    fontSize: '12px',
-    fontWeight: '800',
-    letterSpacing: '2px',
+    fontSize: '10px',           // Reduzido o tamanho da fonte do ano para harmonizar com a faixa fina
+    fontWeight: '900',
+    letterSpacing: '1.5px',
+    display: 'block',
   },
   artistList: {
     padding: '1px',
@@ -205,13 +207,13 @@ const styles = {
   artistRow: {
     display: 'flex',
     alignItems: 'center',
-    padding: '1px 6px',         // Compactação máxima vertical (de 3px para 1px)
+    padding: '1px 6px',         
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
     borderRadius: '2px',
     borderBottom: '1px solid rgba(255, 255, 255, 0.01)',
   },
   flagContainer: {
-    width: '18px',              // Reduzido para encaixar no padding menor
+    width: '18px',              
     height: '12px',             
     marginRight: '8px',
     display: 'flex',
@@ -242,7 +244,7 @@ const styles = {
     whiteSpace: 'nowrap',       
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    lineHeight: '14px',         // Força consistência na altura do texto
+    lineHeight: '14px',         
   },
   emptyState: {
     textAlign: 'center',
