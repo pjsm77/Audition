@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
-// Ajuste o caminho abaixo de acordo com a estrutura do seu projeto
+// Ajuste o caminho abaixo para bater com a configuração do seu Supabase
 import { supabase } from '../supabaseClient'; 
 
-// Mapeamento para garantir que os códigos do banco batam com o flagcdn
+// Mapeamento de ISO codes do banco de dados para o flagcdn
 const countryFlagMap = {
-  'BR': 'BR',
-  'US': 'US',
-  'UY': 'UY',
-  'AU': 'AU',
-  'CA': 'CA',
-  'PL': 'PL',
-  'SE': 'SE',
-  'IE': 'IE',
-  'DE': 'DE',
-  'ES': 'ES',
-  'GB': 'GB'
+  'BR': 'br',
+  'US': 'us',
+  'UY': 'uy',
+  'AU': 'au',
+  'CA': 'ca',
+  'PL': 'pl',
+  'SE': 'se',
+  'IE': 'ie', 
+  'DE': 'de',
+  'ES': 'es',
+  'GB': 'gb'  
 };
 
 const decades = ['1980', '1990', '2000', '2010', '2020'];
@@ -29,7 +29,7 @@ export default function HallOfFame() {
       try {
         setLoading(true);
         
-        // Buscando os dados da nova tabela ordenados por artista
+        // Busca os dados na tabela trazendo os artistas em ordem alfabética
         const { data, error: supabaseError } = await supabase
           .from('tbl_hall_of_fame')
           .select('artist, country_code, decade')
@@ -37,7 +37,7 @@ export default function HallOfFame() {
 
         if (supabaseError) throw supabaseError;
 
-        // Agrupando os dados retornados pelas décadas definidas
+        // Agrupa dinamicamente os artistas por década
         const grouped = decades.reduce((acc, decade) => {
           acc[decade] = data.filter(item => item.decade === decade);
           return acc;
@@ -73,18 +73,18 @@ export default function HallOfFame() {
 
   return (
     <div style={styles.container}>
-      {/* Cabeçalho estilo Conmebol Libertadores */}
+      {/* Cabeçalho no estilo Conmebol Libertadores */}
       <header style={styles.header}>
         <div style={styles.subtitle}>- MY PERSONAL -</div>
         <h1 style={styles.title}>HALL OF FAME</h1>
         <div style={styles.tagline}>A GLÓRIA ETERNA DA MÚSICA</div>
       </header>
 
-      {/* Grid de Décadas */}
+      {/* Grid de Décadas (Simulando os Grupos do campeonato) */}
       <div style={styles.grid}>
         {decades.map((decade) => (
           <div key={decade} style={styles.card}>
-            {/* Header da Década com estilo dourado degradê */}
+            {/* Header da Década com estilo dourado metálico */}
             <div style={styles.cardHeader}>
               <span style={styles.cardHeaderText}>ANOS {decade}</span>
             </div>
