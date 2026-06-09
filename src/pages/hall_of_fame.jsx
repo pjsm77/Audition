@@ -57,7 +57,7 @@ export default function HallOfFame() {
 
   if (loading) {
     return (
-      <div style={styles.container}>
+      <div style={styles.loadingContainer}>
         <div style={styles.loadingText}>CARREGANDO A GLÓRIA ETERNA...</div>
       </div>
     );
@@ -65,7 +65,7 @@ export default function HallOfFame() {
 
   if (error) {
     return (
-      <div style={styles.container}>
+      <div style={styles.loadingContainer}>
         <div style={styles.errorText}>{error}</div>
       </div>
     );
@@ -124,44 +124,42 @@ const styles = {
   container: {
     backgroundColor: '#050505',
     backgroundImage: 'linear-gradient(135deg, #050505 0%, #121212 100%)',
-    position: 'absolute',       // Força o desacoplamento de travas do container pai se houver
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    overflowY: 'auto',          // Força a existência de scrollbar interna caso o layout pai bloqueie
-    padding: '20px 20px 40px 20px', // Reduzido padding superior
+    minHeight: '100vh',
+    width: '100%',
+    padding: '10px 20px 80px 20px', // Reduzido padding superior ao mínimo e adicionado espaço inferior para o menu flutuante
     fontFamily: '"Montserrat", "Arial Black", -apple-system, sans-serif',
     color: '#FFFFFF',
+    boxSizing: 'border-box'
+  },
+  loadingContainer: {
+    backgroundColor: '#050505',
+    minHeight: '100vh',
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
+    fontFamily: '"Montserrat", sans-serif',
   },
   loadingText: {
-    marginTop: '20vh',
     fontSize: '18px',
     letterSpacing: '3px',
     color: '#d4af37',
     fontWeight: 'bold',
   },
   errorText: {
-    marginTop: '20vh',
     fontSize: '16px',
     color: '#ff4d4d',
     letterSpacing: '1px',
   },
   header: {
     textAlign: 'center',
-    marginBottom: '10px',       // Espaço mínimo para colar o título no grid
-    marginTop: '10px',
+    marginBottom: '8px',        // Espaço mínimo absoluto do título para as caixas
+    marginTop: '5px',
     letterSpacing: '3px',
-    width: '100%',
   },
   title: {
-    fontSize: '36px',
+    fontSize: '34px',
     fontWeight: '900',
-    margin: '0',                // Zera totalmente margens externas do h1
+    margin: '0',                
     padding: '0',
     background: 'linear-gradient(180deg, #FFF 30%, #d4af37 100%)',
     WebkitBackgroundClip: 'text',
@@ -170,11 +168,11 @@ const styles = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', // Diminuído largura mínima do card para alinhar melhor
-    gap: '15px',                // Reduzido espaço entre os blocos
+    gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', 
+    gap: '12px',                // Reduzido espaçamento entre blocos
     width: '100%',
     maxWidth: '1200px',
-    padding: '0 5px',
+    margin: '0 auto',
   },
   card: {
     backgroundColor: 'rgba(15, 15, 15, 0.85)',
@@ -188,37 +186,37 @@ const styles = {
   cardHeader: {
     background: 'linear-gradient(90deg, #9a741e 0%, #d4af37 50%, #9a741e 100%)',
     borderRadius: '3px 3px 0 0',
-    padding: '4px 10px',        // Ajuste fino de padding vertical
+    padding: '3px 10px',        // Cabeçalho da década extremamente fino
     textAlign: 'center',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)',
   },
   cardHeaderText: {
     color: '#000000',
-    fontSize: '13px',
+    fontSize: '12px',
     fontWeight: '800',
     letterSpacing: '2px',
   },
   artistList: {
-    padding: '2px 1px',
+    padding: '1px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1px',                 // Espaço mínimo absoluto entre linhas
+    gap: '1px',                 
   },
   artistRow: {
     display: 'flex',
     alignItems: 'center',
-    padding: '3px 8px',         // Reduzido vertical de 5px para 3px para achatar a linha ao máximo
+    padding: '1px 6px',         // Compactação máxima vertical (de 3px para 1px)
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
     borderRadius: '2px',
     borderBottom: '1px solid rgba(255, 255, 255, 0.01)',
   },
   flagContainer: {
-    width: '20px',              // Reduzido de 24px para 20px
-    height: '14px',             // Reduzido de 16px para 14px
+    width: '18px',              // Reduzido para encaixar no padding menor
+    height: '12px',             
     marginRight: '8px',
     display: 'flex',
     alignItems: 'center',
-    justify',Content: 'center',
+    justifyContent: 'center',
     overflow: 'hidden',
     borderRadius: '1px',
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -231,25 +229,26 @@ const styles = {
   },
   flagFallback: {
     display: 'none',
-    fontSize: '8px',
+    fontSize: '7px',
     fontWeight: 'bold',
     color: '#d4af37',
   },
   artistName: {
-    fontSize: '11px',           // Reduzido de 12px para 11px
+    fontSize: '11px',           
     fontWeight: '700',
     color: '#EAEAEA',
-    letterSpacing: '0.6px',
+    letterSpacing: '0.5px',
     textTransform: 'uppercase',
-    whiteSpace: 'nowrap',       // Impede quebra de linha de nomes grandes comprometendo a altura
+    whiteSpace: 'nowrap',       
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    lineHeight: '14px',         // Força consistência na altura do texto
   },
   emptyState: {
     textAlign: 'center',
-    padding: '10px',
+    padding: '8px',
     color: '#555',
-    fontSize: '11px',
+    fontSize: '10px',
     fontStyle: 'italic',
   }
 };
