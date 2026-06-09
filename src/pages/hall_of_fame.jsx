@@ -73,26 +73,26 @@ export default function HallOfFame() {
 
   return (
     <div style={styles.container}>
-      {/* Cabeçalho limpo apenas com o título principal */}
+      {/* Cabeçalho colado nos blocos */}
       <header style={styles.header}>
         <h1 style={styles.title}>HALL OF FAME</h1>
       </header>
 
-      {/* Grid de Décadas com rolagem da página corrigida */}
+      {/* Grid de Décadas */}
       <div style={styles.grid}>
         {decades.map((decade) => (
           <div key={decade} style={styles.card}>
-            {/* Header da Década com estilo dourado metálico */}
+            {/* Header exibe apenas o número da década */}
             <div style={styles.cardHeader}>
-              <span style={styles.cardHeaderText}>ANOS {decade}</span>
+              <span style={styles.cardHeaderText}>{decade}</span>
             </div>
             
-            {/* Lista compacta de Artistas */}
+            {/* Lista ultra compacta de Artistas */}
             <div style={styles.artistList}>
               {groupedData[decade] && groupedData[decade].length > 0 ? (
                 groupedData[decade].map((item, index) => (
                   <div key={index} style={styles.artistRow}>
-                    {/* Bandeira do País compactada */}
+                    {/* Bandeira micro */}
                     <div style={styles.flagContainer}>
                       <img 
                         src={`https://flagcdn.com/w40/${(countryFlagMap[item.country_code] || item.country_code).toLowerCase()}.png`}
@@ -105,7 +105,7 @@ export default function HallOfFame() {
                       />
                       <span style={styles.flagFallback}>{item.country_code}</span>
                     </div>
-                    {/* Nome do Artista */}
+                    {/* Nome do Artista menor */}
                     <span style={styles.artistName}>{item.artist}</span>
                   </div>
                 ))
@@ -124,10 +124,13 @@ const styles = {
   container: {
     backgroundColor: '#050505',
     backgroundImage: 'linear-gradient(135deg, #050505 0%, #121212 100%)',
-    minHeight: '100vh',
-    height: 'auto',              // Garante que o container estique verticalmente com o conteúdo
-    overflowY: 'visible',        // Libera explicitamente a rolagem vertical nativa
-    padding: '40px 20px',
+    position: 'absolute',       // Força o desacoplamento de travas do container pai se houver
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflowY: 'auto',          // Força a existência de scrollbar interna caso o layout pai bloqueie
+    padding: '20px 20px 40px 20px', // Reduzido padding superior
     fontFamily: '"Montserrat", "Arial Black", -apple-system, sans-serif',
     color: '#FFFFFF',
     display: 'flex',
@@ -150,13 +153,16 @@ const styles = {
   },
   header: {
     textAlign: 'center',
-    marginBottom: '35px',       // Reduzido o espaço abaixo do título
+    marginBottom: '10px',       // Espaço mínimo para colar o título no grid
+    marginTop: '10px',
     letterSpacing: '3px',
+    width: '100%',
   },
   title: {
-    fontSize: '38px',
+    fontSize: '36px',
     fontWeight: '900',
-    margin: '0',
+    margin: '0',                // Zera totalmente margens externas do h1
+    padding: '0',
     background: 'linear-gradient(180deg, #FFF 30%, #d4af37 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
@@ -164,59 +170,59 @@ const styles = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '20px',                // Diminuído o espaçamento entre os blocos de décadas
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', // Diminuído largura mínima do card para alinhar melhor
+    gap: '15px',                // Reduzido espaço entre os blocos
     width: '100%',
     maxWidth: '1200px',
-    padding: '0 10px',
+    padding: '0 5px',
   },
   card: {
-    backgroundColor: 'rgba(15, 15, 15, 0.75)',
+    backgroundColor: 'rgba(15, 15, 15, 0.85)',
     border: '1px solid rgba(212, 175, 55, 0.15)',
     borderRadius: '4px',
-    padding: '2px',             // Reduzido o padding interno do card
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+    padding: '1px',
+    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.6)',
     backdropFilter: 'blur(5px)',
-    height: 'fit-content',      // O card se adapta ao total de linhas sem forçar estiramentos estranhos
+    height: 'fit-content',
   },
   cardHeader: {
     background: 'linear-gradient(90deg, #9a741e 0%, #d4af37 50%, #9a741e 100%)',
     borderRadius: '3px 3px 0 0',
-    padding: '6px 12px',        // Linha de cabeçalho da década ligeiramente mais fina
+    padding: '4px 10px',        // Ajuste fino de padding vertical
     textAlign: 'center',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)',
   },
   cardHeaderText: {
     color: '#000000',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '800',
     letterSpacing: '2px',
   },
   artistList: {
-    padding: '4px 2px',
+    padding: '2px 1px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '2px',                 // Menor espaço possível entre uma linha e outra
+    gap: '1px',                 // Espaço mínimo absoluto entre linhas
   },
   artistRow: {
     display: 'flex',
     alignItems: 'center',
-    padding: '5px 10px',        // Reduzido drasticamente de 10px 14px para 5px 10px (linhas muito mais compactas)
+    padding: '3px 8px',         // Reduzido vertical de 5px para 3px para achatar a linha ao máximo
     backgroundColor: 'rgba(255, 255, 255, 0.02)',
     borderRadius: '2px',
     borderBottom: '1px solid rgba(255, 255, 255, 0.01)',
   },
   flagContainer: {
-    width: '24px',              // Reduzido o tamanho horizontal da bandeira de 32px para 24px
-    height: '16px',             // Reduzido o tamanho vertical da bandeira de 22px para 16px
-    marginRight: '10px',        // Aproximou a bandeira do texto do artista
+    width: '20px',              // Reduzido de 24px para 20px
+    height: '14px',             // Reduzido de 16px para 14px
+    marginRight: '8px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    justify',Content: 'center',
     overflow: 'hidden',
     borderRadius: '1px',
     backgroundColor: 'rgba(255,255,255,0.1)',
-    border: '1px solid rgba(255,255,255,0.12)',
+    border: '1px solid rgba(255,255,255,0.1)',
   },
   flagImage: {
     width: '100%',
@@ -225,21 +231,24 @@ const styles = {
   },
   flagFallback: {
     display: 'none',
-    fontSize: '9px',
+    fontSize: '8px',
     fontWeight: 'bold',
     color: '#d4af37',
   },
   artistName: {
-    fontSize: '12px',           // Ajuste sutil na fonte para harmonizar com a linha mais baixa
+    fontSize: '11px',           // Reduzido de 12px para 11px
     fontWeight: '700',
     color: '#EAEAEA',
-    letterSpacing: '0.8px',
+    letterSpacing: '0.6px',
     textTransform: 'uppercase',
+    whiteSpace: 'nowrap',       // Impede quebra de linha de nomes grandes comprometendo a altura
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   emptyState: {
     textAlign: 'center',
-    padding: '15px',
-    color: '#666',
+    padding: '10px',
+    color: '#555',
     fontSize: '11px',
     fontStyle: 'italic',
   }
