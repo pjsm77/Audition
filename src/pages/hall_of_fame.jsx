@@ -73,14 +73,12 @@ export default function HallOfFame() {
 
   return (
     <div style={styles.container}>
-      {/* Cabeçalho no estilo Conmebol Libertadores */}
+      {/* Cabeçalho limpo apenas com o título principal */}
       <header style={styles.header}>
-        <div style={styles.subtitle}>- MY PERSONAL -</div>
         <h1 style={styles.title}>HALL OF FAME</h1>
-        <div style={styles.tagline}>A GLÓRIA ETERNA DA MÚSICA</div>
       </header>
 
-      {/* Grid de Décadas (Simulando os Grupos do campeonato) */}
+      {/* Grid de Décadas com rolagem da página corrigida */}
       <div style={styles.grid}>
         {decades.map((decade) => (
           <div key={decade} style={styles.card}>
@@ -89,12 +87,12 @@ export default function HallOfFame() {
               <span style={styles.cardHeaderText}>ANOS {decade}</span>
             </div>
             
-            {/* Lista de Artistas vindos do Supabase */}
+            {/* Lista compacta de Artistas */}
             <div style={styles.artistList}>
               {groupedData[decade] && groupedData[decade].length > 0 ? (
                 groupedData[decade].map((item, index) => (
                   <div key={index} style={styles.artistRow}>
-                    {/* Bandeira do País */}
+                    {/* Bandeira do País compactada */}
                     <div style={styles.flagContainer}>
                       <img 
                         src={`https://flagcdn.com/w40/${(countryFlagMap[item.country_code] || item.country_code).toLowerCase()}.png`}
@@ -127,6 +125,8 @@ const styles = {
     backgroundColor: '#050505',
     backgroundImage: 'linear-gradient(135deg, #050505 0%, #121212 100%)',
     minHeight: '100vh',
+    height: 'auto',              // Garante que o container estique verticalmente com o conteúdo
+    overflowY: 'visible',        // Libera explicitamente a rolagem vertical nativa
     padding: '40px 20px',
     fontFamily: '"Montserrat", "Arial Black", -apple-system, sans-serif',
     color: '#FFFFFF',
@@ -150,36 +150,22 @@ const styles = {
   },
   header: {
     textAlign: 'center',
-    marginBottom: '50px',
+    marginBottom: '35px',       // Reduzido o espaço abaixo do título
     letterSpacing: '3px',
   },
-  subtitle: {
-    color: '#d4af37',
-    fontSize: '14px',
-    fontWeight: '600',
-    opacity: 0.8,
-  },
   title: {
-    fontSize: '36px',
+    fontSize: '38px',
     fontWeight: '900',
-    margin: '5px 0',
+    margin: '0',
     background: 'linear-gradient(180deg, #FFF 30%, #d4af37 100%)',
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
     textShadow: '0px 4px 10px rgba(0, 0, 0, 0.7)',
   },
-  tagline: {
-    color: '#d4af37',
-    fontSize: '12px',
-    fontWeight: '700',
-    letterSpacing: '5px',
-    marginTop: '5px',
-    opacity: 0.9,
-  },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '30px',
+    gap: '20px',                // Diminuído o espaçamento entre os blocos de décadas
     width: '100%',
     maxWidth: '1200px',
     padding: '0 10px',
@@ -188,48 +174,49 @@ const styles = {
     backgroundColor: 'rgba(15, 15, 15, 0.75)',
     border: '1px solid rgba(212, 175, 55, 0.15)',
     borderRadius: '4px',
-    padding: '4px',
+    padding: '2px',             // Reduzido o padding interno do card
     boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
     backdropFilter: 'blur(5px)',
+    height: 'fit-content',      // O card se adapta ao total de linhas sem forçar estiramentos estranhos
   },
   cardHeader: {
     background: 'linear-gradient(90deg, #9a741e 0%, #d4af37 50%, #9a741e 100%)',
     borderRadius: '3px 3px 0 0',
-    padding: '8px 15px',
+    padding: '6px 12px',        // Linha de cabeçalho da década ligeiramente mais fina
     textAlign: 'center',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2)',
   },
   cardHeaderText: {
     color: '#000000',
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: '800',
     letterSpacing: '2px',
   },
   artistList: {
-    padding: '8px 4px',
+    padding: '4px 2px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '2px',                 // Menor espaço possível entre uma linha e outra
   },
   artistRow: {
     display: 'flex',
     alignItems: 'center',
-    padding: '10px 14px',
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: '5px 10px',        // Reduzido drasticamente de 10px 14px para 5px 10px (linhas muito mais compactas)
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
     borderRadius: '2px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.02)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.01)',
   },
   flagContainer: {
-    width: '32px',
-    height: '22px',
-    marginRight: '16px',
+    width: '24px',              // Reduzido o tamanho horizontal da bandeira de 32px para 24px
+    height: '16px',             // Reduzido o tamanho vertical da bandeira de 22px para 16px
+    marginRight: '10px',        // Aproximou a bandeira do texto do artista
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    borderRadius: '2px',
+    borderRadius: '1px',
     backgroundColor: 'rgba(255,255,255,0.1)',
-    border: '1px solid rgba(255,255,255,0.15)',
+    border: '1px solid rgba(255,255,255,0.12)',
   },
   flagImage: {
     width: '100%',
@@ -238,22 +225,22 @@ const styles = {
   },
   flagFallback: {
     display: 'none',
-    fontSize: '10px',
+    fontSize: '9px',
     fontWeight: 'bold',
     color: '#d4af37',
   },
   artistName: {
-    fontSize: '13px',
+    fontSize: '12px',           // Ajuste sutil na fonte para harmonizar com a linha mais baixa
     fontWeight: '700',
     color: '#EAEAEA',
-    letterSpacing: '1px',
+    letterSpacing: '0.8px',
     textTransform: 'uppercase',
   },
   emptyState: {
     textAlign: 'center',
-    padding: '20px',
+    padding: '15px',
     color: '#666',
-    fontSize: '12px',
+    fontSize: '11px',
     fontStyle: 'italic',
   }
 };
