@@ -19,7 +19,7 @@ export default function NewEntries() {
   const [selectedCountryId, setSelectedCountryId] = useState('');
   const [selectedCityId, setSelectedCityId] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState('portugues');
-  const [artistRatingNew, setArtistRatingNew] = useState(''); // Nova classificação (A, B, C, D)
+  const [artistRating, setArtistRating] = useState('1');
   const [albumYear, setAlbumYear] = useState('');
   const [listeningDate, setListeningDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -28,22 +28,15 @@ export default function NewEntries() {
   // Notas das faixas: objeto mapeando { [deezer_id_track]: rating_value }
   const [trackRatings, setTrackRatings] = useState({});
 
-  // Lista de países e idiomas prioritários
+  // Lista de países e idiomas prioritários (conforme suas regras originais)
   const priorityCountries = ['Estados Unidos', 'Inglaterra', 'Austrália', 'Brasil', 'Alemanha', 'Argentina', 'Espanha', 'França', 'Suécia', 'Noruega'];
   const priorityLangs = ['english', 'spanish', 'portuguese', 'french', 'italian', 'german', 'swedish', 'polish', 'finnish', 'norwegian', 'dutch'];
-
-  // Função auxiliar para calcular o rating numérico baseado na letra (A/B/C/D)
-  const getNumericRating = (letter) => {
-    if (letter === 'A') return 3;
-    if (letter === 'B' || letter === 'C') return 2;
-    if (letter === 'D') return 1;
-    return 1; // Default de segurança
-  };
 
   // Carrega Países e Idiomas ao montar o componente
   useEffect(() => {
     async function loadInitialData() {
       try {
+        // Garantia de segurança: checar se o cliente foi instanciado
         if (!supabase) {
           console.error("Erro crítico: O cliente Supabase não pôde ser importado corretamente.");
           return;
@@ -122,6 +115,7 @@ export default function NewEntries() {
         throw new Error("Álbum não encontrado na API do Deezer.");
       }
 
+      // Tratamento básico de propriedades extraídas
       deezerData.deezer_id_cover = deezerData.cover_xl ? deezerData.cover_xl.split('/cover/')[1]?.split('/')[0] : null;
       deezerData.release_year = deezerData.release_date ? deezerData.release_date.split('-')[0] : null;
 
@@ -141,7 +135,7 @@ export default function NewEntries() {
       setListeningDate(new Date().toISOString().split('T')[0]);
       setShowPanels(true);
 
-      // Busca o artista no Supabase
+      // Busca o artista no Supabase usando a referência segura importada
       const deezerIdArt = String(deezerData.artist.id);
       const { data: artData, error: artError } = await supabase
         .from('tbl_artists')
@@ -155,9 +149,10 @@ export default function NewEntries() {
         const art = artData[0];
         
         setSelectedLanguage(art.language || "portugues");
-        setArtistRatingNew(art.rating_new || ''); // Recupera o rating_new do banco
+        setArtistRating(art.rating || "1");
 
         // Tenta remapear o país e carregar as cidades dele
+        // Força busca usando a lista local ou diretamente do banco caso a montagem demore
         let targetCountryId = art.id_country;
         const foundCountry = countries.find(c => c.id_country === targetCountryId);
         
@@ -166,6 +161,7 @@ export default function NewEntries() {
           setSelectedCountryId(foundCountry.id_country);
           await loadCities(foundCountry.id_country, art.id_city);
         } else if (targetCountryId) {
+          // Fallback caso a lista global ainda esteja indexando
           const { data: cData } = await supabase.from('tbl_countries').select('*').eq('id_country', targetCountryId);
           if (cData && cData.length > 0) {
             setCountrySearch(cData[0].portuguese_name);
@@ -178,7 +174,6 @@ export default function NewEntries() {
         setCountrySearch('');
         setSelectedCountryId('');
         setSelectedCityId('');
-        setArtistRatingNew('');
         setCities([]);
       }
 
@@ -227,23 +222,17 @@ export default function NewEntries() {
       return;
     }
 
-    if (!artistRatingNew) {
-      alert("Selecione a nova classificação (Rating) do artista!");
-      return;
-    }
-
     setLoading(true);
     setStatus({ text: "⏳ GRAVANDO...", type: "new" });
 
     try {
-      // Executa a RPC passando os parâmetros originais de rating e o novo de transição
+      // Executa a RPC passando os parâmetros tipados corretamente
       const { data: artResult, error: rpcError } = await supabase.rpc('get_or_create_artist', {
         p_deezer_id: String(rawData.album.artist.id),
         p_name: rawData.album.artist.name,
         p_id_city: parseInt(selectedCityId),
         p_language: selectedLanguage,
-        p_rating: getNumericRating(artistRatingNew), // Envia a nota legada baseada no rating_new
-        p_rating_new: artistRatingNew,             // Envia a nova classificação A, B, C, D
+        p_rating: parseInt(artistRating),
         p_deezer_photo: rawData.album.artist.picture_xl
       });
 
@@ -326,7 +315,6 @@ export default function NewEntries() {
     setCountrySearch('');
     setSelectedCountryId('');
     setSelectedCityId('');
-    setArtistRatingNew('');
     setCities([]);
     setTrackRatings({});
   };
@@ -337,9 +325,14 @@ export default function NewEntries() {
     return `${mins}:${secs}`;
   };
 
+  /*const googleSearchUrl = rawData.album 
+    ? `https://www.google.com/search?q=${encodeURIComponent(`${rawData.album.artist.name} band origin city country`)}`
+    : '#';*/
+
   const googleSearchUrl = rawData.album 
    ? `https://www.google.com/search?q=${encodeURIComponent(`city and country of origin of the artist ${rawData.album.artist.name} who released the album ${rawData.album.title}`)}`
    : '#';
+
 
   return (
     <div style={styles.body}>
@@ -435,14 +428,12 @@ export default function NewEntries() {
                   <label style={styles.label}>Rating Artista</label>
                   <select 
                     style={styles.select} 
-                    value={artistRatingNew}
-                    onChange={(e) => setArtistRatingNew(e.target.value)}
+                    value={artistRating}
+                    onChange={(e) => setArtistRating(e.target.value)}
                   >
-                    <option value="">Selecione...</option>
-                    <option value="A">A (⭐⭐⭐)</option>
-                    <option value="B">B (⭐⭐)</option>
-                    <option value="C">C (⭐⭐)</option>
-                    <option value="D">D (⭐)</option>
+                    <option value="1">⭐ (1)</option>
+                    <option value="2">⭐⭐ (2)</option>
+                    <option value="3">⭐⭐⭐ (3)</option>
                   </select>
                 </div>
               </div>
@@ -532,14 +523,17 @@ const styles = {
       fontFamily: '-apple-system, system-ui, sans-serif',
       backgroundColor: '#0f172a',
       color: '#f8fafc',
-      padding: '20px 10px 80px 10px',
+      padding: '20px 10px 80px 10px', // Espaço extra no final para o menu flutuante não cobrir o botão
+      
+      // --- FORÇA SCROLL COMPATÍVEL COM O APP-CONTAINER ---
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
       overflowY: 'auto', 
-      WebkitOverflowScrolling: 'touch',
+      WebkitOverflowScrolling: 'touch', // Scroll suave no iOS
+      
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'flex-start',
