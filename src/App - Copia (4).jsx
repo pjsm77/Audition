@@ -8,8 +8,7 @@ import Languages from './pages/languages';
 import Trending from './pages/trending';
 import Charts from './pages/charts';         
 import Top10Charts from './pages/top10';     
-import HallOfFame from './pages/hall_of_fame'; 
-import DeezerFavorites from './pages/deezer_favorites'; // IMPORTAÇÃO DA PÁGINA DE FAVORITOS
+import HallOfFame from './pages/hall_of_fame'; // IMPORTAÇÃO DA NOVA PÁGINA DO BANCO
 import Profile from './pages/profile';       
 import Discover from './pages/discover';
 import Stats from './pages/stats';
@@ -36,8 +35,7 @@ export default function App() {
         {/* ROTAS DE GRÁFICOS / CHARTS */}
         <Route path="/charts/scrobbles" element={<Charts />} />
         <Route path="/charts/top10" element={<Top10Charts />} />
-        <Route path="/charts/hall-of-fame" element={<HallOfFame />} />
-        <Route path="/charts/favorites" element={<DeezerFavorites />} /> {/* NOVA ROTA DE FAVORITOS */}
+        <Route path="/charts/hall-of-fame" element={<HallOfFame />} /> {/* NOVA ROTA DO HALL OF FAME */}
         <Route path="/charts" element={<Charts />} /> 
 
         <Route path="/discover" element={<Discover />} />

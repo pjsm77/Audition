@@ -105,8 +105,7 @@ export default function FloatingMenu() {
       subItems: [
         { to: "/charts/top10", label: "Top 10" },
         { to: "/charts/scrobbles", label: "Scrobbles" },
-        { to: "/charts/hall-of-fame", label: "Hall of Fame" },
-        { to: "/charts/favorites", label: "Favorites" }
+        { to: "/charts/hall-of-fame", label: "Hall of Fame" }
       ]
     },
     { 
