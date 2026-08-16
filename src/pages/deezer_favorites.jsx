@@ -29,7 +29,7 @@ export default function DeezerFavorites() {
 
     setLoading(true);
     const { data, error } = await supabase
-      .from('deezer_favorites')
+      .from('tbl_deezer_favorites')
       .select('*')
       .order('artist_name', { ascending: true });
 
