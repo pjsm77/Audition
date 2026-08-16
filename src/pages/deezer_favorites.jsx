@@ -1,14 +1,6 @@
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-// Tenta obter de projetos Vite (VITE_) ou Create React App (REACT_APP_)
-const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
-
-// Inicialização segura para não quebrar a aplicação caso as variáveis faltem
-const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY) 
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
-  : null;
+// Importa o cliente centralizado do seu projeto
+import { supabase } from '../supabaseClient';
 
 export default function DeezerFavorites() {
   const [tracks, setTracks] = useState([]);
@@ -21,24 +13,17 @@ export default function DeezerFavorites() {
   }, []);
 
   async function fetchFavorites() {
-    if (!supabase) {
-      console.error("Supabase não foi configurado.");
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
 
-    // Garante que aponta para a tabela renomeada
-    // Utiliza range para contornar a trava padrão de 1000 itens se necessário
+    // Consulta os 1600 registros usando o cliente Supabase já configurado
     const { data, error } = await supabase
       .from('tbl_deezer_favorites')
       .select('*')
       .order('artist_name', { ascending: true })
-      .range(0, 1999); 
+      .range(0, 1999);
 
     if (error) {
-      console.error('Erro ao buscar dados do Supabase:', error);
+      console.error('Erro ao buscar favoritos no Supabase:', error);
     } else {
       setTracks(data || []);
     }
