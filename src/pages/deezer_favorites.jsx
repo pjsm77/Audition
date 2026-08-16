@@ -22,16 +22,20 @@ export default function DeezerFavorites() {
 
   async function fetchFavorites() {
     if (!supabase) {
-      console.error("Supabase não foi configurado. Verifique as variáveis de ambiente.");
+      console.error("Supabase não foi configurado.");
       setLoading(false);
       return;
     }
 
     setLoading(true);
+
+    // Garante que aponta para a tabela renomeada
+    // Utiliza range para contornar a trava padrão de 1000 itens se necessário
     const { data, error } = await supabase
       .from('tbl_deezer_favorites')
       .select('*')
-      .order('artist_name', { ascending: true });
+      .order('artist_name', { ascending: true })
+      .range(0, 1999); 
 
     if (error) {
       console.error('Erro ao buscar dados do Supabase:', error);
