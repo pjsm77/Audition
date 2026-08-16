@@ -1,11 +1,14 @@
-// src/pages/deezer_favorites.jsx
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
+// Tenta obter de projetos Vite (VITE_) ou Create React App (REACT_APP_)
 const SUPABASE_URL = import.meta.env?.VITE_SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Inicialização segura para não quebrar a aplicação caso as variáveis faltem
+const supabase = (SUPABASE_URL && SUPABASE_ANON_KEY) 
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+  : null;
 
 export default function DeezerFavorites() {
   const [tracks, setTracks] = useState([]);
@@ -18,6 +21,12 @@ export default function DeezerFavorites() {
   }, []);
 
   async function fetchFavorites() {
+    if (!supabase) {
+      console.error("Supabase não foi configurado. Verifique as variáveis de ambiente.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await supabase
       .from('deezer_favorites')
@@ -31,6 +40,7 @@ export default function DeezerFavorites() {
     }
     setLoading(false);
   }
+
 
   const toggleDetails = (id) => {
     setExpandedTrackId(expandedTrackId === id ? null : id);
