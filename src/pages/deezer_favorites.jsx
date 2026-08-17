@@ -18,7 +18,7 @@ export default function DeezerFavorites() {
   const limit = 50;
 
   // COLOQUE O ID NUMÉRICO DA SUA PLAYLIST '!! Favoritas mais atrasadas' AQUI
-  const PLAYLIST_ID_FIXA = "SEU_ID_DA_PLAYLIST_AQUI"; 
+  const PLAYLIST_ID_FIXA = "15652964743"; 
 
   useEffect(() => {
     fetchFavorites();
