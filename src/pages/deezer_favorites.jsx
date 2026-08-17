@@ -1,15 +1,17 @@
 // src/pages/deezer_favorites.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function DeezerFavorites() {
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [expandedTrackId, setExpandedTrackId] = useState(null);
 
-  // Estados de Ordenação
+  const searchInputRef = useRef(null);
+
+  // Ordenação
   const [sortCol, setSortCol] = useState('artist_name');
   const [sortAsc, setSortAsc] = useState(true);
 
@@ -18,6 +20,13 @@ export default function DeezerFavorites() {
   useEffect(() => {
     fetchFavorites();
   }, []);
+
+  // Foco automático ao abrir a busca
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearch]);
 
   async function fetchFavorites() {
     setLoading(true);
@@ -35,7 +44,6 @@ export default function DeezerFavorites() {
     setLoading(false);
   }
 
-  // Função auxiliar para calcular os dias desde a adição
   const calculateDaysAgo = (timeAdd) => {
     if (!timeAdd) return 999999;
     const addedDate = new Date(timeAdd);
@@ -49,16 +57,16 @@ export default function DeezerFavorites() {
       setSortAsc(!sortAsc);
     } else {
       setSortCol(col);
-      setSortAsc(col === 'days' ? false : true); // 'days' padrão desc, texto padrão asc
+      setSortAsc(col === 'days' ? false : true);
     }
     setOffset(0);
   };
 
-  const toggleDetails = (id) => {
-    setExpandedTrackId(expandedTrackId === id ? null : id);
+  const clearSearch = () => {
+    setSearchTerm('');
+    setOffset(0);
   };
 
-  // Filtro
   const filteredTracks = tracks.filter((item) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -68,7 +76,6 @@ export default function DeezerFavorites() {
     );
   });
 
-  // Ordenação
   const sortedTracks = [...filteredTracks].sort((a, b) => {
     if (sortCol === 'days') {
       const daysA = calculateDaysAgo(a.time_add);
@@ -81,135 +88,130 @@ export default function DeezerFavorites() {
     return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
   });
 
-  // Paginação
   const pagedTracks = sortedTracks.slice(offset, offset + limit);
   const totalPages = Math.ceil(sortedTracks.length / limit) || 1;
 
   if (loading) {
-    return <div style={styles.loading}>Loading favorites...</div>;
+    return <div style={styles.loading}>Loading...</div>;
   }
 
   return (
     <div style={styles.pageContainer}>
-      <div style={styles.contentWrapper}>
-        <h1 style={styles.title}>Deezer Favorites</h1>
+      {/* TABELA CONTAINER */}
+      <div style={styles.tableWrapper}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('artist_name')} style={styles.thArtist}>
+                ARTIST {sortCol === 'artist_name' ? (sortAsc ? '▲' : '▼') : ''}
+              </th>
+              <th onClick={() => handleSort('title')} style={styles.thTrack}>
+                TRACK {sortCol === 'title' ? (sortAsc ? '▲' : '▼') : ''}
+              </th>
+              <th onClick={() => handleSort('days')} style={styles.thDays}>
+                DAYS {sortCol === 'days' ? (sortAsc ? '▲' : '▼') : ''}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {pagedTracks.map((item, index) => {
+              const daysAgo = calculateDaysAgo(item.time_add);
+              const artistUrl = item.artist_id
+                ? `https://www.deezer.com/artist/${item.artist_id}`
+                : `https://www.deezer.com/search/${encodeURIComponent(item.artist_name)}`;
+              const trackUrl = item.link || `https://www.deezer.com/track/${item.id}`;
 
-        <input
-          type="text"
-          placeholder="Search by artist or track..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setOffset(0);
-          }}
-          style={styles.searchInput}
-        />
+              return (
+                <tr
+                  key={item.id}
+                  style={{
+                    ...styles.tr,
+                    backgroundColor: index % 2 === 0 ? '#18181b' : '#121214',
+                  }}
+                >
+                  <td style={styles.tdArtist}>
+                    <div style={styles.cellFlex}>
+                      {item.artist_picture && (
+                        <img src={item.artist_picture} alt="" style={styles.artistAvatar} />
+                      )}
+                      <a
+                        href={artistUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.artistLink}
+                        title="Abrir no Deezer"
+                      >
+                        {item.artist_name}
+                      </a>
+                    </div>
+                  </td>
 
-        <div style={styles.tableWrapper}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th onClick={() => handleSort('artist_name')} style={styles.th}>
-                  ARTIST {sortCol === 'artist_name' ? (sortAsc ? '▲' : '▼') : '⇅'}
-                </th>
-                <th onClick={() => handleSort('title')} style={styles.th}>
-                  TRACK {sortCol === 'title' ? (sortAsc ? '▲' : '▼') : '⇅'}
-                </th>
-                <th onClick={() => handleSort('days')} style={{ ...styles.th, textAlign: 'center', width: '70px' }}>
-                  DAYS {sortCol === 'days' ? (sortAsc ? '▲' : '▼') : '⇅'}
-                </th>
-                <th style={{ ...styles.th, textAlign: 'right', width: '180px' }}>PREVIEW / DETAILS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedTracks.map((item) => {
-                const isExpanded = expandedTrackId === item.id;
-                const daysAgo = calculateDaysAgo(item.time_add);
-                const artistUrl = item.artist_id 
-                  ? `https://www.deezer.com/artist/${item.artist_id}` 
-                  : `https://www.deezer.com/search/${encodeURIComponent(item.artist_name)}`;
-                const trackUrl = item.link || `https://www.deezer.com/track/${item.id}`;
-
-                return (
-                  <tr key={item.id} style={styles.tr}>
-                    <td style={styles.tdArtist}>
-                      <div style={styles.cellFlex}>
-                        {item.artist_picture && (
-                          <img src={item.artist_picture} alt="" style={styles.artistAvatar} />
-                        )}
+                  <td style={styles.tdTrack}>
+                    <div style={styles.cellFlex}>
+                      {item.album_cover && (
+                        <img src={item.album_cover} alt="" style={styles.albumCover} />
+                      )}
+                      <div style={{ overflow: 'hidden' }}>
                         <a
-                          href={artistUrl}
+                          href={trackUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          style={styles.artistLink}
-                          title="Abrir artista no Deezer"
+                          style={styles.trackLink}
+                          title="Ouvir no Deezer"
                         >
-                          {item.artist_name}
+                          {item.title}
                         </a>
-                      </div>
-                    </td>
-
-                    <td style={styles.tdTrack}>
-                      <div style={styles.cellFlex}>
-                        {item.album_cover && (
-                          <img src={item.album_cover} alt="" style={styles.albumCover} />
+                        {item.album_title && (
+                          <div style={styles.albumTitle}>{item.album_title}</div>
                         )}
-                        <div>
-                          <a
-                            href={trackUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={styles.trackLink}
-                            title="Ouvir no Deezer"
-                          >
-                            {item.title}
-                          </a>
-                          {item.album_title && (
-                            <div style={styles.albumTitle}>{item.album_title}</div>
-                          )}
-                        </div>
                       </div>
-                    </td>
+                    </div>
+                  </td>
 
-                    <td style={styles.tdDays}>
-                      {daysAgo === 999999 ? '-' : daysAgo}
-                    </td>
-
-                    <td style={styles.tdActions}>
-                      <div style={styles.actionCell}>
-                        {item.preview && (
-                          <audio controls src={item.preview} style={styles.audioPlayer}>
-                            Your browser does not support audio.
-                          </audio>
-                        )}
-                        <button onClick={() => toggleDetails(item.id)} style={styles.detailsBtn}>
-                          {isExpanded ? 'Hide Raw' : 'Raw Data'}
-                        </button>
-                      </div>
-
-                      {isExpanded && (
-                        <pre style={styles.rawData}>
-                          {JSON.stringify(item.raw_data || item, null, 2)}
-                        </pre>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {pagedTracks.length === 0 && (
-                <tr>
-                  <td colSpan="4" style={styles.empty}>
-                    NO FAVORITES FOUND.
+                  <td style={styles.tdDays}>
+                    {daysAgo === 999999 ? '-' : daysAgo}
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+
+            {pagedTracks.length === 0 && (
+              <tr>
+                <td colSpan="3" style={styles.empty}>
+                  NO FAVORITES FOUND.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* RODAPÉ DO PAGINADOR (Padrão 50 por página) */}
+      {/* OVERLAY DE BUSCA */}
+      {showSearch && (
+        <div style={styles.searchOverlay}>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchTerm}
+            onChange={(e) => {
+              setOffset(0);
+              setSearchTerm(e.target.value);
+            }}
+            placeholder="BUSCAR ARTISTA OU MÚSICA..."
+            style={styles.searchInputOverlay}
+          />
+          {searchTerm && (
+            <button onClick={clearSearch} style={styles.btnClearSearch}>
+              ✕
+            </button>
+          )}
+          <button onClick={() => setShowSearch(false)} style={styles.btnOkSearch}>
+            OK
+          </button>
+        </div>
+      )}
+
+      {/* RODAPÉ DO PAGINADOR */}
       <div style={styles.footer}>
         <button
           style={styles.btnFooter}
@@ -239,6 +241,16 @@ export default function DeezerFavorites() {
           »
         </button>
 
+        <button style={styles.btnFooter} onClick={() => setShowSearch(!showSearch)}>
+          🔍
+        </button>
+
+        {searchTerm && (
+          <button style={{ ...styles.btnFooter, color: '#e97b78' }} onClick={clearSearch}>
+            ✕
+          </button>
+        )}
+
         <span style={styles.footerTotal}>{sortedTracks.length} TRACKS</span>
       </div>
     </div>
@@ -247,167 +259,188 @@ export default function DeezerFavorites() {
 
 const styles = {
   pageContainer: {
+    height: '100vh',
     display: 'flex',
     flexDirection: 'column',
-    height: '100vh',
     fontFamily: "'Bebas Neue', cursive",
     backgroundColor: '#121214',
     color: '#e1e1e6',
-  },
-  contentWrapper: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '1.5rem',
-    maxWidth: '1200px',
-    width: '100%',
-    margin: '0 auto',
-    boxSizing: 'border-box',
-  },
-  title: {
-    fontSize: '2rem',
-    marginBottom: '1rem',
-    textAlign: 'center',
-    color: '#fff',
-    letterSpacing: '1px',
-  },
-  searchInput: {
-    width: '100%',
-    padding: '0.8rem 1rem',
-    borderRadius: '8px',
-    border: '1px solid #323238',
-    backgroundColor: '#202024',
-    color: '#fff',
-    fontSize: '1rem',
-    marginBottom: '1rem',
-    boxSizing: 'border-box',
-    outline: 'none',
-    fontFamily: "'Roboto', sans-serif",
+    margin: 0,
+    padding: 0,
+    overflow: 'hidden',
   },
   loading: {
     padding: '20px',
     color: '#666',
-    fontSize: '24px',
+    fontSize: '20px',
     fontFamily: "'Bebas Neue', cursive",
     textAlign: 'center',
   },
   tableWrapper: {
-    width: '100%',
+    flex: 1,
+    overflowY: 'auto',
     overflowX: 'auto',
-    backgroundColor: '#202024',
-    borderRadius: '8px',
-    border: '1px solid #323238',
+    width: '100%',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    textAlign: 'left',
+    fontSize: '12px',
   },
-  th: {
-    padding: '12px 14px',
+  thArtist: {
+    background: '#18181b',
+    position: 'sticky',
+    top: 0,
+    zIndex: 900,
+    padding: '4px 6px',
     borderBottom: '2px solid #323238',
+    textAlign: 'left',
     color: '#39b54a',
-    fontSize: '1rem',
-    letterSpacing: '0.5px',
+    fontSize: '13px',
     cursor: 'pointer',
-    userSelect: 'none',
-    backgroundColor: '#18181b',
+    width: '40%',
+  },
+  thTrack: {
+    background: '#18181b',
+    position: 'sticky',
+    top: 0,
+    zIndex: 900,
+    padding: '4px 6px',
+    borderBottom: '2px solid #323238',
+    textAlign: 'left',
+    color: '#39b54a',
+    fontSize: '13px',
+    cursor: 'pointer',
+    width: '45%',
+  },
+  thDays: {
+    background: '#18181b',
+    position: 'sticky',
+    top: 0,
+    zIndex: 900,
+    padding: '4px 6px',
+    borderBottom: '2px solid #323238',
+    textAlign: 'center',
+    color: '#39b54a',
+    fontSize: '13px',
+    cursor: 'pointer',
+    width: '15%',
   },
   tr: {
-    borderBottom: '1px solid #29292e',
+    borderBottom: '1px solid #27272a',
   },
   tdArtist: {
-    padding: '10px 14px',
+    padding: '3px 4px',
     verticalAlign: 'middle',
-    width: '28%',
   },
   tdTrack: {
-    padding: '10px 14px',
+    padding: '3px 4px',
     verticalAlign: 'middle',
-    width: '38%',
   },
   tdDays: {
-    padding: '10px 14px',
+    padding: '3px 4px',
     verticalAlign: 'middle',
     textAlign: 'center',
-    fontSize: '1rem',
+    fontSize: '12px',
     fontWeight: 'bold',
     color: '#a8a8b3',
-  },
-  tdActions: {
-    padding: '10px 14px',
-    verticalAlign: 'middle',
   },
   cellFlex: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '6px',
   },
   artistAvatar: {
-    width: '36px',
-    height: '36px',
+    width: '24px',
+    height: '24px',
     borderRadius: '50%',
     objectFit: 'cover',
+    flexShrink: 0,
   },
   albumCover: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '4px',
+    width: '24px',
+    height: '24px',
+    borderRadius: '3px',
     objectFit: 'cover',
+    flexShrink: 0,
   },
   artistLink: {
     color: '#fff',
     textDecoration: 'none',
-    fontSize: '1.1rem',
-    fontWeight: 'bold',
+    fontSize: '13px',
+    lineHeight: '1.1',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   trackLink: {
     color: '#fff',
     textDecoration: 'none',
-    fontSize: '1.05rem',
+    fontSize: '13px',
+    lineHeight: '1.1',
+    display: 'block',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   albumTitle: {
-    color: '#8d8d99',
-    fontSize: '0.85rem',
+    color: '#71717a',
+    fontSize: '9px',
     fontFamily: "'Roboto', sans-serif",
-  },
-  actionCell: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: '6px',
-  },
-  audioPlayer: {
-    height: '26px',
-    width: '180px',
-  },
-  detailsBtn: {
-    background: 'transparent',
-    border: '1px solid #39b54a',
-    color: '#39b54a',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '0.75rem',
-    fontFamily: "'Bebas Neue', cursive",
-  },
-  rawData: {
-    backgroundColor: '#121214',
-    padding: '8px',
-    marginTop: '8px',
-    borderRadius: '4px',
-    fontFamily: 'monospace',
-    fontSize: '0.75rem',
-    color: '#39b54a',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-all',
-    maxHeight: '200px',
-    overflowY: 'auto',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   empty: {
     textAlign: 'center',
     padding: '2rem',
     color: '#a8a8b3',
-    fontSize: '1.2rem',
+    fontSize: '14px',
+  },
+  searchOverlay: {
+    position: 'fixed',
+    bottom: '45px',
+    left: 0,
+    width: '100%',
+    backgroundColor: '#18181b',
+    padding: '6px 10px',
+    boxShadow: '0 -3px 10px rgba(0,0,0,0.5)',
+    zIndex: 999,
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+    boxSizing: 'border-box',
+    borderTop: '1px solid #323238',
+  },
+  searchInputOverlay: {
+    flex: 1,
+    padding: '6px 10px',
+    borderRadius: '4px',
+    border: '1px solid #323238',
+    backgroundColor: '#09090b',
+    color: '#fff',
+    fontSize: '13px',
+    fontFamily: "'Roboto', sans-serif",
+    outline: 'none',
+  },
+  btnClearSearch: {
+    background: 'none',
+    border: 'none',
+    color: '#e97b78',
+    fontSize: '16px',
+    cursor: 'pointer',
+    padding: '0 4px',
+  },
+  btnOkSearch: {
+    background: '#39b54a',
+    color: 'white',
+    border: 'none',
+    padding: '0 12px',
+    height: '30px',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontFamily: "'Bebas Neue', cursive",
+    fontSize: '14px',
   },
   footer: {
     height: '45px',
@@ -416,31 +449,31 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     borderTop: '1px solid #323238',
-    padding: '0 15px',
-    gap: '10px',
+    padding: '0 10px',
+    gap: '8px',
     zIndex: 950,
   },
   btnFooter: {
     background: 'none',
     border: 'none',
     color: '#fff',
-    fontSize: '20px',
+    fontSize: '18px',
     cursor: 'pointer',
-    padding: '2px 8px',
+    padding: '2px 6px',
     fontFamily: "'Bebas Neue', cursive",
   },
   selectFooter: {
     fontFamily: "'Bebas Neue', cursive",
     borderRadius: '4px',
-    fontSize: '15px',
+    fontSize: '13px',
     height: '26px',
-    padding: '0 6px',
-    backgroundColor: '#202024',
+    padding: '0 4px',
+    backgroundColor: '#09090b',
     color: '#fff',
     border: '1px solid #323238',
   },
   footerTotal: {
-    fontSize: '14px',
+    fontSize: '13px',
     marginLeft: 'auto',
     color: '#39b54a',
     fontWeight: 'bold',
