@@ -8,6 +8,7 @@ export default function DeezerFavorites() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [playerQueueUrl, setPlayerQueueUrl] = useState('');
 
   const searchInputRef = useRef(null);
 
@@ -83,6 +84,25 @@ export default function DeezerFavorites() {
   const clearSearch = () => {
     setSearchTerm('');
     setOffset(0);
+  };
+
+  // Carrega as 20 faixas mais atrasadas no Player Embed
+  const playTop20Outdated = () => {
+    const top20Ids = tracks
+      .filter((item) => item.dias_ouvida && Number(item.dias_ouvida) !== 999999)
+      .sort((a, b) => Number(b.dias_ouvida) - Number(a.dias_ouvida))
+      .slice(0, 20)
+      .map((item) => item.id);
+
+    if (top20Ids.length === 0) {
+      alert('Nenhuma música válida para tocar.');
+      return;
+    }
+
+    // URL do Widget Widget do Deezer para tocar a sequência de faixas
+    setPlayerQueueUrl(
+      `https://widget.deezer.com/widget/dark/tracks/${top20Ids.join(',')}`
+    );
   };
 
   const filteredTracks = tracks.filter((item) => {
@@ -218,6 +238,29 @@ export default function DeezerFavorites() {
         </table>
       </div>
 
+      {/* PLAYER DEEZER EMBED NO RODAPÉ */}
+      {playerQueueUrl && (
+        <div style={styles.playerContainer}>
+          <div style={styles.playerHeader}>
+            <span style={{ fontSize: '11px', color: '#39b54a', fontWeight: 'bold' }}>
+              ▶ TOP 20 QUEUE PLAYER
+            </span>
+            <button onClick={() => setPlayerQueueUrl('')} style={styles.btnClosePlayer}>
+              ✕
+            </button>
+          </div>
+          <iframe
+            title="Deezer Player Queue"
+            src={playerQueueUrl}
+            width="100%"
+            height="80"
+            frameBorder="0"
+            allow="encrypted-media; clipboard-write"
+          ></iframe>
+        </div>
+      )}
+
+      {/* OVERLAY DE BUSCA */}
       {showSearch && (
         <div style={styles.searchOverlay}>
           <input
@@ -242,6 +285,7 @@ export default function DeezerFavorites() {
         </div>
       )}
 
+      {/* RODAPÉ DO PAGINADOR E CONTROLES */}
       <div style={styles.footer}>
         <button
           style={styles.btnFooter}
@@ -280,6 +324,15 @@ export default function DeezerFavorites() {
             ✕
           </button>
         )}
+
+        {/* BOTÃO PARA TOCAR AS 20 MAIS ATRASADAS */}
+        <button
+          style={styles.btnQueue}
+          onClick={playTop20Outdated}
+          title="Tocar as 20 músicas mais atrasadas"
+        >
+          ▶ QUEUE
+        </button>
 
         <span style={styles.footerTotal}>{sortedTracks.length} TRACKS</span>
       </div>
@@ -448,6 +501,29 @@ const styles = {
     color: '#a8a8b3',
     fontSize: '14px',
   },
+  playerContainer: {
+    position: 'fixed',
+    bottom: '45px',
+    left: 0,
+    width: '100%',
+    backgroundColor: '#09090b',
+    borderTop: '2px solid #39b54a',
+    zIndex: 998,
+  },
+  playerHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '2px 8px',
+    backgroundColor: '#18181b',
+  },
+  btnClosePlayer: {
+    background: 'none',
+    border: 'none',
+    color: '#e97b78',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
   searchOverlay: {
     position: 'fixed',
     bottom: '45px',
@@ -500,8 +576,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     borderTop: '1px solid #323238',
-    padding: '0 10px',
-    gap: '8px',
+    padding: '0 8px',
+    gap: '6px',
     zIndex: 950,
   },
   btnFooter: {
@@ -510,7 +586,7 @@ const styles = {
     color: '#fff',
     fontSize: '18px',
     cursor: 'pointer',
-    padding: '2px 6px',
+    padding: '2px 4px',
     fontFamily: "'Bebas Neue', cursive",
   },
   selectFooter: {
@@ -523,8 +599,19 @@ const styles = {
     color: '#fff',
     border: '1px solid #323238',
   },
-  footerTotal: {
+  btnQueue: {
+    backgroundColor: '#39b54a',
+    color: '#fff',
+    border: 'none',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontFamily: "'Bebas Neue', cursive",
     fontSize: '13px',
+    cursor: 'pointer',
+    letterSpacing: '0.5px',
+  },
+  footerTotal: {
+    fontSize: '12px',
     marginLeft: 'auto',
     color: '#39b54a',
     fontWeight: 'bold',
