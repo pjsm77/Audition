@@ -17,6 +17,9 @@ export default function DeezerFavorites() {
 
   const limit = 50;
 
+  // COLOQUE O ID NUMÉRICO DA SUA PLAYLIST '!! Favoritas mais atrasadas' AQUI
+  const PLAYLIST_ID_FIXA = "SEU_ID_DA_PLAYLIST_AQUI"; 
+
   useEffect(() => {
     fetchFavorites();
   }, []);
@@ -85,23 +88,21 @@ export default function DeezerFavorites() {
     setOffset(0);
   };
 
-  // Pega as 50 faixas mais atrasadas (desconsiderando 999999) e dispara para o Deezer
-  const playTop50Outdated = () => {
-    const top50Tracks = tracks
-      .filter((item) => item.dias_ouvida && Number(item.dias_ouvida) !== 999999)
-      .sort((a, b) => Number(b.dias_ouvida) - Number(a.dias_ouvida))
-      .slice(0, 50);
-
-    if (top50Tracks.length === 0) {
-      alert('Nenhuma música válida para tocar.');
+  // Dispara a abertura da playlist '!! Favoritas mais atrasadas' no App do Deezer
+  const openOutdatedPlaylist = () => {
+    if (!PLAYLIST_ID_FIXA || PLAYLIST_ID_FIXA === "SEU_ID_DA_PLAYLIST_AQUI") {
+      alert("Por favor, configure o ID numérico da sua playlist no arquivo .jsx!");
       return;
     }
 
-    const firstTrackId = top50Tracks[0].id;
+    const appDeeplink = `deezer://www.deezer.com/playlist/${PLAYLIST_ID_FIXA}`;
+    const webFallback = `https://www.deezer.com/playlist/${PLAYLIST_ID_FIXA}`;
 
-    // Dispara a tentativa de abertura no aplicativo Deezer
-    const appDeeplink = `deezer://www.deezer.com/track/${firstTrackId}`;
     window.location.href = appDeeplink;
+
+    setTimeout(() => {
+      window.open(webFallback, '_blank');
+    }, 500);
   };
 
   const filteredTracks = tracks.filter((item) => {
@@ -304,8 +305,8 @@ export default function DeezerFavorites() {
 
         <button
           style={styles.btnQueue}
-          onClick={playTop50Outdated}
-          title="Tocar as 50 faixas mais atrasadas no App Deezer"
+          onClick={openOutdatedPlaylist}
+          title="Abrir a playlist '!! Favoritas mais atrasadas' no App Deezer"
         >
           ▶ QUEUE (50)
         </button>
