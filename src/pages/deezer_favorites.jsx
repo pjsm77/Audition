@@ -30,11 +30,11 @@ export default function DeezerFavorites() {
   async function fetchFavorites() {
     setLoading(true);
 
-    // Consulta na nova View vw_deezer_favorites_scrobbles
+    // Consulta sem estourar o limite de timeout da view
     const { data, error } = await supabase
       .from('vw_deezer_favorites_scrobbles')
-      .select('*')
-      .range(0, 2999);
+      .select('id, title, artist_name, artist_picture, album_title, album_cover, time_add, artist_id, link, dias_ouvida')
+      .limit(1000); // Traz as primeiras 1000 músicas rapidamente
 
     if (error) {
       console.error('Erro ao buscar dados do Supabase:', error);
@@ -43,7 +43,7 @@ export default function DeezerFavorites() {
     }
     setLoading(false);
   }
-
+  
   const calculateDaysAgo = (timeAdd) => {
     if (!timeAdd) return 999999;
     const addedDate = new Date(timeAdd);
