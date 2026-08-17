@@ -29,21 +29,39 @@ export default function DeezerFavorites() {
 
   async function fetchFavorites() {
     setLoading(true);
+    let allData = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    // Consulta sem estourar o limite de timeout da view
-    const { data, error } = await supabase
-      .from('vw_deezer_favorites_scrobbles')
-      .select('id, title, artist_name, artist_picture, album_title, album_cover, time_add, artist_id, link, dias_ouvida')
-      .limit(1000); // Traz as primeiras 1000 músicas rapidamente
+    try {
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('vw_deezer_favorites_scrobbles')
+          .select('*')
+          .range(page * pageSize, (page + 1) * pageSize - 1);
 
-    if (error) {
-      console.error('Erro ao buscar dados do Supabase:', error);
-    } else {
-      setTracks(data || []);
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+      setTracks(allData);
+    } catch (err) {
+      console.error('Erro ao buscar dados do Supabase:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
-  
+
   const calculateDaysAgo = (timeAdd) => {
     if (!timeAdd) return 999999;
     const addedDate = new Date(timeAdd);
