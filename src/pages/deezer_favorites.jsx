@@ -21,7 +21,6 @@ export default function DeezerFavorites() {
     fetchFavorites();
   }, []);
 
-  // Foco automático ao abrir a busca
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -31,8 +30,9 @@ export default function DeezerFavorites() {
   async function fetchFavorites() {
     setLoading(true);
 
+    // Consulta na nova View vw_deezer_favorites_scrobbles
     const { data, error } = await supabase
-      .from('tbl_deezer_favorites')
+      .from('vw_deezer_favorites_scrobbles')
       .select('*')
       .range(0, 2999);
 
@@ -57,7 +57,7 @@ export default function DeezerFavorites() {
       setSortAsc(!sortAsc);
     } else {
       setSortCol(col);
-      setSortAsc(col === 'days' ? false : true);
+      setSortAsc(col === 'days_fav' || col === 'dias_ouvida' ? false : true);
     }
     setOffset(0);
   };
@@ -77,10 +77,16 @@ export default function DeezerFavorites() {
   });
 
   const sortedTracks = [...filteredTracks].sort((a, b) => {
-    if (sortCol === 'days') {
+    if (sortCol === 'days_fav') {
       const daysA = calculateDaysAgo(a.time_add);
       const daysB = calculateDaysAgo(b.time_add);
       return sortAsc ? daysA - daysB : daysB - daysA;
+    }
+
+    if (sortCol === 'dias_ouvida') {
+      const listenA = Number(a.dias_ouvida) ?? 999999;
+      const listenB = Number(b.dias_ouvida) ?? 999999;
+      return sortAsc ? listenA - listenB : listenB - listenA;
     }
 
     const valA = String(a[sortCol] || '');
@@ -97,7 +103,6 @@ export default function DeezerFavorites() {
 
   return (
     <div style={styles.pageContainer}>
-      {/* TABELA CONTAINER */}
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
@@ -108,14 +113,19 @@ export default function DeezerFavorites() {
               <th onClick={() => handleSort('title')} style={styles.thTrack}>
                 TRACK {sortCol === 'title' ? (sortAsc ? '▲' : '▼') : ''}
               </th>
-              <th onClick={() => handleSort('days')} style={styles.thDays}>
-                DAYS {sortCol === 'days' ? (sortAsc ? '▲' : '▼') : ''}
+              <th onClick={() => handleSort('days_fav')} style={styles.thDays} title="Dias como favorita">
+                FAV {sortCol === 'days_fav' ? (sortAsc ? '▲' : '▼') : ''}
+              </th>
+              <th onClick={() => handleSort('dias_ouvida')} style={styles.thListen} title="Dias desde a última execução">
+                LISTEN {sortCol === 'dias_ouvida' ? (sortAsc ? '▲' : '▼') : ''}
               </th>
             </tr>
           </thead>
           <tbody>
             {pagedTracks.map((item, index) => {
-              const daysAgo = calculateDaysAgo(item.time_add);
+              const daysFav = calculateDaysAgo(item.time_add);
+              const daysListen = item.dias_ouvida;
+
               const artistUrl = item.artist_id
                 ? `https://www.deezer.com/artist/${item.artist_id}`
                 : `https://www.deezer.com/search/${encodeURIComponent(item.artist_name)}`;
@@ -169,7 +179,11 @@ export default function DeezerFavorites() {
                   </td>
 
                   <td style={styles.tdDays}>
-                    {daysAgo === 999999 ? '-' : daysAgo}
+                    {daysFav === 999999 ? '-' : daysFav}
+                  </td>
+
+                  <td style={styles.tdListen}>
+                    {daysListen === 999999 ? '-' : daysListen}
                   </td>
                 </tr>
               );
@@ -177,7 +191,7 @@ export default function DeezerFavorites() {
 
             {pagedTracks.length === 0 && (
               <tr>
-                <td colSpan="3" style={styles.empty}>
+                <td colSpan="4" style={styles.empty}>
                   NO FAVORITES FOUND.
                 </td>
               </tr>
@@ -186,7 +200,6 @@ export default function DeezerFavorites() {
         </table>
       </div>
 
-      {/* OVERLAY DE BUSCA */}
       {showSearch && (
         <div style={styles.searchOverlay}>
           <input
@@ -211,7 +224,6 @@ export default function DeezerFavorites() {
         </div>
       )}
 
-      {/* RODAPÉ DO PAGINADOR */}
       <div style={styles.footer}>
         <button
           style={styles.btnFooter}
@@ -298,7 +310,7 @@ const styles = {
     color: '#39b54a',
     fontSize: '13px',
     cursor: 'pointer',
-    width: '40%',
+    width: '35%',
   },
   thTrack: {
     background: '#18181b',
@@ -311,7 +323,7 @@ const styles = {
     color: '#39b54a',
     fontSize: '13px',
     cursor: 'pointer',
-    width: '45%',
+    width: '37%',
   },
   thDays: {
     background: '#18181b',
@@ -324,7 +336,20 @@ const styles = {
     color: '#39b54a',
     fontSize: '13px',
     cursor: 'pointer',
-    width: '15%',
+    width: '14%',
+  },
+  thListen: {
+    background: '#18181b',
+    position: 'sticky',
+    top: 0,
+    zIndex: 900,
+    padding: '4px 6px',
+    borderBottom: '2px solid #323238',
+    textAlign: 'center',
+    color: '#39b54a',
+    fontSize: '13px',
+    cursor: 'pointer',
+    width: '14%',
   },
   tr: {
     borderBottom: '1px solid #27272a',
@@ -344,6 +369,14 @@ const styles = {
     fontSize: '12px',
     fontWeight: 'bold',
     color: '#a8a8b3',
+  },
+  tdListen: {
+    padding: '3px 4px',
+    verticalAlign: 'middle',
+    textAlign: 'center',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    color: '#39b54a',
   },
   cellFlex: {
     display: 'flex',
