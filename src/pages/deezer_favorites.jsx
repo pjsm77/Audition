@@ -17,9 +17,6 @@ export default function DeezerFavorites() {
 
   const limit = 50;
 
-  // COLOQUE O ID NUMÉRICO DA SUA PLAYLIST '!! Favoritas mais atrasadas' AQUI
-  const PLAYLIST_ID_FIXA = "15652964743"; 
-
   useEffect(() => {
     fetchFavorites();
   }, []);
@@ -88,21 +85,29 @@ export default function DeezerFavorites() {
     setOffset(0);
   };
 
-  // Dispara a abertura da playlist '!! Favoritas mais atrasadas' no App do Deezer
-  const openOutdatedPlaylist = () => {
-    if (!PLAYLIST_ID_FIXA || PLAYLIST_ID_FIXA === "SEU_ID_DA_PLAYLIST_AQUI") {
-      alert("Por favor, configure o ID numérico da sua playlist no arquivo .jsx!");
+  // Monta a lista dos 50 IDs mais atrasados e dispara direto para o App
+  const playTop50Outdated = () => {
+    const top50Tracks = tracks
+      .filter((item) => item.dias_ouvida && Number(item.dias_ouvida) !== 999999)
+      .sort((a, b) => Number(b.dias_ouvida) - Number(a.dias_ouvida))
+      .slice(0, 50);
+
+    if (top50Tracks.length === 0) {
+      alert('Nenhuma música válida encontrada.');
       return;
     }
 
-    const appDeeplink = `deezer://www.deezer.com/playlist/${PLAYLIST_ID_FIXA}`;
-    const webFallback = `https://www.deezer.com/playlist/${PLAYLIST_ID_FIXA}`;
+    const ids = top50Tracks.map((t) => t.id).join(',');
 
-    window.location.href = appDeeplink;
+    // Deeplink para carregar a sequência de faixas no Deezer
+    const deeplink = `deezer://www.deezer.com/track/${ids}?autoplay=true`;
+    const webFallback = `https://www.deezer.com/plugins/player?format=classic&autoplay=true&playlist=true&type=tracks&id=${ids}`;
+
+    window.location.href = deeplink;
 
     setTimeout(() => {
       window.open(webFallback, '_blank');
-    }, 500);
+    }, 600);
   };
 
   const filteredTracks = tracks.filter((item) => {
@@ -305,8 +310,8 @@ export default function DeezerFavorites() {
 
         <button
           style={styles.btnQueue}
-          onClick={openOutdatedPlaylist}
-          title="Abrir a playlist '!! Favoritas mais atrasadas' no App Deezer"
+          onClick={playTop50Outdated}
+          title="Tocar as 50 faixas mais atrasadas no Deezer"
         >
           ▶ QUEUE (50)
         </button>
