@@ -56,7 +56,7 @@ export default function DeezerFavorites() {
       }
       setTracks(allData);
     } catch (err) {
-      console.error('Erro ao buscar dados do Supabase:', error);
+      console.error('Erro ao buscar dados do Supabase:', err);
     } finally {
       setLoading(false);
     }
@@ -85,32 +85,23 @@ export default function DeezerFavorites() {
     setOffset(0);
   };
 
-  // Abre a sequência de faixas no App do Deezer
-  const playTop20Outdated = () => {
-    const top20Ids = tracks
+  // Pega as 50 faixas mais atrasadas (desconsiderando 999999) e dispara para o Deezer
+  const playTop50Outdated = () => {
+    const top50Tracks = tracks
       .filter((item) => item.dias_ouvida && Number(item.dias_ouvida) !== 999999)
       .sort((a, b) => Number(b.dias_ouvida) - Number(a.dias_ouvida))
-      .slice(0, 20)
-      .map((item) => item.id);
+      .slice(0, 50);
 
-    if (top20Ids.length === 0) {
+    if (top50Tracks.length === 0) {
       alert('Nenhuma música válida para tocar.');
       return;
     }
 
-    const idsString = top20Ids.join(',');
+    const firstTrackId = top50Tracks[0].id;
 
-    // Tenta disparar o Deeplink para abrir direto no aplicativo Deezer
-    const appDeeplink = `deezer://www.deezer.com/track/${top20Ids[0]}?autoplay=true`;
-    const webFallback = `https://www.deezer.com/plugins/player?format=classic&autoplay=true&playlist=true&type=tracks&id=${idsString}`;
-
-    // Dispara a tentativa de abertura no App
+    // Dispara a tentativa de abertura no aplicativo Deezer
+    const appDeeplink = `deezer://www.deezer.com/track/${firstTrackId}`;
     window.location.href = appDeeplink;
-
-    // Se após 500ms não abrir o app, redireciona para a versão Web conectada
-    setTimeout(() => {
-      window.open(webFallback, '_blank');
-    }, 500);
   };
 
   const filteredTracks = tracks.filter((item) => {
@@ -313,10 +304,10 @@ export default function DeezerFavorites() {
 
         <button
           style={styles.btnQueue}
-          onClick={playTop20Outdated}
-          title="Abrir as 20 faixas mais atrasadas no App Deezer"
+          onClick={playTop50Outdated}
+          title="Tocar as 50 faixas mais atrasadas no App Deezer"
         >
-          ▶ APP QUEUE
+          ▶ QUEUE (50)
         </button>
 
         <span style={styles.footerTotal}>{sortedTracks.length} TRACKS</span>
