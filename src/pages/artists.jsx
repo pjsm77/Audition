@@ -42,7 +42,7 @@ export default function Artists() {
     "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
     "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
     "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
-    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
+    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênea": "si", "espanha": "es", 
     "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
     "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
     "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
@@ -69,7 +69,7 @@ export default function Artists() {
           supabase.from('artista_fidelidade_score_v2').select('artist, score_numérico, rating_artista'),
           supabase.from('artista_recencia_v2').select('artist, score, variation'),
           supabase.from('tbl_artists_recent').select('artist_name, rating'),
-          supabase.from('tbl_artists').select('name, rating, rating_new')
+          supabase.from('tbl_artists').select('name, rating_new')
         ]);
 
         if (resRanking.error) throw resRanking.error;
@@ -82,7 +82,7 @@ export default function Artists() {
         let base = (resRanking.data || []).map(item => {
           const f = fidMap.get(item.artist);
           const r = recMap.get(item.artist);
-          const artistData = tblArtMap.get(item.artist);
+          const artistRecord = tblArtMap.get(item.artist);
           
           return {
             ...item,
@@ -91,8 +91,10 @@ export default function Artists() {
             recencia_score: r ? r.score : 0,
             recencia_variation: r ? r.variation : 0,
             status_rating: recentMap.get(item.artist) || null,
-            // Dá prioridade ao rating_new, senão mantém o rating numérico antigo
-            db_rating: artistData ? (artistData.rating_new || artistData.rating) : null
+            // Registra se o artista existe na tbl_artists
+            is_in_collection: !!artistRecord,
+            // Guarda exclusivamente o rating_new
+            db_rating_new: artistRecord ? artistRecord.rating_new : null
           };
         });
 
@@ -124,11 +126,9 @@ export default function Artists() {
       const ratingMatch = !filterRatingActive || (item.status_rating === -1);
       const zeroScoreMatch = !filterZeroScoreActive || (item.recencia_score === 0);
       
-      // Filtro Destaque: considera os antigos (2 ou 3) ou os novos (A, B ou C)
-      const highlightMatch = !filterHighlightActive || (
-        item.db_rating === 2 || item.db_rating === 3 ||
-        ['A', 'B', 'C'].includes(String(item.db_rating).toUpperCase())
-      );
+      // Filtro Destaque: A, B ou C
+      const ratingUpper = String(item.db_rating_new).toUpperCase();
+      const highlightMatch = !filterHighlightActive || ['A', 'B', 'C'].includes(ratingUpper);
 
       return nameMatch && ratingMatch && zeroScoreMatch && highlightMatch && (currentFilter.type ? (countryMatch || cityMatch) : true);
     });
@@ -297,16 +297,20 @@ export default function Artists() {
     return '#aaaaaa';
   };
 
-  // Mapeamento de cores atualizado para aceitar A, B, C, D e fallback para 1, 2, 3
-  const getNameColor = (rating) => {
-    const val = String(rating).toUpperCase();
-    
-    if (val === 'A' || rating === 3) return "#6dbe99"; // Verde
-    if (val === 'B') return "#a3e04d";                // Verde-Lima (pH 4)
-    if (val === 'C' || rating === 2) return "#f8c039"; // Amarelo
-    if (val === 'D' || rating === 1) return "#e97b78"; // Vermelho
-    
-    return "#AAAAAA";
+  // Lógica de Cores baseada estritamente no rating_new
+  const getNameColor = (item) => {
+    // Se o artista não está na coleção (não existe na tbl_artists), fica Cinza
+    if (!item.is_in_collection) return "#AAAAAA";
+
+    const val = item.db_rating_new ? String(item.db_rating_new).toUpperCase() : null;
+
+    if (val === 'A') return "#6dbe99"; // Verde
+    if (val === 'B') return "#a3e04d"; // Verde-Lima (pH 4)
+    if (val === 'C') return "#f8c039"; // Amarelo
+    if (val === 'D') return "#e97b78"; // Vermelho
+
+    // Se está na coleção mas rating_new é NULL -> pH 13 (Azul / Roxo)
+    return "#4d388c";
   };
 
   const generateFidelityBar = (rating) => {
@@ -441,7 +445,7 @@ export default function Artists() {
                       <span 
                         onClick={() => window.open(lastFmUrl, '_blank')}
                         style={{ 
-                          color: getNameColor(item.db_rating), 
+                          color: getNameColor(item), 
                           fontWeight: 'bold', 
                           cursor: 'pointer', 
                           fontFamily: "'Bebas Neue', cursive", 
