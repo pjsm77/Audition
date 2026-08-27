@@ -1,3 +1,4 @@
+// src/pages/artists.jsx
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -27,8 +28,8 @@ export default function Artists() {
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [detailTab, setDetailTab] = useState('songs');
   const [detailData, setDetailData] = useState({ songs: [], albums: [] });
-  const [detailSortCol, setDetailSortCol] = useState('count');
-  const [detailSortAsc, setDetailSortAsc] = useState(false);
+  const [detailSortCol, setDetailSortCol] = useState('count'); // Coluna atual de ordenação do modal
+  const [detailSortAsc, setDetailSortAsc] = useState(false);    // Direção da ordenação do modal
 
   // Modal de Rating
   const [ratingArtist, setRatingArtist] = useState(null);
@@ -69,7 +70,7 @@ export default function Artists() {
           supabase.from('artista_fidelidade_score_v2').select('artist, score_numérico, rating_artista'),
           supabase.from('artista_recencia_v2').select('artist, score, variation'),
           supabase.from('tbl_artists_recent').select('artist_name, rating'),
-          supabase.from('tbl_artists').select('name, rating, rating_new')
+          supabase.from('tbl_artists').select('name, rating')
         ]);
 
         if (resRanking.error) throw resRanking.error;
@@ -77,13 +78,11 @@ export default function Artists() {
         const fidMap = new Map((resFidelidade.data || []).map(x => [x.artist, x]));
         const recMap = new Map((resRecencia.data || []).map(x => [x.artist, x]));
         const recentMap = new Map((resRecentRating.data || []).map(x => [x.artist_name, x.rating]));
-        const tblArtMap = new Map((resTblArtists.data || []).map(x => [x.name, x]));
+        const tblArtMap = new Map((resTblArtists.data || []).map(x => [x.name, x.rating]));
 
         let base = (resRanking.data || []).map(item => {
           const f = fidMap.get(item.artist);
           const r = recMap.get(item.artist);
-          const artistData = tblArtMap.get(item.artist);
-          
           return {
             ...item,
             score_numérico: f ? f.score_numérico : 0.5,
@@ -91,8 +90,7 @@ export default function Artists() {
             recencia_score: r ? r.score : 0,
             recencia_variation: r ? r.variation : 0,
             status_rating: recentMap.get(item.artist) || null,
-            // Dá prioridade ao rating_new, senão mantém o rating numérico antigo
-            db_rating: artistData ? (artistData.rating_new || artistData.rating) : null
+            db_rating: tblArtMap.get(item.artist) || null
           };
         });
 
@@ -109,6 +107,7 @@ export default function Artists() {
     loadData();
   }, []);
 
+  // Efeito responsável por injetar o foco assim que a busca abre
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -123,12 +122,7 @@ export default function Artists() {
       
       const ratingMatch = !filterRatingActive || (item.status_rating === -1);
       const zeroScoreMatch = !filterZeroScoreActive || (item.recencia_score === 0);
-      
-      // Filtro Destaque: considera os antigos (2 ou 3) ou os novos (A, B ou C)
-      const highlightMatch = !filterHighlightActive || (
-        item.db_rating === 2 || item.db_rating === 3 ||
-        ['A', 'B', 'C'].includes(String(item.db_rating).toUpperCase())
-      );
+      const highlightMatch = !filterHighlightActive || (item.db_rating === 2 || item.db_rating === 3);
 
       return nameMatch && ratingMatch && zeroScoreMatch && highlightMatch && (currentFilter.type ? (countryMatch || cityMatch) : true);
     });
@@ -159,7 +153,7 @@ export default function Artists() {
     if (!artistName) return;
     setSelectedArtist(artistName);
     setDetailData({ songs: [], albums: [] });
-    setDetailSortCol('count');
+    setDetailSortCol('count'); // Reseta para ordenar por total scrobbles desc
     setDetailSortAsc(false);
     
     try {
@@ -172,7 +166,7 @@ export default function Artists() {
         rank_artist: item.ranking_no_artista_unico,
         rank_global: item.ranking_geral_unico,
         count: item.total_scrobbles,
-        days: item.dias_ultima_execucao ?? 999999,
+        days: item.dias_ultima_execucao ?? 999999, // Fallback alto para nulos jogarem pro fim em asc
         title: item.track_name || ''
       }));
 
@@ -243,15 +237,17 @@ export default function Artists() {
     setOffset(0);
   };
 
+  // Função para lidar com a ordenação das colunas internas do Modal
   const handleDetailSort = (col) => {
     if (detailSortCol === col) {
       setDetailSortAsc(!detailSortAsc);
     } else {
       setDetailSortCol(col);
-      setDetailSortAsc(col === 'title' ? true : false);
+      setDetailSortAsc(col === 'title' ? true : false); // Título padrão asc, numéricos desc
     }
   };
 
+  // Função auxiliar para ordenar as listas internas do Modal
   const getSortedDetailData = () => {
     const list = detailTab === 'songs' ? [...detailData.songs] : [...detailData.albums];
     
@@ -265,6 +261,7 @@ export default function Artists() {
           : String(valB).localeCompare(String(valA));
       }
 
+      // Ordenação Numérica (count ou days)
       const numA = Number(valA) ?? 0;
       const numB = Number(valB) ?? 0;
       return detailSortAsc ? numA - numB : numB - numA;
@@ -297,15 +294,10 @@ export default function Artists() {
     return '#aaaaaa';
   };
 
-  // Mapeamento de cores atualizado para aceitar A, B, C, D e fallback para 1, 2, 3
   const getNameColor = (rating) => {
-    const val = String(rating).toUpperCase();
-    
-    if (val === 'A' || rating === 3) return "#6dbe99"; // Verde
-    if (val === 'B') return "#a3e04d";                // Verde-Lima (pH 4)
-    if (val === 'C' || rating === 2) return "#f8c039"; // Amarelo
-    if (val === 'D' || rating === 1) return "#e97b78"; // Vermelho
-    
+    if (rating === 1) return "#e97b78";
+    if (rating === 2) return "#f8c039";
+    if (rating === 3) return "#6dbe99";
     return "#AAAAAA";
   };
 
