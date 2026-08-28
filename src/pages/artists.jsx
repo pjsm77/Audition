@@ -42,7 +42,7 @@ export default function Artists() {
     "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
     "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
     "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
-    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênea": "si", "espanha": "es", 
+    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
     "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
     "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
     "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
@@ -91,9 +91,7 @@ export default function Artists() {
             recencia_score: r ? r.score : 0,
             recencia_variation: r ? r.variation : 0,
             status_rating: recentMap.get(item.artist) || null,
-            // Registra se o artista existe na tbl_artists
             is_in_collection: !!artistRecord,
-            // Guarda exclusivamente o rating_new
             db_rating_new: artistRecord ? artistRecord.rating_new : null
           };
         });
@@ -126,7 +124,6 @@ export default function Artists() {
       const ratingMatch = !filterRatingActive || (item.status_rating === -1);
       const zeroScoreMatch = !filterZeroScoreActive || (item.recencia_score === 0);
       
-      // Filtro Destaque: A, B ou C
       const ratingUpper = String(item.db_rating_new).toUpperCase();
       const highlightMatch = !filterHighlightActive || ['A', 'B', 'C'].includes(ratingUpper);
 
@@ -197,31 +194,25 @@ export default function Artists() {
       sessionStorage.setItem('admin_access', 'true');
     }
 
-    const { data } = await supabase
-      .from('tbl_artists_recent')
-      .select('id')
-      .eq('artist_name', artistName)
-      .maybeSingle();
-
-    if (data) {
-      alert("Este artista já possui um rating registrado.");
-      return;
-    }
-
     setRatingArtist(artistName);
   };
 
-  const submitRating = async (ratingValue) => {
+  // Grava diretamente A, B, C ou D na coluna rating_new de tbl_artists
+  const submitRating = async (ratingLetter) => {
     if (!ratingArtist) return;
+
     const { error } = await supabase
-      .from('tbl_artists_recent')
-      .insert([{ artist_name: ratingArtist, rating: ratingValue }]);
+      .from('tbl_artists')
+      .update({ rating_new: ratingLetter, updated_at: new Date().toISOString() })
+      .eq('name', ratingArtist);
 
     if (error) {
-      alert("Erro ao inserir: " + error.message);
+      alert("Erro ao atualizar rating: " + error.message);
     } else {
       setFullRawData(prev => prev.map(item => 
-        item.artist === ratingArtist ? { ...item, status_rating: ratingValue } : item
+        item.artist === ratingArtist 
+          ? { ...item, db_rating_new: ratingLetter, is_in_collection: true } 
+          : item
       ));
       setRatingArtist(null);
     }
@@ -297,9 +288,7 @@ export default function Artists() {
     return '#aaaaaa';
   };
 
-  // Lógica de Cores baseada estritamente no rating_new
   const getNameColor = (item) => {
-    // Se o artista não está na coleção (não existe na tbl_artists), fica Cinza
     if (!item.is_in_collection) return "#AAAAAA";
 
     const val = item.db_rating_new ? String(item.db_rating_new).toUpperCase() : null;
@@ -309,8 +298,7 @@ export default function Artists() {
     if (val === 'C') return "#f8c039"; // Amarelo
     if (val === 'D') return "#e97b78"; // Vermelho
 
-    // Se está na coleção mas rating_new é NULL -> pH 13 (Azul / Roxo)
-    return "#4d388c";
+    return "#4d388c"; // pH 13 (Pendente / Rating Novo NULL)
   };
 
   const generateFidelityBar = (rating) => {
@@ -566,18 +554,45 @@ export default function Artists() {
         </div>
       )}
 
-      {/* MODAL DE REGISTRO DE RATING */}
+      {/* MODAL DE REGISTRO DE RATING (A, B, C, D) */}
       {ratingArtist && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', zIndex: 40001, justifyContent: 'center' }}>
-          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '80%', maxWidth: '300px', textAlign: 'center', fontFamily: "'Roboto', sans-serif", color: '#333' }}>
-            <h2 style={{ margin: '0 0 5px 0', fontFamily: "'Bebas Neue', cursive", fontSize: '20px' }}>{ratingArtist.toUpperCase()}</h2>
-            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 15px 0' }}>Avalie para a coleção:</p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', margin: '20px 0', fontSize: '30px' }}>
-              <span style={{ cursor: 'pointer', color: '#e97b78' }} onClick={() => submitRating(-3)} title="Não incluir">★</span>
-              <span style={{ cursor: 'pointer', color: '#ffc845' }} onClick={() => submitRating(-2)} title="Ouvir mais">★</span>
-              <span style={{ cursor: 'pointer', color: '#1DB954' }} onClick={() => submitRating(-1)} title="Incluir na Coleção">★</span>
+          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '80%', maxWidth: '320px', textAlign: 'center', fontFamily: "'Roboto', sans-serif", color: '#333' }}>
+            <h2 style={{ margin: '0 0 5px 0', fontFamily: "'Bebas Neue', cursive", fontSize: '22px' }}>{ratingArtist.toUpperCase()}</h2>
+            <p style={{ fontSize: '12px', color: '#666', margin: '0 0 15px 0' }}>Selecione o novo rating:</p>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', margin: '20px 0' }}>
+              <button 
+                onClick={() => submitRating('A')} 
+                style={ratingBtnStyle('#6dbe99')} 
+                title="Rating A (Verde)"
+              >
+                A
+              </button>
+              <button 
+                onClick={() => submitRating('B')} 
+                style={ratingBtnStyle('#a3e04d')} 
+                title="Rating B (Verde-Lima)"
+              >
+                B
+              </button>
+              <button 
+                onClick={() => submitRating('C')} 
+                style={ratingBtnStyle('#f8c039')} 
+                title="Rating C (Amarelo)"
+              >
+                C
+              </button>
+              <button 
+                onClick={() => submitRating('D')} 
+                style={ratingBtnStyle('#e97b78')} 
+                title="Rating D (Vermelho)"
+              >
+                D
+              </button>
             </div>
-            <button style={{ background: '#eee', border: 'none', padding: '8px', width: '100%', marginTop: '10px', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer' }} onClick={() => setRatingArtist(null)}>CANCELAR</button>
+
+            <button style={{ background: '#eee', border: 'none', padding: '8px', width: '100%', marginTop: '5px', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', borderRadius: '4px' }} onClick={() => setRatingArtist(null)}>CANCELAR</button>
           </div>
         </div>
       )}
@@ -592,6 +607,19 @@ const tdStyle = { padding: '3px 1px', borderBottom: '1px solid #e0e0e0', whiteSp
 const iconStyle = { cursor: 'pointer', fontSize: '13px', color: '#999', transition: 'color 0.2s', marginLeft: '5px' };
 const btnFooterStyle = { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '2px 8px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
 const tabBtnStyle = (active) => ({ background: active ? '#1DB954' : '#eee', color: active ? 'white' : '#333', border: 'none', padding: '10px 5px', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', flex: 1, fontSize: '14px' });
+
+const ratingBtnStyle = (bgColor) => ({
+  backgroundColor: bgColor,
+  color: '#fff',
+  border: 'none',
+  borderRadius: '6px',
+  padding: '12px 0',
+  fontSize: '20px',
+  fontWeight: 'bold',
+  fontFamily: "'Bebas Neue', cursive",
+  cursor: 'pointer',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+});
 
 const thFixedStyle = (pos, left, width, align = 'left') => ({
   background: '#f1f1f1', position: 'sticky', top: 0, left: left, width: width, minWidth: width, maxWidth: width, zIndex: 910, padding: '4px 1px', borderBottom: '2px solid #ddd', textAlign: align, fontFamily: "'Bebas Neue', cursive"
