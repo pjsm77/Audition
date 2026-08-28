@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Trending() {
+  // --- STATE MANAGEMENT ---
   const [fullRawData, setFullRawData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,13 +11,16 @@ export default function Trending() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   
+  // Quick click filter for countries (by country_name)
   const [activeCountryFilter, setActiveCountryFilter] = useState(null);
 
+  // Default Sorting: Score Descending
   const [sortCol, setSortCol] = useState('score');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const limit = 30;
+  const limit = 30; // 30 items per page
 
+  // ISO Flag Mapping dictionary
   const countryMap = {
     "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
     "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
@@ -24,7 +28,7 @@ export default function Trending() {
     "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
     "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
     "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
-    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênea": "si", "espanha": "es", 
+    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
     "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
     "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
     "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
@@ -74,6 +78,7 @@ export default function Trending() {
       return matchesSearch && matchesCountryFilter;
     });
 
+    // DINAMIC SORT ENGINE
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
@@ -113,7 +118,7 @@ export default function Trending() {
   const toggleCountryFilter = (countryName) => {
     if (!countryName || countryName === '[desconhecido]') return;
     if (activeCountryFilter === countryName) {
-      setActiveCountryFilter(null);
+      setActiveCountryFilter(null); // Desmarca se clicar de novo
     } else {
       setActiveCountryFilter(countryName);
       setOffset(0);
@@ -126,21 +131,12 @@ export default function Trending() {
     setOffset(0);
   };
 
-  // Mapeamento de Cores Novo Padrão (A, B, C, D e pH 13 para NULL na coleção)
-  const getArtistColor = (item) => {
-    if (!item.is_in_collection) return "#AAAAAA"; // Fora da coleção
-
-    const ratingNew = item.rating_new ?? null;
-    if (!ratingNew) return "#4d388c"; // pH 13 (Na coleção, mas sem rating_new)
-
-    const val = String(ratingNew).toUpperCase().trim();
-
-    if (val === 'A') return "#6dbe99"; // Verde
-    if (val === 'B') return "#a3e04d"; // Verde-Lima (pH 4)
-    if (val === 'C') return "#f8c039"; // Amarelo
-    if (val === 'D') return "#e97b78"; // Vermelho
-
-    return "#AAAAAA";
+  // Official color codes imported straight from your artists.jsx
+  const getArtistColor = (rating) => {
+    if (rating === 1) return "#e97b78"; // Red soft
+    if (rating === 2) return "#f8c039"; // Yellow/Orange
+    if (rating === 3) return "#6dbe99"; // Green soft
+    return "#AAAAAA"; // Default unrated
   };
 
   const pagedData = filteredData.slice(offset, offset + limit);
@@ -157,6 +153,7 @@ export default function Trending() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive", backgroundColor: '#ffffff' }}>
       
+      {/* MOBILE OPTIMIZED CONTAINER SCROLL VIEW */}
       <div 
         className="table-wrapper" 
         style={{ 
@@ -189,16 +186,18 @@ export default function Trending() {
           <tbody>
             {pagedData.map((item, index) => {
               const flagCode = countryMap[(item.country_name || "").toLowerCase().trim()] || "un";
-              const artistColor = getArtistColor(item);
+              const artistColor = getArtistColor(item.rating);
               const deezerUrl = `https://www.deezer.com/search/${encodeURIComponent(item.artist)}`;
               
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
                   
+                  {/* Position Index Box */}
                   <td style={tdFixedStyle('fixed', 0, '28px', 'center', '#1DB954', index)}>
                     {offset + index + 1}
                   </td>
                   
+                  {/* Flag (Filters on Click) + Colored Artist Name (Opens Deezer on Click) */}
                   <td style={{ ...tdStyle, display: 'flex', alignItems: 'center', gap: '5px', borderBottom: '1px solid #e0e0e0' }}>
                     <img 
                       src={`https://flagcdn.com/32x24/${flagCode}.png`} 
@@ -234,18 +233,22 @@ export default function Trending() {
                     </span>
                   </td>
 
+                  {/* Weight Score */}
                   <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 'bold', color: '#000', fontSize: '14px' }}>
                     {item.score}
                   </td>
 
+                  {/* Raw Playback Count */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.scrobbles}
                   </td>
 
+                  {/* Distinct Track Count */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.tracks}
                   </td>
 
+                  {/* Days elapsed since last play */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#000', fontSize: '14px' }}>
                     {item.days}
                   </td>
@@ -257,6 +260,7 @@ export default function Trending() {
         </table>
       </div>
 
+      {/* FOOTER PAGINATION CONTROL BOX */}
       <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 8px', gap: '8px', zIndex: 950 }}>
         <button style={btnFooterStyle} onClick={() => setOffset(Math.max(0, offset - limit))}>«</button>
         <select 
@@ -278,6 +282,7 @@ export default function Trending() {
         <span style={{ fontSize: '13px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} ARTISTS</span>
       </div>
 
+      {/* OVERLAY SEARCH CONTAINER WINDOW */}
       {showSearch && (
         <div style={{ position: 'fixed', bottom: '45px', left: 0, width: '100%', background: 'white', padding: '8px 15px', boxShadow: '0 -3px 10px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '10px', boxSizing: 'border-box' }}>
           <input 
@@ -295,7 +300,8 @@ export default function Trending() {
   );
 }
 
-const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 3px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer' };
+// --- OPTIMIZED STYLINGS ---
+const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 3px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', selectNone: 'none' };
 const tdStyle = { padding: '4px 3px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive" };
 const btnFooterStyle = { background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', padding: '2px 6px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
 
