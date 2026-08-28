@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Languages() {
+  // --- ESTADOS GLOBAIS DA PÁGINA ---
   const [fullRawData, setFullRawData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,10 +11,11 @@ export default function Languages() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   
+  // Ordenação Padrão: Artistas por idioma, desc (total_artists)
   const [sortCol, setSortCol] = useState('total_artists');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const limit = 30;
+  const limit = 30; // Mostrar 30 por página
 
   useEffect(() => {
     async function loadLanguageStats() {
@@ -26,6 +28,7 @@ export default function Languages() {
         if (error) throw error;
 
         let base = data || [];
+        // Ordenação inicial padrão
         base.sort((a, b) => b.total_artists - a.total_artists);
         setFullRawData(base);
       } catch (err) {
@@ -43,6 +46,7 @@ export default function Languages() {
       return (item.language || "").toLowerCase().includes(term);
     });
 
+    // ENGINE DE ORDENAÇÃO DINÂMICA ALINHADO COM O SQL
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
@@ -66,6 +70,7 @@ export default function Languages() {
   }, [fullRawData, searchTerm, sortCol, sortAsc]);
 
   const handleSort = (col) => {
+    // Ignora o clique se for a coluna de scrobbles desativada
     if (col === 'total_scrobbles') return;
 
     if (sortCol === col) {
@@ -95,6 +100,7 @@ export default function Languages() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive", backgroundColor: '#ffffff' }}>
       
+      {/* WRAPPER COM SCROLL NATIVO */}
       <div 
         className="table-wrapper" 
         style={{ 
@@ -105,7 +111,7 @@ export default function Languages() {
           position: 'relative'
         }}
       >
-        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '14px', minWidth: '650px' }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '14px', minWidth: '600px' }}>
           <thead>
             <tr>
               <th onClick={() => handleSort('total_artists')} style={thFixedStyle('fixed', 0, '35px', 'center')}>#</th>
@@ -119,70 +125,69 @@ export default function Languages() {
               <th onClick={() => handleSort('total_unique_songs')} style={{ ...thStyle, textAlign: 'center' }}>
                 TRA {sortCol === 'total_unique_songs' ? (sortAsc ? '▲' : '▼') : ''}
               </th>
+              {/* Ajustado: Cabeçalho visual estático para os Scrobbles desativados */}
               <th style={{ ...thStyle, textAlign: 'center', color: '#999', cursor: 'default' }}>
                 SCROBBLES
               </th>
-              <th style={{ ...thStyle, textAlign: 'center', width: '130px' }}>RATINGS</th>
+              <th style={{ ...thStyle, textAlign: 'center', width: '110px' }}>RATINGS</th>
             </tr>
           </thead>
           <tbody>
             {pagedData.map((item, index) => {
               const total = item.total_artists || 1;
-              const pA = ((item.rating_a_count || 0) / total) * 100;
-              const pB = ((item.rating_b_count || 0) / total) * 100;
-              const pC = ((item.rating_c_count || 0) / total) * 100;
-              const pD = ((item.rating_d_count || 0) / total) * 100;
-              const pNull = ((item.rating_null_count || 0) / total) * 100;
+              const p3 = (item.rating_3_count / total) * 100;
+              const p2 = (item.rating_2_count / total) * 100;
+              const p1 = (item.rating_1_count / total) * 100;
 
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
                   
+                  {/* # Posição Global */}
                   <td style={tdFixedStyle('fixed', 0, '35px', 'center', '#b5b5b5', index)}>
                     {offset + index + 1}
                   </td>
                   
+                  {/* IDIOMA EM CAIXA ALTA */}
                   <td style={{ ...tdStyle, fontWeight: 'bold', borderBottom: '1px solid #e0e0e0', paddingLeft: '8px' }}>
                     <span style={{ fontSize: '15px', letterSpacing: '0.3px', color: '#000' }}>
                       {item.language ? item.language.toUpperCase() : '-'}
                     </span>
                   </td>
 
+                  {/* ART (Total Artistas) */}
                   <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 'bold', color: '#000', fontSize: '15px' }}>
                     {item.total_artists}
                   </td>
 
+                  {/* ALB (Total Álbuns) */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.total_albums}
                   </td>
 
+                  {/* TRA (Total Músicas Únicas) */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.total_unique_songs}
                   </td>
 
+                  {/* SCROBBLES DESATIVADOS POR PERFORMANCE */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#bbb', fontSize: '16px' }}>
                     -
                   </td>
 
-                  {/* RATINGS A, B, C, D e Pendentes */}
+                  {/* RATINGS (Gráfico de barras proporcional inline) */}
                   <td style={{ ...tdStyle, padding: '3px 6px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', width: '100%' }}>
                       
-                      <div style={{ display: 'flex', gap: '4px', fontSize: '10px', fontWeight: 'bold', fontFamily: 'sans-serif' }}>
-                        <span style={{ color: '#6dbe99' }} title="Rating A">{item.rating_a_count || 0}</span>
-                        <span style={{ color: '#a3e04d' }} title="Rating B">{item.rating_b_count || 0}</span>
-                        <span style={{ color: '#f8c039' }} title="Rating C">{item.rating_c_count || 0}</span>
-                        <span style={{ color: '#e97b78' }} title="Rating D">{item.rating_d_count || 0}</span>
-                        {(item.rating_null_count > 0) && (
-                          <span style={{ color: '#4d388c' }} title="Pendente / Null">({item.rating_null_count})</span>
-                        )}
+                      <div style={{ display: 'flex', gap: '5px', fontSize: '11px', fontWeight: 'bold', fontFamily: 'sans-serif' }}>
+                        <span style={{ color: '#4caf50' }}>{item.rating_3_count}</span>
+                        <span style={{ color: '#ff9800' }}>{item.rating_2_count}</span>
+                        <span style={{ color: '#f44336' }}>{item.rating_1_count}</span>
                       </div>
                       
-                      <div style={{ width: '100%', maxWidth: '95px', backgroundColor: '#e2e2e2', height: '3px', borderRadius: '1px', overflow: 'hidden', display: 'flex' }}>
-                        {pA > 0 && <div style={{ width: `${pA}%`, backgroundColor: '#6dbe99', height: '100%' }} />}
-                        {pB > 0 && <div style={{ width: `${pB}%`, backgroundColor: '#a3e04d', height: '100%' }} />}
-                        {pC > 0 && <div style={{ width: `${pC}%`, backgroundColor: '#f8c039', height: '100%' }} />}
-                        {pD > 0 && <div style={{ width: `${pD}%`, backgroundColor: '#e97b78', height: '100%' }} />}
-                        {pNull > 0 && <div style={{ width: `${pNull}%`, backgroundColor: '#4d388c', height: '100%' }} />}
+                      <div style={{ width: '100%', maxWidth: '80px', backgroundColor: '#e2e2e2', height: '2.5px', borderRadius: '1px', overflow: 'hidden', display: 'flex' }}>
+                        {p3 > 0 && <div style={{ width: `${p3}%`, backgroundColor: '#4caf50', height: '100%' }} />}
+                        {p2 > 0 && <div style={{ width: `${p2}%`, backgroundColor: '#ff9800', height: '100%' }} />}
+                        {p1 > 0 && <div style={{ width: `${p1}%`, backgroundColor: '#f44336', height: '100%' }} />}
                       </div>
 
                     </div>
@@ -195,6 +200,7 @@ export default function Languages() {
         </table>
       </div>
 
+      {/* RODAPÉ DO PAGINADOR */}
       <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 10px', gap: '10px', zIndex: 950 }}>
         <button style={btnFooterStyle} onClick={() => setOffset(Math.max(0, offset - limit))}>«</button>
         <select 
@@ -216,6 +222,7 @@ export default function Languages() {
         <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} IDIOMAS</span>
       </div>
 
+      {/* OVERLAY DE BUSCA FLUTUANTE */}
       {showSearch && (
         <div style={{ position: 'fixed', bottom: '45px', left: 0, width: '100%', background: 'white', padding: '8px 15px', boxShadow: '0 -3px 10px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '10px', boxSizing: 'border-box' }}>
           <input 
@@ -233,7 +240,7 @@ export default function Languages() {
   );
 }
 
-const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 4px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer' };
+const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 4px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', selectNone: 'none' };
 const tdStyle = { padding: '4px 4px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive" };
 const btnFooterStyle = { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '2px 8px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
 
