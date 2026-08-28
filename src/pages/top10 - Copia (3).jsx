@@ -9,6 +9,7 @@ export default function Top10Charts() {
   const [tracks, setTracks] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Dicionário de conversão herdado fielmente de artists.jsx
   const countryMap = {
     "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
     "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
@@ -16,7 +17,7 @@ export default function Top10Charts() {
     "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
     "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
     "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
-    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênea": "si", "espanha": "es", 
+    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
     "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
     "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
     "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
@@ -64,6 +65,7 @@ export default function Top10Charts() {
       const targetYear = currentDate.getFullYear();
       const targetMonth = currentDate.getMonth() + 1;
 
+      // Mapeamento dinâmico das views baseado na seleção
       const viewMap = {
         monthly: { artist: 'vw_top_artists_monthly', song: 'vw_top_songs_monthly' },
         annually: { artist: 'vw_top_artists_annually', song: 'vw_top_songs_annually' },
@@ -74,6 +76,7 @@ export default function Top10Charts() {
       const songView = viewMap[period].song;
 
       try {
+        // Query Artistas
         let artQuery = supabase.from(artistView).select('*');
         if (period !== 'all') {
           artQuery = artQuery.eq('year', targetYear);
@@ -85,6 +88,7 @@ export default function Top10Charts() {
           .order('last_scrobble', { ascending: false })
           .limit(10);
 
+        // Query Músicas
         let trackQuery = supabase.from(songView).select('*');
         if (period !== 'all') {
           trackQuery = trackQuery.eq('year', targetYear);
@@ -109,24 +113,13 @@ export default function Top10Charts() {
     fetchTop10Data();
   }, [currentDate, period]);
 
-  // Função de cores padronizada (A, B, C, D e pH 13 para Pendente)
-  const getRatingColor = (item) => {
-    if (!item) return '#AAAAAA';
-
-    // Se possui flag de coleção e não faz parte dela
-    if (item.is_in_collection === false) return '#AAAAAA';
-
-    const ratingNew = item.rating_new ?? null;
-
-    if (!ratingNew) return '#4d388c'; // pH 13 (Na coleção, mas pendente de rating_new)
-
-    const val = String(ratingNew).toUpperCase().trim();
-
-    if (val === 'A') return "#6dbe99"; // Verde
-    if (val === 'B') return "#a3e04d"; // Verde-Lima (pH 4)
-    if (val === 'C') return "#f8c039"; // Amarelo
-    if (val === 'D') return "#e97b78"; // Vermelho
-
+  // Função estrita de cores baseada em getNameColor de artists.jsx
+  const getRatingColor = (rating) => {
+    if (!rating) return '#AAAAAA'; 
+    const r = Number(rating);
+    if (r === 1) return "#e97b78"; 
+    if (r === 2) return "#f8c039"; 
+    if (r === 3) return "#6dbe99"; 
     return "#AAAAAA";
   };
 
@@ -226,8 +219,6 @@ export default function Top10Charts() {
             <ol style={styles.list}>
               {artists.map((item, index) => {
                 const artistUrl = getArtistLink(item);
-                const artistColor = getRatingColor(item);
-
                 return (
                   <li 
                     key={item.artist + index} 
@@ -245,12 +236,12 @@ export default function Top10Charts() {
                           href={artistUrl} 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          style={{...styles.linkItem, color: artistColor}}
+                          style={{...styles.linkItem, color: getRatingColor(item.rating)}}
                         >
                           {item.artist}
                         </a>
                       ) : (
-                        <span style={{color: artistColor}}>{item.artist}</span>
+                        <span style={{color: getRatingColor(item.rating)}}>{item.artist}</span>
                       )}
                     </span>
 
@@ -272,8 +263,6 @@ export default function Top10Charts() {
             <ol style={styles.list}>
               {tracks.map((item, index) => {
                 const artistUrl = getArtistLink(item);
-                const artistColor = getRatingColor(item);
-
                 return (
                   <li 
                     key={item.song + index} 
@@ -308,12 +297,12 @@ export default function Top10Charts() {
                           href={artistUrl} 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          style={{...styles.linkItem, color: artistColor}}
+                          style={{...styles.linkItem, color: getRatingColor(item.rating)}}
                         >
                           {item.artist}
                         </a>
                       ) : (
-                        <span style={{color: artistColor}}>{item.artist}</span>
+                        <span style={{color: getRatingColor(item.rating)}}>{item.artist}</span>
                       )}
                     </span>
                   </li>
@@ -397,7 +386,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    minHeight: '26px'
+    minHeight: '26px' // Mantém a altura consistente com ou sem setas
   },
   arrowBtn: {
     background: 'none',
