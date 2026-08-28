@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
 export default function Countries() {
+  // --- ESTADOS GLOBAIS DA PÁGINA ---
   const [fullRawData, setFullRawData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,11 +11,13 @@ export default function Countries() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   
+  // Ordenação Padrão: Artistas por país, desc
   const [sortCol, setSortCol] = useState('total_artists');
   const [sortAsc, setSortAsc] = useState(false);
 
-  const limit = 30;
+  const limit = 30; // Mostrar 30 por página conforme solicitado
 
+  // Dicionário de conversão idêntico ao do seu arquivo artists.jsx para renderizar as flags corretas
   const countryMap = {
     "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
     "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
@@ -22,7 +25,7 @@ export default function Countries() {
     "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
     "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
     "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
-    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênea": "si", "espanha": "es", 
+    "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
     "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
     "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
     "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
@@ -49,6 +52,7 @@ export default function Countries() {
         if (error) throw error;
 
         let base = data || [];
+        // Ordenação inicial estrita: total_artists desc
         base.sort((a, b) => b.total_artists - a.total_artists);
         setFullRawData(base);
       } catch (err) {
@@ -69,6 +73,7 @@ export default function Countries() {
       );
     });
 
+    // SISTEMA DE ORDENAÇÃO DINÂMICO BASEADO NO SEU ENGINE ORIGINAL
     result.sort((a, b) => {
       let valA = a[sortCol];
       let valB = b[sortCol];
@@ -96,6 +101,7 @@ export default function Countries() {
       setSortAsc(!sortAsc);
     } else {
       setSortCol(col);
+      // Exceção do nome do país: inicia alfabético (true). Todos os outros iniciam desc (false)
       if (col === 'country_name') {
         setSortAsc(true);
       } else {
@@ -119,6 +125,7 @@ export default function Countries() {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: "'Bebas Neue', cursive", backgroundColor: '#ffffff' }}>
       
+      {/* WRAPPER COM SCROLL VERTICAL E HORIZONTAL NATIVO LIBERADO */}
       <div 
         className="table-wrapper" 
         style={{ 
@@ -129,7 +136,7 @@ export default function Countries() {
           position: 'relative'
         }}
       >
-        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '14px', minWidth: '650px' }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '14px', minWidth: '600px' }}>
           <thead>
             <tr>
               <th onClick={() => handleSort('total_artists')} style={thFixedStyle('fixed', 0, '35px', 'center')}>#</th>
@@ -140,75 +147,75 @@ export default function Countries() {
               <th onClick={() => handleSort('total_albums')} style={{ ...thStyle, textAlign: 'center' }}>ALB</th>
               <th onClick={() => handleSort('total_unique_songs')} style={{ ...thStyle, textAlign: 'center' }}>MÚS</th>
               <th style={{ ...thStyle, textAlign: 'center', color: '#999', cursor: 'default' }}>SCROBBLES</th>
-              <th style={{ ...thStyle, textAlign: 'center', width: '130px' }}>RATINGS</th>
+              <th style={{ ...thStyle, textAlign: 'center', width: '110px' }}>RATINGS</th>
             </tr>
           </thead>
           <tbody>
             {pagedData.map((item, index) => {
+              // Resgata o código exato da flag usando o padrão do arquivo de artistas
               const flagCode = countryMap[(item.country_name || "").toLowerCase().trim()] || "un";
               
               const total = item.total_artists || 1;
-              const pA = ((item.rating_a_count || 0) / total) * 100;
-              const pB = ((item.rating_b_count || 0) / total) * 100;
-              const pC = ((item.rating_c_count || 0) / total) * 100;
-              const pD = ((item.rating_d_count || 0) / total) * 100;
-              const pNull = ((item.rating_null_count || 0) / total) * 100;
+              const p3 = (item.rating_3_count / total) * 100;
+              const p2 = (item.rating_2_count / total) * 100;
+              const p1 = (item.rating_1_count / total) * 100;
 
               return (
                 <tr key={index} style={{ backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f8f8' }}>
                   
+                  {/* Posição Global Fixa à esquerda */}
                   <td style={tdFixedStyle('fixed', 0, '35px', 'center', '#b5b5b5', index)}>
                     {offset + index + 1}
                   </td>
                   
+                  {/* Bandeira + Nome do País em Caixa Alta */}
                   <td style={{ ...tdStyle, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #e0e0e0' }}>
-                    <img 
-                      src={`https://flagcdn.com/32x24/${flagCode}.png`} 
-                      style={{ width: '24px', height: '18px', border: '0.5px solid #bbb', display: 'inline-block', objectFit: 'cover' }}
-                      alt="" 
-                    />
+                  <img 
+  src={`https://flagcdn.com/32x24/${flagCode}.png`} 
+  style={{ width: '24px', height: '18px', border: '0.5px solid #bbb', display: 'inline-block', objectFit: 'cover' }}
+  alt="" 
+/>
                     <span style={{ fontSize: '15px', letterSpacing: '0.3px', color: '#000' }}>
                       {item.country_name ? item.country_name.toUpperCase() : '-'}
                     </span>
                   </td>
 
+                  {/* Total Artistas (Negrito com destaque igual ao print) */}
                   <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 'bold', color: '#000', fontSize: '15px' }}>
                     {item.total_artists}
                   </td>
 
+                  {/* Total Álbuns */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.total_albums}
                   </td>
 
+                  {/* Total Músicas */}
                   <td style={{ ...tdStyle, textAlign: 'center', color: '#222' }}>
                     {item.total_unique_songs}
                   </td>
 
-                  <td style={{ ...tdStyle, textAlign: 'center', color: '#bbb', fontSize: '16px' }}>
-                    -
-                  </td>
+{/* Total Scrobbles Desativados temporariamente por performance */}
+<td style={{ ...tdStyle, textAlign: 'center', color: '#bbb', fontSize: '16px' }}>
+  -
+</td>
 
-                  {/* Nova distribuição de contagem de ratings: A, B, C, D e Pendente */}
+                  {/* Proporção e contagem de Ratings com as barras inline compactadas */}
                   <td style={{ ...tdStyle, padding: '3px 6px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', width: '100%' }}>
                       
-                      <div style={{ display: 'flex', gap: '4px', fontSize: '10px', fontWeight: 'bold', fontFamily: 'sans-serif' }}>
-                        <span style={{ color: '#6dbe99' }} title="Rating A">{item.rating_a_count || 0}</span>
-                        <span style={{ color: '#a3e04d' }} title="Rating B">{item.rating_b_count || 0}</span>
-                        <span style={{ color: '#f8c039' }} title="Rating C">{item.rating_c_count || 0}</span>
-                        <span style={{ color: '#e97b78' }} title="Rating D">{item.rating_d_count || 0}</span>
-                        {(item.rating_null_count > 0) && (
-                          <span style={{ color: '#4d388c' }} title="Pendente / Null">({item.rating_null_count})</span>
-                        )}
+                      {/* Valores Numéricos Espaçados */}
+                      <div style={{ display: 'flex', gap: '5px', fontSize: '11px', fontWeight: 'bold', fontFamily: 'sans-serif' }}>
+                        <span style={{ color: '#4caf50' }}>{item.rating_3_count}</span>
+                        <span style={{ color: '#ff9800' }}>{item.rating_2_count}</span>
+                        <span style={{ color: '#f44336' }}>{item.rating_1_count}</span>
                       </div>
                       
-                      {/* Barra Fina Proporcional Empilhada */}
-                      <div style={{ width: '100%', maxWidth: '95px', backgroundColor: '#e2e2e2', height: '3px', borderRadius: '1px', overflow: 'hidden', display: 'flex' }}>
-                        {pA > 0 && <div style={{ width: `${pA}%`, backgroundColor: '#6dbe99', height: '100%' }} />}
-                        {pB > 0 && <div style={{ width: `${pB}%`, backgroundColor: '#a3e04d', height: '100%' }} />}
-                        {pC > 0 && <div style={{ width: `${pC}%`, backgroundColor: '#f8c039', height: '100%' }} />}
-                        {pD > 0 && <div style={{ width: `${pD}%`, backgroundColor: '#e97b78', height: '100%' }} />}
-                        {pNull > 0 && <div style={{ width: `${pNull}%`, backgroundColor: '#4d388c', height: '100%' }} />}
+                      {/* Barra Horizontal Empilhada Fina Proporcional */}
+                      <div style={{ width: '100%', maxWidth: '80px', backgroundColor: '#e2e2e2', height: '2.5px', borderRadius: '1px', overflow: 'hidden', display: 'flex' }}>
+                        {p3 > 0 && <div style={{ width: `${p3}%`, backgroundColor: '#4caf50', height: '100%' }} />}
+                        {p2 > 0 && <div style={{ width: `${p2}%`, backgroundColor: '#ff9800', height: '100%' }} />}
+                        {p1 > 0 && <div style={{ width: `${p1}%`, backgroundColor: '#f44336', height: '100%' }} />}
                       </div>
 
                     </div>
@@ -221,6 +228,7 @@ export default function Countries() {
         </table>
       </div>
 
+      {/* RODAPÉ DO PAGINADOR COMPATÍVEL COM ALBUMS/ARTISTS */}
       <div style={{ height: '45px', background: '#f1f1f1', display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid #ddd', padding: '0 10px', gap: '10px', zIndex: 950 }}>
         <button style={btnFooterStyle} onClick={() => setOffset(Math.max(0, offset - limit))}>«</button>
         <select 
@@ -242,6 +250,7 @@ export default function Countries() {
         <span style={{ fontSize: '14px', marginLeft: 'auto', color: '#555', fontWeight: 'bold' }}>{filteredData.length} PAÍSES</span>
       </div>
 
+      {/* OVERLAY DE BUSCA FLUTUANTE EM TEMPO REAL */}
       {showSearch && (
         <div style={{ position: 'fixed', bottom: '45px', left: 0, width: '100%', background: 'white', padding: '8px 15px', boxShadow: '0 -3px 10px rgba(0,0,0,0.15)', zIndex: 999, display: 'flex', gap: '10px', boxSizing: 'border-box' }}>
           <input 
@@ -259,7 +268,8 @@ export default function Countries() {
   );
 }
 
-const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 4px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer' };
+// --- CONFIGURAÇÕES DE ESTILO AUXILIARES HERDADAS DE ARTISTS.JSX ---
+const thStyle = { background: '#f1f1f1', position: 'sticky', top: 0, zIndex: 900, padding: '5px 4px', borderBottom: '2px solid #ddd', textAlign: 'left', fontFamily: "'Bebas Neue', cursive", cursor: 'pointer', selectNone: 'none' };
 const tdStyle = { padding: '4px 4px', borderBottom: '1px solid #e0e0e0', whiteSpace: 'nowrap', textAlign: 'left', lineHeight: '1.2', fontFamily: "'Bebas Neue', cursive" };
 const btnFooterStyle = { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', padding: '2px 8px', display: 'flex', alignItems: 'center', height: '100%', fontFamily: "'Bebas Neue', cursive" };
 
