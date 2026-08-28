@@ -3,18 +3,18 @@ import { supabase } from '../supabaseClient';
 
 const ITEMS_PER_PAGE = 30;
 
-// Mapeamento de cores atualizado para o novo padrão A, B, C, D (com suporte a pH 4 e pH 13)
-const getNameColor = (artistRatingNew, isInCollection = true) => {
-  if (!isInCollection) return "#AAAAAA"; // Não cadastrado na coleção
+// Mapeamento de cores oficial atualizado
+const getNameColor = (artistRatingNew) => {
+  if (!artistRatingNew) return "#4d388c"; // pH 13 (Na coleção, mas rating_new ainda é NULL/Pendente)
 
-  const val = artistRatingNew ? String(artistRatingNew).toUpperCase() : null;
+  const val = String(artistRatingNew).toUpperCase().trim();
 
   if (val === 'A') return "#6dbe99"; // Verde
   if (val === 'B') return "#a3e04d"; // Verde-Lima (pH 4)
   if (val === 'C') return "#f8c039"; // Amarelo
   if (val === 'D') return "#e97b78"; // Vermelho
 
-  return "#4d388c"; // pH 13 (Na coleção, mas rating_new ainda é NULL)
+  return "#AAAAAA"; // Fallback cinza
 };
 
 // Dicionário de tradução de países integrado para renderização das bandeiras
@@ -64,10 +64,8 @@ export default function Albums() {
   const [modalAlbum, setModalAlbum] = useState(null);
   const [previewCover, setPreviewCover] = useState(null);
 
-  // Referência para auto-focar o input de busca ao abrir
   const searchInputRef = useRef(null);
 
-  // 1. Carrega o cache de contagem total de álbuns por artista
   useEffect(() => {
     async function fetchArtistCounts() {
       const { data, error } = await supabase
@@ -87,14 +85,12 @@ export default function Albums() {
     fetchArtistCounts();
   }, []);
 
-  // 2. Foco automático no input de busca ao abrir o overlay
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [showSearch]);
 
-  // 3. Consulta reativa ao Supabase
   const fetchAlbums = useCallback(async () => {
     setLoading(true);
     try {
@@ -102,12 +98,10 @@ export default function Albums() {
         .from('vw_albums_details')
         .select('*', { count: 'exact' });
 
-      // Busca Incremental textual
       if (search.trim() !== '') {
         query = query.or(`album_name.ilike.%${search}%,artist_name.ilike.%${search}%`);
       }
 
-      // Filtros
       if (selectedCountry) query = query.eq('artist_country', selectedCountry);
       if (selectedArtist) query = query.eq('artist_name', selectedArtist);
       if (selectedYear) query = query.eq('album_year', selectedYear);
@@ -188,11 +182,7 @@ export default function Albums() {
         <div style={styles.listContainer}>
           {albums.map((album) => {
             const totalArtistAlbums = artistAlbumCounts[album.artist_name] || 1;
-            
-            // Suporta a nova coluna artist_rating_new vinda da view (com fallback para antiga ou verificação de coleção)
-            const ratingNew = album.artist_rating_new ?? album.rating_new ?? null;
-            const isInCollection = album.artist_id !== null && album.artist_id !== undefined;
-            const artistColor = getNameColor(ratingNew, isInCollection);
+            const artistColor = getNameColor(album.artist_rating_new);
 
             return (
               <div key={album.id_album} style={styles.albumRow}>
@@ -293,7 +283,7 @@ export default function Albums() {
         </div>
       )}
 
-      {/* MODAL: Exibição detalhada dos metadados */}
+      {/* MODAL: Exibição detalhada */}
       {modalAlbum && (
         <div style={styles.modalOverlay} onClick={() => setModalAlbum(null)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -301,7 +291,7 @@ export default function Albums() {
             <div style={styles.modalBody}>
               <p><strong>ID DO ÁLBUM:</strong> {modalAlbum.id_album}</p>
               <p><strong>ARTISTA:</strong> {modalAlbum.artist_name?.toUpperCase()}</p>
-              <p><strong>RATING DO ARTISTA:</strong> {modalAlbum.artist_rating_new || modalAlbum.rating_new || 'PENDENTE'}</p>
+              <p><strong>RATING DO ARTISTA:</strong> {modalAlbum.artist_rating_new || 'PENDENTE (ROXO)'}</p>
               <p><strong>ANO DE LANÇAMENTO:</strong> {modalAlbum.album_year}</p>
               <p><strong>DURAÇÃO DO ÁLBUM:</strong> {modalAlbum.album_duration || '-'}</p>
               <p><strong>TOTAL DE FAIXAS:</strong> {modalAlbum.total_tracks || '-'}</p>
@@ -314,7 +304,7 @@ export default function Albums() {
         </div>
       )}
 
-      {/* MODAL: Visualização ampliada da arte de capa */}
+      {/* MODAL: Arte de capa */}
       {previewCover && (
         <div style={styles.modalOverlay} onClick={() => setPreviewCover(null)}>
           <div style={{ padding: '10px', backgroundColor: 'transparent' }} onClick={(e) => e.stopPropagation()}>
@@ -421,7 +411,7 @@ const styles = {
     background: '#f1f1f1',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justify: 'flex-start',
     borderTop: '1px solid #ddd',
     padding: '0 10px',
     gap: '8px',
