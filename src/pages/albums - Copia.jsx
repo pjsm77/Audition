@@ -3,18 +3,12 @@ import { supabase } from '../supabaseClient';
 
 const ITEMS_PER_PAGE = 30;
 
-// Mapeamento de cores atualizado para o novo padrão A, B, C, D (com suporte a pH 4 e pH 13)
-const getNameColor = (artistRatingNew, isInCollection = true) => {
-  if (!isInCollection) return "#AAAAAA"; // Não cadastrado na coleção
-
-  const val = artistRatingNew ? String(artistRatingNew).toUpperCase() : null;
-
-  if (val === 'A') return "#6dbe99"; // Verde
-  if (val === 'B') return "#a3e04d"; // Verde-Lima (pH 4)
-  if (val === 'C') return "#f8c039"; // Amarelo
-  if (val === 'D') return "#e97b78"; // Vermelho
-
-  return "#4d388c"; // pH 13 (Na coleção, mas rating_new ainda é NULL)
+// Mapeamento de cores oficial do seu ecossistema
+const getNameColor = (rating) => {
+  if (rating === 1) return "#e97b78";
+  if (rating === 2) return "#f8c039";
+  if (rating === 3) return "#6dbe99";
+  return "#AAAAAA";
 };
 
 // Dicionário de tradução de países integrado para renderização das bandeiras
@@ -25,7 +19,7 @@ const countryMap = {
   "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
   "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
   "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
-  "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênea": "si", "espanha": "es", 
+  "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
   "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
   "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
   "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
@@ -48,10 +42,10 @@ export default function Albums() {
   const [loading, setLoading] = useState(true);
   const [artistAlbumCounts, setArtistAlbumCounts] = useState({});
 
-  // Filtros, Busca e Ordenação Padrão
+  // Filtros, Busca e Ordenação Padrão (Configurada para album_id DESC no carregamento)
   const [search, setSearch] = useState('');
   const [sortCol, setSortCol] = useState('album_id'); 
-  const [sortAsc, setSortAsc] = useState(false);
+  const [sortAsc, setSortAsc] = useState(false); // false = DESC
 
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [selectedArtist, setSelectedArtist] = useState(null);
@@ -94,7 +88,7 @@ export default function Albums() {
     }
   }, [showSearch]);
 
-  // 3. Consulta reativa ao Supabase
+  // 3. Consulta reativa ao Supabase controlando paginação, filtros e ordenações do banco
   const fetchAlbums = useCallback(async () => {
     setLoading(true);
     try {
@@ -107,11 +101,18 @@ export default function Albums() {
         query = query.or(`album_name.ilike.%${search}%,artist_name.ilike.%${search}%`);
       }
 
-      // Filtros
-      if (selectedCountry) query = query.eq('artist_country', selectedCountry);
-      if (selectedArtist) query = query.eq('artist_name', selectedArtist);
-      if (selectedYear) query = query.eq('album_year', selectedYear);
+      // Aplicação dos filtros rápidos por clique
+      if (selectedCountry) {
+        query = query.eq('artist_country', selectedCountry);
+      }
+      if (selectedArtist) {
+        query = query.eq('artist_name', selectedArtist);
+      }
+      if (selectedYear) {
+        query = query.eq('album_year', selectedYear);
+      }
 
+      // Tradução lógica das chaves para colunas reais da sua view
       let dbColumn = 'id_album';
       if (sortCol === 'date') dbColumn = 'album_date';
       else if (sortCol === 'album_name') dbColumn = 'album_name';
@@ -120,6 +121,7 @@ export default function Albums() {
 
       query = query.order(dbColumn, { ascending: sortAsc });
 
+      // Cálculo de Paginação offset (30 em 30)
       const from = page * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
       query = query.range(from, to);
@@ -141,11 +143,16 @@ export default function Albums() {
     fetchAlbums();
   }, [fetchAlbums]);
 
+  // Sistema Robusto de Alternância de Ordenação baseado em regras nativas
   const handleSort = (targetKey) => {
     if (sortCol === targetKey) {
+      // Se clicou na mesma coluna, apenas inverte a direção corrente
       setSortAsc(!sortAsc);
     } else {
       setSortCol(targetKey);
+      // Regra de ouro solicitada:
+      // album_id, date, album_year -> Inicializam como DESC (false)
+      // album_name, artist_name -> Inicializam como ASC (true)
       if (targetKey === 'album_id' || targetKey === 'date' || targetKey === 'album_year') {
         setSortAsc(false);
       } else {
@@ -184,15 +191,12 @@ export default function Albums() {
   return (
     <div style={styles.viewWrapper}>
       
+      {/* AREA DE ROLAGEM INDEPENDENTE (Resolve o problema do item 1) */}
       <div style={styles.scrollableContent}>
         <div style={styles.listContainer}>
           {albums.map((album) => {
             const totalArtistAlbums = artistAlbumCounts[album.artist_name] || 1;
-            
-            // Suporta a nova coluna artist_rating_new vinda da view (com fallback para antiga ou verificação de coleção)
-            const ratingNew = album.artist_rating_new ?? album.rating_new ?? null;
-            const isInCollection = album.artist_id !== null && album.artist_id !== undefined;
-            const artistColor = getNameColor(ratingNew, isInCollection);
+            const artistColor = getNameColor(album.artist_rating);
 
             return (
               <div key={album.id_album} style={styles.albumRow}>
@@ -239,7 +243,7 @@ export default function Albums() {
         </div>
       </div>
 
-      {/* RODAPÉ FIXO */}
+      {/* RODAPÉ FIXO CASADO COM ARTISTS.JSX (Itens 1 e 3) */}
       <div style={styles.footerBar}>
         <button style={styles.btnFooter} onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0}>«</button>
         
@@ -264,7 +268,7 @@ export default function Albums() {
         <span style={styles.footerCounter}>{totalCount} ÁLBUNS</span>
       </div>
 
-      {/* OVERLAY DE BUSCA */}
+      {/* OVERLAY DE BUSCA EM TEMPO REAL (Foco automático via Ref) */}
       {showSearch && (
         <div style={styles.searchOverlay}>
           <input 
@@ -279,7 +283,7 @@ export default function Albums() {
         </div>
       )}
 
-      {/* OVERLAY DE ORDENAÇÃO */}
+      {/* OVERLAY DE OPÇÕES DE ORDENAÇÃO DINÂMICA */}
       {showSortMenu && (
         <div style={styles.sortOverlay}>
           <div style={styles.sortOverlayTitle}>ORDENAR LISTA POR:</div>
@@ -293,15 +297,14 @@ export default function Albums() {
         </div>
       )}
 
-      {/* MODAL: Exibição detalhada dos metadados */}
+      {/* MODAL: Exibição detalhada dos metadados da View */}
       {modalAlbum && (
         <div style={styles.modalOverlay} onClick={() => setModalAlbum(null)}>
           <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <h2 style={styles.modalTitle}>{modalAlbum.album_name?.toUpperCase()}</h2>
             <div style={styles.modalBody}>
               <p><strong>ID DO ÁLBUM:</strong> {modalAlbum.id_album}</p>
-              <p><strong>ARTISTA:</strong> {modalAlbum.artist_name?.toUpperCase()}</p>
-              <p><strong>RATING DO ARTISTA:</strong> {modalAlbum.artist_rating_new || modalAlbum.rating_new || 'PENDENTE'}</p>
+              <p><strong>ARTISTA:</strong> {modalAlbum.artist_name?.toUpperCase()} (RATING: {modalAlbum.artist_rating})</p>
               <p><strong>ANO DE LANÇAMENTO:</strong> {modalAlbum.album_year}</p>
               <p><strong>DURAÇÃO DO ÁLBUM:</strong> {modalAlbum.album_duration || '-'}</p>
               <p><strong>TOTAL DE FAIXAS:</strong> {modalAlbum.total_tracks || '-'}</p>
@@ -331,7 +334,7 @@ export default function Albums() {
   );
 }
 
-// --- ESTILOS INLINE ---
+// --- ARQUITETURA DE ESTILOS INLINE IDENTICA A ARTISTS.JSX ---
 const styles = {
   viewWrapper: {
     height: '100vh',
