@@ -14,31 +14,40 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// --- FUNÇÃO AUXILIAR PARA OBTER BANDEIRAS ---
+// --- FUNÇÃO PARA OBTER A BANDEIRA VIA FLAGCDN (USANDO O NOME OU CÓDIGO) ---
 const getCountryFlag = (countryName) => {
-  if (!countryName) return '';
-  
-  const flagMap = {
-    'Brasil': '🇧🇷', 'Brazil': '🇧🇷',
-    'Estados Unidos': '🇺🇸', 'United States': '🇺🇸', 'USA': '🇺🇸',
-    'Reino Unido': '🇬🇧', 'United Kingdom': '🇬🇧', 'UK': '🇬🇧',
-    'Austrália': '🇦🇺', 'Australia': '🇦🇺',
-    'Alemanha': '🇩🇪', 'Germany': '🇩🇪',
-    'França': '🇫🇷', 'France': '🇫🇷',
-    'Canadá': '🇨🇦', 'Canada': '🇨🇦',
-    'Japão': '🇯🇵', 'Japan': '🇯🇵',
-    'Itália': '🇮🇹', 'Italy': '🇮🇹',
-    'Espanha': '🇪🇸', 'Spain': '🇪🇸',
-    'Argentina': '🇦🇷', 'Uruguai': '🇺🇾', 'Uruguay': '🇺🇾',
-    'Irlanda': '🇮🇪', 'Ireland': '🇮🇪',
-    'Suécia': '🇸🇪', 'Sweden': '🇸🇪',
-    'Noruega': '🇳🇴', 'Norway': '🇳🇴',
-    'Holanda': '🇳🇱', 'Países Baixos': '🇳🇱', 'Netherlands': '🇳🇱',
-    'Nova Zelândia': '🇳🇿', 'New Zealand': '🇳🇿',
-    'México': '🇲🇽', 'Chile': '🇨🇱', 'Colômbia': '🇨🇴', 'Portugal': '🇵🇹'
+  if (!countryName) return null;
+
+  const codeMap = {
+    'Brasil': 'br', 'Brazil': 'br',
+    'Estados Unidos': 'us', 'United States': 'us', 'USA': 'us',
+    'Reino Unido': 'gb', 'United Kingdom': 'gb', 'UK': 'gb',
+    'Austrália': 'au', 'Australia': 'au',
+    'Alemanha': 'de', 'Germany': 'de',
+    'França': 'fr', 'France': 'fr',
+    'Canadá': 'ca', 'Canada': 'ca',
+    'Japão': 'jp', 'Japan': 'jp',
+    'Itália': 'it', 'Italy': 'it',
+    'Espanha': 'es', 'Spain': 'es',
+    'Argentina': 'ar', 'Uruguai': 'uy', 'Uruguay': 'uy',
+    'Irlanda': 'ie', 'Ireland': 'ie',
+    'Suécia': 'se', 'Sweden': 'se',
+    'Noruega': 'no', 'Norway': 'no',
+    'Holanda': 'nl', 'Países Baixos': 'nl', 'Netherlands': 'nl',
+    'Nova Zelândia': 'nz', 'New Zealand': 'nz',
+    'México': 'mx', 'Chile': 'cl', 'Colômbia': 'co', 'Portugal': 'pt'
   };
 
-  return flagMap[countryName] || '🌐';
+  const code = codeMap[countryName];
+  if (!code) return null;
+
+  return (
+    <img 
+      src={`https://flagcdn.com/16x12/${code}.png`} 
+      alt={countryName} 
+      style={{ width: '16px', height: '12px', borderRadius: '1px', objectFit: 'cover' }} 
+    />
+  );
 };
 
 // --- FUNÇÃO DE COR BASEADA NO RATING / COLEÇÃO ---
@@ -48,10 +57,7 @@ const getArtistColor = (rating, totalAlbums) => {
   if (rating === 'C') return '#f8c039';
   if (rating === 'D') return '#e97b78';
   
-  // Se está na coleção (possui álbuns cadastrados) mas o rating é NULL
   if (totalAlbums > 0) return '#4d388c';
-  
-  // Fora da coleção / sem dados
   return '#aaaaaa';
 };
 
@@ -59,8 +65,13 @@ export default function Recent() {
   const [allData, setAllData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Estados dos Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRating, setSelectedRating] = useState('ALL');
+  const [selectedCountry, setSelectedCountry] = useState('ALL');
+  const [selectedFavorite, setSelectedFavorite] = useState('ALL');
 
   // --- FUNÇÃO PARA FORMATO HH:MM ---
   const getStatusIndicator = (latestDate) => {
@@ -74,9 +85,9 @@ export default function Recent() {
     
     const formattedDiff = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-    let color = '#f44336'; // Vermelho (>= 2h)
-    if (totalMinutes < 60) color = '#4caf50'; // Verde (< 1h)
-    else if (totalMinutes < 120) color = '#ffeb3b'; // Amarelo (< 2h)
+    let color = '#f44336';
+    if (totalMinutes < 60) color = '#4caf50';
+    else if (totalMinutes < 120) color = '#ffeb3b';
 
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -142,6 +153,44 @@ export default function Recent() {
     initialLoad();
   }, []);
 
+  // Aplicação Dinâmica dos Filtros
+  useEffect(() => {
+    let result = [...allData];
+
+    // Filtro por Nome do Artista
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      result = result.filter(item => (item.artist || '').toLowerCase().includes(term));
+    }
+
+    // Filtro por Rating do Artista
+    if (selectedRating !== 'ALL') {
+      if (selectedRating === 'NULL') {
+        result = result.filter(item => !item.artist_rating);
+      } else {
+        result = result.filter(item => item.artist_rating === selectedRating);
+      }
+    }
+
+    // Filtro por País
+    if (selectedCountry !== 'ALL') {
+      if (selectedCountry === 'NONE') {
+        result = result.filter(item => !item.artist_country);
+      } else {
+        result = result.filter(item => item.artist_country === selectedCountry);
+      }
+    }
+
+    // Filtro por Músicas Favoritas
+    if (selectedFavorite !== 'ALL') {
+      const isFav = selectedFavorite === 'YES';
+      result = result.filter(item => !!item.is_favorite === isFav);
+    }
+
+    setFilteredData(result);
+    setCurrentPage(0);
+  }, [searchTerm, selectedRating, selectedCountry, selectedFavorite, allData]);
+
   const groupData = (dataSet) => {
     const groups = {};
     dataSet.forEach(item => {
@@ -153,16 +202,14 @@ export default function Recent() {
     return Object.values(groups);
   };
 
-  useEffect(() => {
-    const term = searchTerm.toLowerCase().trim();
-    const filtered = allData.filter(item => (item.artist || '').toLowerCase().includes(term));
-    setFilteredData(filtered);
-    setCurrentPage(0); 
-  }, [searchTerm, allData]);
-
   const globalGroups = groupData(allData).slice(0, 10).reverse();
   const currentGroups = groupData(filteredData);
   const currentDayData = currentGroups[currentPage] || null;
+
+  // Lista única de países cadastrados para o dropdown
+  const countryList = Array.from(
+    new Set(allData.map(i => i.artist_country).filter(Boolean))
+  ).sort();
 
   const chartData = {
     labels: globalGroups.map(g => new Date(g[0].date).getDate()),
@@ -221,6 +268,18 @@ export default function Recent() {
     document.body.appendChild(s);
   };
 
+  const selectStyle = {
+    backgroundColor: '#2a2a2a',
+    border: '1px solid #444',
+    borderRadius: '4px',
+    color: '#fff',
+    fontSize: '11px',
+    height: '28px',
+    padding: '0 6px',
+    boxSizing: 'border-box',
+    flex: 1
+  };
+
   if (loading) return <div style={{ padding: '20px', color: '#888', backgroundColor: '#121212', minHeight: '100vh' }}>Loading scrobbles...</div>;
 
   return (
@@ -231,21 +290,57 @@ export default function Recent() {
           {allData.length > 0 && <Bar data={chartData} options={chartOptions} plugins={[customLabelsPlugin]} />}
         </div>
 
+        {/* BARRA DE FILTROS */}
         <div style={{ backgroundColor: '#1e1e1e', padding: '10px', borderRadius: '8px', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input type="text" placeholder="Filter artist..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '100%', padding: '6px 35px 6px 12px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '4px', color: '#fff', fontSize: '13px', height: '30px', boxSizing: 'border-box' }} />
             {searchTerm && <span onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '10px', cursor: 'pointer', color: '#888', fontWeight: 'bold', fontSize: '16px' }}>×</span>}
           </div>
 
-          <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between' }}>
+          {/* CONTROLES DOS FILTROS */}
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            
+            {/* Filtro Rating */}
+            <select value={selectedRating} onChange={(e) => setSelectedRating(e.target.value)} style={selectStyle}>
+              <option value="ALL">Rating: Todos</option>
+              <option value="A">Rating: A</option>
+              <option value="B">Rating: B</option>
+              <option value="C">Rating: C</option>
+              <option value="D">Rating: D</option>
+              <option value="NULL">Sem Rating</option>
+            </select>
+
+            {/* Filtro País */}
+            <select value={selectedCountry} onChange={(e) => setSelectedCountry(e.target.value)} style={selectStyle}>
+              <option value="ALL">País: Todos</option>
+              {countryList.map((country, idx) => (
+                <option key={idx} value={country}>{country}</option>
+              ))}
+              <option value="NONE">Sem País</option>
+            </select>
+
+            {/* Filtro Favoritas */}
+            <select value={selectedFavorite} onChange={(e) => setSelectedFavorite(e.target.value)} style={selectStyle}>
+              <option value="ALL">Favoritas: Todas</option>
+              <option value="YES">Apenas Favoritas (♥)</option>
+              <option value="NO">Não Favoritas</option>
+            </select>
+
+          </div>
+
+          {/* NAVEGAÇÃO DE DIAS */}
+          <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between', marginTop: '4px' }}>
             {currentGroups.slice(0, 10).map((g, i) => (
               <div key={i} onClick={() => { setCurrentPage(i); window.scrollTo(0, 0); }} style={{ background: currentPage === i ? '#ba0000' : '#333', borderColor: currentPage === i ? '#ba0000' : '#444', padding: '4px 0', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', flex: 1, textAlign: 'center', border: '1px solid #444', color: '#fff' }}>
                 {new Date(g[0].date).getDate()}
               </div>
             ))}
           </div>
+
         </div>
 
+        {/* LISTA DE MÚSICAS */}
         <div style={{ background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
           {currentDayData ? (
             <>
@@ -256,7 +351,7 @@ export default function Recent() {
 
               {currentDayData.map((item, idx) => {
                 const artistColor = getArtistColor(item.artist_rating, item.total_albums);
-                const flag = getCountryFlag(item.artist_country);
+                const flagElement = getCountryFlag(item.artist_country);
 
                 return (
                   <div key={idx} onClick={() => openDeezer(item.artist, item.album)} style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #2a2a2a', gap: '12px', cursor: 'pointer' }}>
@@ -274,7 +369,7 @@ export default function Recent() {
                         )}
                       </div>
 
-                      {/* Artista na Cor do Rating + Selo na Mesma Cor + Bandeira do País */}
+                      {/* Artista + Rating + Bandeira do País */}
                       <div style={{ color: artistColor, fontSize: '12px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>{item.artist}</span>
 
@@ -285,8 +380,8 @@ export default function Recent() {
                         )}
 
                         {item.artist_country && (
-                          <span style={{ color: '#888', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            • {flag && <span>{flag}</span>} {item.artist_country}
+                          <span style={{ color: '#888', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            • {flagElement} {item.artist_country}
                           </span>
                         )}
                       </div>
