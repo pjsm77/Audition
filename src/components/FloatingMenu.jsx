@@ -61,7 +61,7 @@ export default function FloatingMenu() {
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <line x1="2" y1="12" x2="22" y2="12" />
-          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10z" />
         </svg>
       )
     },
@@ -238,7 +238,7 @@ export default function FloatingMenu() {
 const styles = {
   container: { 
     position: 'fixed', 
-    bottom: '35px', // Ajustado para não subir excessivamente
+    bottom: '25px', 
     right: '20px', 
     zIndex: 9999, 
     fontFamily: '"Bebas Neue", cursive',
@@ -248,12 +248,12 @@ const styles = {
     width: '50px', 
     height: '50px', 
     borderRadius: '50%', 
-    backgroundColor: 'rgba(44, 62, 80, 0.75)', // Opacidade ajustada para transparência suave
-    backdropFilter: 'blur(8px)', // Efeito de desfoque para manter leitura dos dados abaixo
-    WebkitBackdropFilter: 'blur(8px)',
-    color: 'white', 
-    border: '1px solid rgba(255, 255, 255, 0.2)', 
-    boxShadow: '0 4px 10px rgba(0,0,0,0.25)', 
+    backgroundColor: 'rgba(248, 249, 250, 0.4)', // Cinza bem claro transparente
+    backdropFilter: 'blur(3px)', // Desfoque leve para não distorcer o texto abaixo
+    WebkitBackdropFilter: 'blur(3px)',
+    color: '#4a5568', // Ícone escuro para destacar sobre o fundo claro
+    border: '1px solid rgba(200, 200, 200, 0.5)', 
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)', 
     cursor: 'pointer', 
     display: 'flex', 
     alignItems: 'center', 
@@ -266,13 +266,13 @@ const styles = {
     width: '240px', 
     maxHeight: '500px', 
     overflowY: 'auto', 
-    backgroundColor: 'rgba(255, 255, 255, 0.88)', // Transparência no menu popup
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)', 
+    backdropFilter: 'blur(10px)',
+    WebkitBackdropFilter: 'blur(10px)',
     borderRadius: '8px', 
     boxShadow: '0 4px 15px rgba(0,0,0,0.15)', 
     flexDirection: 'column', 
-    border: '1px solid rgba(220, 220, 220, 0.6)',
+    border: '1px solid rgba(220, 220, 220, 0.8)',
     padding: '4px 0'
   },
   item: { 
@@ -291,7 +291,7 @@ const styles = {
     color: '#444', 
     textDecoration: 'none', 
     fontSize: '16px', 
-    backgroundColor: 'rgba(245, 245, 245, 0.6)',
+    backgroundColor: 'rgba(245, 245, 245, 0.7)',
     borderBottom: '1px solid rgba(0,0,0,0.05)'
   },
   number: { 
