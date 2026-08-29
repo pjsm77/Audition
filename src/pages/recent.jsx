@@ -14,6 +14,47 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// --- FUNÇÃO AUXILIAR PARA OBTER BANDEIRAS ---
+const getCountryFlag = (countryName) => {
+  if (!countryName) return '';
+  
+  const flagMap = {
+    'Brasil': '🇧🇷', 'Brazil': '🇧🇷',
+    'Estados Unidos': '🇺🇸', 'United States': '🇺🇸', 'USA': '🇺🇸',
+    'Reino Unido': '🇬🇧', 'United Kingdom': '🇬🇧', 'UK': '🇬🇧',
+    'Austrália': '🇦🇺', 'Australia': '🇦🇺',
+    'Alemanha': '🇩🇪', 'Germany': '🇩🇪',
+    'França': '🇫🇷', 'France': '🇫🇷',
+    'Canadá': '🇨🇦', 'Canada': '🇨🇦',
+    'Japão': '🇯🇵', 'Japan': '🇯🇵',
+    'Itália': '🇮🇹', 'Italy': '🇮🇹',
+    'Espanha': '🇪🇸', 'Spain': '🇪🇸',
+    'Argentina': '🇦🇷', 'Uruguai': '🇺🇾', 'Uruguay': '🇺🇾',
+    'Irlanda': '🇮🇪', 'Ireland': '🇮🇪',
+    'Suécia': '🇸🇪', 'Sweden': '🇸🇪',
+    'Noruega': '🇳🇴', 'Norway': '🇳🇴',
+    'Holanda': '🇳🇱', 'Países Baixos': '🇳🇱', 'Netherlands': '🇳🇱',
+    'Nova Zelândia': '🇳🇿', 'New Zealand': '🇳🇿',
+    'México': '🇲🇽', 'Chile': '🇨🇱', 'Colômbia': '🇨🇴', 'Portugal': '🇵🇹'
+  };
+
+  return flagMap[countryName] || '🌐';
+};
+
+// --- FUNÇÃO DE COR BASEADA NO RATING / COLEÇÃO ---
+const getArtistColor = (rating, totalAlbums) => {
+  if (rating === 'A') return '#6dbe99';
+  if (rating === 'B') return '#a3e04d';
+  if (rating === 'C') return '#f8c039';
+  if (rating === 'D') return '#e97b78';
+  
+  // Se está na coleção (possui álbuns cadastrados) mas o rating é NULL
+  if (totalAlbums > 0) return '#4d388c';
+  
+  // Fora da coleção / sem dados
+  return '#aaaaaa';
+};
+
 export default function Recent() {
   const [allData, setAllData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -27,15 +68,12 @@ export default function Recent() {
     const scrobbleTime = new Date(latestDate);
     const diffMs = now - scrobbleTime;
     
-    // Converte milissegundos para horas e minutos
     const totalMinutes = Math.floor(diffMs / (1000 * 60));
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     
-    // Formata HH:MM com zeros à esquerda
     const formattedDiff = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-    // Lógica das cores
     let color = '#f44336'; // Vermelho (>= 2h)
     if (totalMinutes < 60) color = '#4caf50'; // Verde (< 1h)
     else if (totalMinutes < 120) color = '#ffeb3b'; // Amarelo (< 2h)
@@ -216,57 +254,62 @@ export default function Recent() {
                 {currentPage === 0 && getStatusIndicator(currentDayData[0].date)}
               </div>
 
-              {currentDayData.map((item, idx) => (
-                <div key={idx} onClick={() => openDeezer(item.artist, item.album)} style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #2a2a2a', gap: '12px', cursor: 'pointer' }}>
-                  <div>
-                    <img src={item.album_art || 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'} style={{ width: '55px', height: '55px', borderRadius: '3px', objectFit: 'cover', display: 'block' }} alt="album art" onError={(e) => { e.target.src = 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'; }} />
+              {currentDayData.map((item, idx) => {
+                const artistColor = getArtistColor(item.artist_rating, item.total_albums);
+                const flag = getCountryFlag(item.artist_country);
+
+                return (
+                  <div key={idx} onClick={() => openDeezer(item.artist, item.album)} style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #2a2a2a', gap: '12px', cursor: 'pointer' }}>
+                    <div>
+                      <img src={item.album_art || 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'} style={{ width: '55px', height: '55px', borderRadius: '3px', objectFit: 'cover', display: 'block' }} alt="album art" onError={(e) => { e.target.src = 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'; }} />
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      
+                      {/* Música + Coração Maior */}
+                      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{item.song}</span>
+                        {item.is_favorite && (
+                          <span style={{ color: '#e91e63', fontSize: '14px', lineHeight: 1 }} title="Música favorita">♥</span>
+                        )}
+                      </div>
+
+                      {/* Artista na Cor do Rating + Selo na Mesma Cor + Bandeira do País */}
+                      <div style={{ color: artistColor, fontSize: '12px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{item.artist}</span>
+
+                        {item.artist_rating && (
+                          <span style={{ backgroundColor: '#2a2a2a', color: artistColor, border: `1px solid ${artistColor}`, padding: '0px 4px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold' }}>
+                            {item.artist_rating}
+                          </span>
+                        )}
+
+                        {item.artist_country && (
+                          <span style={{ color: '#888', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            • {flag && <span>{flag}</span>} {item.artist_country}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Álbum + Contagem de Álbuns */}
+                      <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{item.album || '—'}</span>
+                        {item.total_albums > 0 && (
+                          <span style={{ color: '#666', fontSize: '10px' }}>
+                            ({item.total_albums} {item.total_albums === 1 ? 'álbum' : 'álbuns'})
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Horário */}
+                      <div style={{ color: '#888', fontSize: '10px', opacity: 0.7 }}>
+                        {new Date(item.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+
+                    </div>
                   </div>
-
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    
-                    {/* Música + Coração caso seja Favorita */}
-                    <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{item.song}</span>
-                      {item.is_favorite && (
-                        <span style={{ color: '#e91e63', fontSize: '11px' }} title="Música favorita">♥</span>
-                      )}
-                    </div>
-
-                    {/* Artista + Novo Rating + País */}
-                    <div style={{ color: '#e0e0e0', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{item.artist}</span>
-
-                      {item.artist_rating && (
-                        <span style={{ backgroundColor: '#2a2a2a', color: '#ffb74d', border: '1px solid #444', padding: '0px 4px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold' }}>
-                          {item.artist_rating}
-                        </span>
-                      )}
-
-                      {item.artist_country && (
-                        <span style={{ color: '#888', fontSize: '10px' }}>
-                          • {item.artist_country}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Álbum + Contagem de Álbuns */}
-                    <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{item.album || '—'}</span>
-                      {item.total_albums > 0 && (
-                        <span style={{ color: '#666', fontSize: '10px' }}>
-                          ({item.total_albums} {item.total_albums === 1 ? 'álbum' : 'álbuns'})
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Horário */}
-                    <div style={{ color: '#888', fontSize: '10px', opacity: 0.7 }}>
-                      {new Date(item.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </>
           ) : (
             <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>No data found for the applied filters.</div>
