@@ -270,7 +270,7 @@ const styles = {
   container: { 
     position: 'fixed', 
     bottom: '20px', 
-    right: '20px', 
+    left: '20px', 
     zIndex: 9999, 
     fontFamily: '"Bebas Neue", cursive',
     letterSpacing: '0.8px'
@@ -291,7 +291,7 @@ const styles = {
   options: { 
     position: 'absolute', 
     bottom: '60px', 
-    right: 0, 
+    left: 0, 
     width: '240px', 
     maxHeight: '500px', 
     overflowY: 'auto', 
