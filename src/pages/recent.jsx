@@ -14,43 +14,62 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// --- BANDEIRA VIA FLAGCDN ---
+// --- MAPEAMENTO COMPLETO DE PAÍSES DO ARTISTS.JSX ---
+const countryMap = {
+  "[desconhecido]": "unknown", "afeganistão": "af", "áfrica do sul": "za", "alemanha": "de", 
+  "andorra": "ad", "argélia": "dz", "argentina": "ar", "armênia": "am", "austrália": "au",
+  "áustria": "at", "azerbaijão": "az", "bangladesh": "bd", "barbados": "bb", "bélgica": "be", 
+  "bolívia": "bo", "bósnia e herzegovina": "ba", "brasil": "br", "bulgária": "bg", "canadá": "ca", 
+  "chile": "cl", "china": "cn", "colômbia": "co", "coreia do sul": "kr", "costa rica": "cr", 
+  "croácia": "hr", "cuba": "cu", "dinamarca": "dk", "egito": "eg", "emirados árabes unidos": "ae", 
+  "equador": "ec", "escócia": "gb-sct", "eslováquia": "sk", "eslovênia": "si", "espanha": "es", 
+  "estados unidos": "us", "estônia": "ee", "eua": "us", "finlândia": "fi", "frança": "fr", 
+  "geórgia": "ge", "grécia": "gr", "guatemala": "gt", "hungria": "hu", "índia": "in", 
+  "indonésia": "id", "inglaterra": "gb-eng", "irã": "ir", "irlanda": "ie", "islândia": "is", 
+  "israel": "il", "itália": "it", "jamaica": "jm", "japão": "jp", "jordânia": "jo", "líbano": "lb",
+  "luxemburgo": "lu", "malásia": "my", "malta": "mt", "marrocos": "ma", "méxico": "mx", 
+  "mongólia": "mn", "montenegro": "me", "nigéria": "ng", "noruega": "no", "nova zelândia": "nz", 
+  "país de gales": "gb-wls", "países baixos": "nl", "holanda": "nl", "panamá": "pa", 
+  "paquistão": "pk", "paraguai": "py", "peru": "pe", "polônia": "pl", "portugal": "pt", 
+  "quênia": "ke", "quirguistão": "kg", "reino unido": "gb", "república checa": "cz", 
+  "romênia": "ro", "rússia": "ru", "sérvia": "rs", "síria": "sy", "sri lanka": "lk", 
+  "suécia": "se", "suíça": "ch", "tailândia": "th", "taiwan": "tw", "tajiquistão": "tj", 
+  "tunísia": "tn", "turquia": "tr", "ucrânia": "ua", "uruguai": "uy", "venezuela": "ve", 
+  "vietnã": "vn", "zâmbia": "zm", "zimbábue": "zw"
+};
+
 const getCountryFlag = (countryName) => {
   if (!countryName) return null;
+  const cleanName = countryName.toLowerCase().trim();
+  const flagCode = countryMap[cleanName] || "un";
 
-  const codeMap = {
-    'Brasil': 'br', 'Brazil': 'br',
-    'Estados Unidos': 'us', 'United States': 'us', 'USA': 'us',
-    'Reino Unido': 'gb', 'United Kingdom': 'gb', 'UK': 'gb',
-    'Austrália': 'au', 'Australia': 'au',
-    'Alemanha': 'de', 'Germany': 'de',
-    'França': 'fr', 'France': 'fr',
-    'Canadá': 'ca', 'Canada': 'ca',
-    'Japão': 'jp', 'Japan': 'jp',
-    'Itália': 'it', 'Italy': 'it',
-    'Espanha': 'es', 'Spain': 'es',
-    'Argentina': 'ar', 'Uruguai': 'uy', 'Uruguay': 'uy',
-    'Irlanda': 'ie', 'Ireland': 'ie',
-    'Suécia': 'se', 'Sweden': 'se',
-    'Noruega': 'no', 'Norway': 'no',
-    'Holanda': 'nl', 'Países Baixos': 'nl', 'Netherlands': 'nl',
-    'Nova Zelândia': 'nz', 'New Zealand': 'nz',
-    'México': 'mx', 'Chile': 'cl', 'Colômbia': 'co', 'Portugal': 'pt'
-  };
-
-  const code = codeMap[countryName];
-  if (!code) return null;
+  if (flagCode === "unknown" || flagCode === "un") return null;
 
   return (
     <img 
-      src={`https://flagcdn.com/16x12/${code}.png`} 
+      src={`https://flagcdn.com/32x24/${flagCode}.png`} 
       alt={countryName} 
-      style={{ width: '16px', height: '12px', borderRadius: '1px', objectFit: 'cover' }} 
+      style={{ width: '16px', height: '12px', border: '0.5px solid #555', borderRadius: '1px', objectFit: 'cover' }} 
     />
   );
 };
 
-// --- REGRAS DE CORES DO NOME DO ARTISTA (ARTISTS.JSX) ---
+// --- COR DO SCORE DE RECÊNCIA DO ARTISTS.JSX ---
+const getScoreBgColor = (score) => {
+  if (score >= 90) return '#6dbe99';
+  if (score >= 80) return '#86d03a';
+  if (score >= 70) return '#b7d13e';
+  if (score >= 60) return '#e0d341';
+  if (score >= 50) return '#ffcc33';
+  if (score >= 40) return '#ffaa33';
+  if (score >= 30) return '#ff8833';
+  if (score >= 20) return '#ff5f33';
+  if (score >= 10) return '#ff4433';
+  if (score >= 1) return '#e97b78';
+  return '#aaaaaa';
+};
+
+// --- REGRAS DE COR DO ARTISTA ---
 const getArtistColor = (rating, totalAlbums) => {
   if (rating === 'A') return '#6dbe99';
   if (rating === 'B') return '#a3e04d';
@@ -60,8 +79,8 @@ const getArtistColor = (rating, totalAlbums) => {
   return '#aaaaaa';
 };
 
-// --- BORDAS DO GR BADGE DO ARTISTS.JSX ---
-const getGRBadgeStyle = (gr, color) => {
+// --- COR DA BORDA DA PÍLULA DO GR ---
+const getGRBadgeStyle = (gr) => {
   let borderColor = '#aaaaaa';
   if (gr > 0 && gr <= 100) borderColor = '#6dbe99';
   else if (gr > 100 && gr <= 300) borderColor = '#86d03a';
@@ -75,9 +94,10 @@ const getGRBadgeStyle = (gr, color) => {
     fontWeight: 'bold',
     color: borderColor,
     border: `1px solid ${borderColor}`,
-    borderRadius: '10px',
-    padding: '0px 5px',
-    lineHeight: '1.2'
+    borderRadius: '3px',
+    padding: '0px 4px',
+    lineHeight: '1.1',
+    display: 'inline-block'
   };
 };
 
@@ -170,12 +190,14 @@ export default function Recent() {
         setFilteredData(loadedData);
         setLoading(false);
 
-        // Carrega o ranking geral de artistas para mapear o GR idêntico ao artists.jsx
+        // Carrega o ranking para mapear a posição exata (GR) de cada artista
         const { data: grData } = await supabase.rpc('get_artist_ranking_full', { search_term: '' });
         if (grData) {
           const sorted = [...grData].sort((a, b) => (b.scrobbles - a.scrobbles) || a.artist.localeCompare(b.artist));
           const map = new Map();
-          sorted.forEach((item, idx) => map.set(item.artist.toLowerCase(), idx + 1));
+          sorted.forEach((item, idx) => {
+            if (item.artist) map.set(item.artist.toLowerCase().trim(), idx + 1);
+          });
           setArtistGRMap(map);
         }
 
@@ -196,7 +218,7 @@ export default function Recent() {
     initialLoad();
   }, []);
 
-  // Lógica dos Filtros
+  // Aplicação dos Filtros
   useEffect(() => {
     let result = [...allData];
 
@@ -246,7 +268,6 @@ export default function Recent() {
   const ITEMS_PER_PAGE = 50;
   const currentGroups = groupData(filteredData);
 
-  // Sem filtro = agrupado por dia; Com filtro = lista contínua
   const displayItems = isFiltered
     ? filteredData.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE)
     : (currentGroups[currentPage] || []);
@@ -328,7 +349,6 @@ export default function Recent() {
     flex: 1
   };
 
-  // DD/MM/AA - HH:MM
   const formatDateWithTime = (dateStr) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
@@ -352,13 +372,12 @@ export default function Recent() {
           {allData.length > 0 && <Bar data={chartData} options={chartOptions} plugins={[customLabelsPlugin]} />}
         </div>
 
-        {/* FILTROS */}
+        {/* CONTROLES DE FILTRO */}
         <div style={{ backgroundColor: '#1e1e1e', padding: '10px', borderRadius: '8px', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           
           <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <input type="text" placeholder="Filter artist..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '100%', padding: '6px 35px 6px 12px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '4px', color: '#fff', fontSize: '13px', height: '30px', boxSizing: 'border-box' }} />
             
-            {/* BOTÃO LIMPAR FILTROS */}
             {isFiltered && (
               <button 
                 onClick={clearFilters}
@@ -394,7 +413,6 @@ export default function Recent() {
             </select>
           </div>
 
-          {/* NAVEGAÇÃO DE DIAS (Somente sem filtros) */}
           {!isFiltered && (
             <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between', marginTop: '4px' }}>
               {currentGroups.slice(0, 10).map((g, i) => (
@@ -407,7 +425,7 @@ export default function Recent() {
 
         </div>
 
-        {/* LISTAGEM */}
+        {/* LISTA */}
         <div style={{ background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
           
           {!isFiltered && displayItems.length > 0 && (
@@ -421,7 +439,7 @@ export default function Recent() {
             displayItems.map((item, idx) => {
               const artistColor = getArtistColor(item.artist_rating, item.total_albums);
               const flagElement = getCountryFlag(item.artist_country);
-              const grPos = artistGRMap.get((item.artist || '').toLowerCase());
+              const grPos = artistGRMap.get((item.artist || '').toLowerCase().trim());
 
               return (
                 <div key={idx} onClick={() => openDeezer(item.artist, item.album)} style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #2a2a2a', gap: '12px', cursor: 'pointer' }}>
@@ -432,7 +450,7 @@ export default function Recent() {
 
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
                     
-                    {/* Linha 1: Música + Coração Maior */}
+                    {/* Linha 1: Nome da Música + Coração */}
                     <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>{item.song}</span>
                       {item.is_favorite && (
@@ -440,10 +458,10 @@ export default function Recent() {
                       )}
                     </div>
 
-                    {/* Linha 2: Artista + Total Scrobbles + GR + Score Recência + Rating + País */}
-                    <div style={{ color: artistColor, fontSize: '12px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* Linha 2: Nome do Artista (com cor de rating) + Total Scrobbles + GR + Score de Recência Retangular + Bandeira */}
+                    <div style={{ fontSize: '12px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       
-                      <span>{item.artist}</span>
+                      <span style={{ color: artistColor, fontWeight: 'bold' }}>{item.artist}</span>
 
                       {/* Total Scrobbles do Artista */}
                       {item.total_scrobbles > 0 && (
@@ -452,28 +470,30 @@ export default function Recent() {
                         </span>
                       )}
 
-                      {/* GR (Pílula de Ranking Geral) */}
+                      {/* Pílula de Posição GR */}
                       {grPos && (
-                        <span style={getGRBadgeStyle(grPos, artistColor)}>
+                        <span style={getGRBadgeStyle(grPos)}>
                           {grPos}
                         </span>
                       )}
 
-                      {/* Score de Recência (0 a 99) estilo retângulo */}
+                      {/* Score de Recência (Retângulo com fundo colorido e fonte branca) */}
                       {item.artist_recency_score !== undefined && item.artist_recency_score !== null && (
-                        <span style={{ border: '1px solid #6dbe99', color: '#6dbe99', backgroundColor: 'rgba(109,190,153,0.1)', padding: '0px 3px', borderRadius: '2px', fontSize: '9px', fontWeight: 'bold' }}>
-                          |||||| {item.artist_recency_score}
+                        <span style={{ 
+                          backgroundColor: getScoreBgColor(item.artist_recency_score), 
+                          color: '#ffffff', 
+                          fontSize: '10px', 
+                          fontWeight: 'bold',
+                          padding: '1px 4px', 
+                          borderRadius: '1px', 
+                          lineHeight: '1.1',
+                          display: 'inline-block'
+                        }}>
+                          {item.artist_recency_score}
                         </span>
                       )}
 
-                      {/* Selo Rating */}
-                      {item.artist_rating && (
-                        <span style={{ backgroundColor: '#2a2a2a', color: artistColor, border: `1px solid ${artistColor}`, padding: '0px 4px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold' }}>
-                          {item.artist_rating}
-                        </span>
-                      )}
-
-                      {/* País */}
+                      {/* País + Bandeira */}
                       {item.artist_country && (
                         <span style={{ color: '#888', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           • {flagElement} {item.artist_country}
@@ -481,7 +501,7 @@ export default function Recent() {
                       )}
                     </div>
 
-                    {/* Linha 3: Álbum + Qtd de Álbuns */}
+                    {/* Linha 3: Nome do Álbum + Qtd de Álbuns */}
                     <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span>{item.album || '—'}</span>
                       {item.total_albums > 0 && (
