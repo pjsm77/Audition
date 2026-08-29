@@ -238,7 +238,7 @@ export default function FloatingMenu() {
 const styles = {
   container: { 
     position: 'fixed', 
-    bottom: '80px', // Ajustado de 20px para 80px para dar espaçamento das informações inferiores
+    bottom: '35px', // Ajustado para não subir excessivamente
     right: '20px', 
     zIndex: 9999, 
     fontFamily: '"Bebas Neue", cursive',
@@ -248,10 +248,12 @@ const styles = {
     width: '50px', 
     height: '50px', 
     borderRadius: '50%', 
-    backgroundColor: '#2c3e50', 
+    backgroundColor: 'rgba(44, 62, 80, 0.75)', // Opacidade ajustada para transparência suave
+    backdropFilter: 'blur(8px)', // Efeito de desfoque para manter leitura dos dados abaixo
+    WebkitBackdropFilter: 'blur(8px)',
     color: 'white', 
-    border: 'none', 
-    boxShadow: '0 4px 10px rgba(0,0,0,0.3)', 
+    border: '1px solid rgba(255, 255, 255, 0.2)', 
+    boxShadow: '0 4px 10px rgba(0,0,0,0.25)', 
     cursor: 'pointer', 
     display: 'flex', 
     alignItems: 'center', 
@@ -264,35 +266,37 @@ const styles = {
     width: '240px', 
     maxHeight: '500px', 
     overflowY: 'auto', 
-    backgroundColor: 'white', 
+    backgroundColor: 'rgba(255, 255, 255, 0.88)', // Transparência no menu popup
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
     borderRadius: '8px', 
-    boxShadow: '0 4px 15px rgba(0,0,0,0.2)', 
+    boxShadow: '0 4px 15px rgba(0,0,0,0.15)', 
     flexDirection: 'column', 
-    border: '1px solid #e0e0e0',
+    border: '1px solid rgba(220, 220, 220, 0.6)',
     padding: '4px 0'
   },
   item: { 
     display: 'flex', 
     alignItems: 'center', 
     padding: '10px 14px', 
-    color: '#333', 
+    color: '#222', 
     textDecoration: 'none', 
     fontSize: '18px', 
-    borderBottom: '1px solid #f5f5f5'
+    borderBottom: '1px solid rgba(0,0,0,0.05)'
   },
   subItem: {
     display: 'flex', 
     alignItems: 'center', 
     padding: '8px 14px 8px 28px', 
-    color: '#555', 
+    color: '#444', 
     textDecoration: 'none', 
     fontSize: '16px', 
-    backgroundColor: '#fafafa',
-    borderBottom: '1px solid #f5f5f5'
+    backgroundColor: 'rgba(245, 245, 245, 0.6)',
+    borderBottom: '1px solid rgba(0,0,0,0.05)'
   },
   number: { 
     marginRight: '8px', 
-    color: '#95a5a6', 
+    color: '#7f8c8d', 
     fontSize: '11px', 
     width: '18px', 
     display: 'inline-block',
@@ -301,7 +305,7 @@ const styles = {
   },
   subNumber: {
     marginRight: '12px', 
-    color: '#bdc3c7', 
+    color: '#95a5a6', 
     fontSize: '10px', 
     width: '22px', 
     display: 'inline-block',
