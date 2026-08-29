@@ -21,34 +21,34 @@ export default function Recent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // --- FUNÇÃO PARA FORMATO HH:MM ---
-  const getStatusIndicator = (latestDate) => {
-    const now = new Date();
-    const scrobbleTime = new Date(latestDate);
-    const diffMs = now - scrobbleTime;
-    
-    // Converte milissegundos para horas e minutos
-    const totalMinutes = Math.floor(diffMs / (1000 * 60));
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    
-    // Formata HH:MM com zeros à esquerda
-    const formattedDiff = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+// --- FUNÇÃO ATUALIZADA PARA FORMATO HH:MM ---
+const getStatusIndicator = (latestDate) => {
+  const now = new Date();
+  const scrobbleTime = new Date(latestDate);
+  const diffMs = now - scrobbleTime;
+  
+  // Converte milissegundos para horas e minutos
+  const totalMinutes = Math.floor(diffMs / (1000 * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  
+  // Formata HH:MM com zeros à esquerda
+  const formattedDiff = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-    // Lógica das cores
-    let color = '#f44336'; // Vermelho (>= 2h)
-    if (totalMinutes < 60) color = '#4caf50'; // Verde (< 1h)
-    else if (totalMinutes < 120) color = '#ffeb3b'; // Amarelo (< 2h)
+  // Lógica das cores
+  let color = '#f44336'; // Vermelho (>= 2h)
+  if (totalMinutes < 60) color = '#4caf50'; // Verde (< 1h)
+  else if (totalMinutes < 120) color = '#ffeb3b'; // Amarelo (< 2h)
 
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color }}></div>
-        <span style={{ fontSize: '10px', color: '#888', fontWeight: 'bold' }}>
-          {formattedDiff}
-        </span>
-      </div>
-    );
-  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: color }}></div>
+      <span style={{ fontSize: '10px', color: '#888', fontWeight: 'bold' }}>
+        {formattedDiff}
+      </span>
+    </div>
+  );
+};
 
   useEffect(() => {
     document.documentElement.style.overflow = 'auto';
@@ -221,49 +221,13 @@ export default function Recent() {
                   <div>
                     <img src={item.album_art || 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'} style={{ width: '55px', height: '55px', borderRadius: '3px', objectFit: 'cover', display: 'block' }} alt="album art" onError={(e) => { e.target.src = 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'; }} />
                   </div>
-
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    
-                    {/* Música + Coração caso seja Favorita */}
-                    <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{item.song}</span>
-                      {item.is_favorite && (
-                        <span style={{ color: '#e91e63', fontSize: '11px' }} title="Música favorita">♥</span>
-                      )}
-                    </div>
-
-                    {/* Artista + Novo Rating + País */}
-                    <div style={{ color: '#e0e0e0', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{item.artist}</span>
-
-                      {item.artist_rating && (
-                        <span style={{ backgroundColor: '#2a2a2a', color: '#ffb74d', border: '1px solid #444', padding: '0px 4px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold' }}>
-                          {item.artist_rating}
-                        </span>
-                      )}
-
-                      {item.artist_country && (
-                        <span style={{ color: '#888', fontSize: '10px' }}>
-                          • {item.artist_country}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Álbum + Contagem de Álbuns */}
-                    <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>{item.album || '—'}</span>
-                      {item.total_albums > 0 && (
-                        <span style={{ color: '#666', fontSize: '10px' }}>
-                          ({item.total_albums} {item.total_albums === 1 ? 'álbum' : 'álbuns'})
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Horário */}
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                    <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.song}</div>
+                    <div style={{ color: '#e0e0e0', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.artist}</div>
+                    <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.album || '—'}</div>
                     <div style={{ color: '#888', fontSize: '10px', opacity: 0.7 }}>
                       {new Date(item.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </div>
-
                   </div>
                 </div>
               ))}
