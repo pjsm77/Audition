@@ -14,7 +14,7 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-// --- FUNÇÃO PARA OBTER A BANDEIRA VIA FLAGCDN (USANDO O NOME OU CÓDIGO) ---
+// --- BANDEIRA VIA FLAGCDN ---
 const getCountryFlag = (countryName) => {
   if (!countryName) return null;
 
@@ -50,30 +50,64 @@ const getCountryFlag = (countryName) => {
   );
 };
 
-// --- FUNÇÃO DE COR BASEADA NO RATING / COLEÇÃO ---
+// --- REGRAS DE CORES DO NOME DO ARTISTA (ARTISTS.JSX) ---
 const getArtistColor = (rating, totalAlbums) => {
   if (rating === 'A') return '#6dbe99';
   if (rating === 'B') return '#a3e04d';
   if (rating === 'C') return '#f8c039';
   if (rating === 'D') return '#e97b78';
-  
   if (totalAlbums > 0) return '#4d388c';
   return '#aaaaaa';
+};
+
+// --- BORDAS DO GR BADGE DO ARTISTS.JSX ---
+const getGRBadgeStyle = (gr, color) => {
+  let borderColor = '#aaaaaa';
+  if (gr > 0 && gr <= 100) borderColor = '#6dbe99';
+  else if (gr > 100 && gr <= 300) borderColor = '#86d03a';
+  else if (gr > 300 && gr <= 600) borderColor = '#ffcc33';
+  else if (gr > 600 && gr <= 1000) borderColor = '#ffaa33';
+  else if (gr > 1000 && gr <= 1500) borderColor = '#ff5f33';
+  else if (gr > 1500 && gr <= 2000) borderColor = '#e97b78';
+
+  return {
+    fontSize: '9px',
+    fontWeight: 'bold',
+    color: borderColor,
+    border: `1px solid ${borderColor}`,
+    borderRadius: '10px',
+    padding: '0px 5px',
+    lineHeight: '1.2'
+  };
 };
 
 export default function Recent() {
   const [allData, setAllData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [artistGRMap, setArtistGRMap] = useState(new Map());
   const [currentPage, setCurrentPage] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Estados dos Filtros
+  // Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRating, setSelectedRating] = useState('ALL');
   const [selectedCountry, setSelectedCountry] = useState('ALL');
   const [selectedFavorite, setSelectedFavorite] = useState('ALL');
 
-  // --- FUNÇÃO PARA FORMATO HH:MM ---
+  const isFiltered = Boolean(
+    searchTerm.trim() || 
+    selectedRating !== 'ALL' || 
+    selectedCountry !== 'ALL' || 
+    selectedFavorite !== 'ALL'
+  );
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedRating('ALL');
+    setSelectedCountry('ALL');
+    setSelectedFavorite('ALL');
+  };
+
   const getStatusIndicator = (latestDate) => {
     const now = new Date();
     const scrobbleTime = new Date(latestDate);
@@ -136,6 +170,15 @@ export default function Recent() {
         setFilteredData(loadedData);
         setLoading(false);
 
+        // Carrega o ranking geral de artistas para mapear o GR idêntico ao artists.jsx
+        const { data: grData } = await supabase.rpc('get_artist_ranking_full', { search_term: '' });
+        if (grData) {
+          const sorted = [...grData].sort((a, b) => (b.scrobbles - a.scrobbles) || a.artist.localeCompare(b.artist));
+          const map = new Map();
+          sorted.forEach((item, idx) => map.set(item.artist.toLowerCase(), idx + 1));
+          setArtistGRMap(map);
+        }
+
         const { data: fullData, error: fullError } = await supabase
           .from('recent_scrobbles_view')
           .select('*')
@@ -143,7 +186,7 @@ export default function Recent() {
         
         if (!fullError && fullData) {
           setAllData(fullData);
-          setFilteredData(prev => searchTerm.trim() ? prev : fullData);
+          setFilteredData(prev => isFiltered ? prev : fullData);
         }
       } catch (err) {
         console.error("Erro na carga:", err);
@@ -153,17 +196,15 @@ export default function Recent() {
     initialLoad();
   }, []);
 
-  // Aplicação Dinâmica dos Filtros
+  // Lógica dos Filtros
   useEffect(() => {
     let result = [...allData];
 
-    // Filtro por Nome do Artista
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase().trim();
       result = result.filter(item => (item.artist || '').toLowerCase().includes(term));
     }
 
-    // Filtro por Rating do Artista
     if (selectedRating !== 'ALL') {
       if (selectedRating === 'NULL') {
         result = result.filter(item => !item.artist_rating);
@@ -172,7 +213,6 @@ export default function Recent() {
       }
     }
 
-    // Filtro por País
     if (selectedCountry !== 'ALL') {
       if (selectedCountry === 'NONE') {
         result = result.filter(item => !item.artist_country);
@@ -181,7 +221,6 @@ export default function Recent() {
       }
     }
 
-    // Filtro por Músicas Favoritas
     if (selectedFavorite !== 'ALL') {
       const isFav = selectedFavorite === 'YES';
       result = result.filter(item => !!item.is_favorite === isFav);
@@ -203,10 +242,19 @@ export default function Recent() {
   };
 
   const globalGroups = groupData(allData).slice(0, 10).reverse();
-  const currentGroups = groupData(filteredData);
-  const currentDayData = currentGroups[currentPage] || null;
 
-  // Lista única de países cadastrados para o dropdown
+  const ITEMS_PER_PAGE = 50;
+  const currentGroups = groupData(filteredData);
+
+  // Sem filtro = agrupado por dia; Com filtro = lista contínua
+  const displayItems = isFiltered
+    ? filteredData.slice(currentPage * ITEMS_PER_PAGE, (currentPage + 1) * ITEMS_PER_PAGE)
+    : (currentGroups[currentPage] || []);
+
+  const totalPages = isFiltered
+    ? Math.ceil(filteredData.length / ITEMS_PER_PAGE)
+    : currentGroups.length;
+
   const countryList = Array.from(
     new Set(allData.map(i => i.artist_country).filter(Boolean))
   ).sort();
@@ -280,28 +328,48 @@ export default function Recent() {
     flex: 1
   };
 
+  // DD/MM/AA - HH:MM
+  const formatDateWithTime = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+
+    return `${day}/${month}/${year} - ${hours}:${minutes}`;
+  };
+
   if (loading) return <div style={{ padding: '20px', color: '#888', backgroundColor: '#121212', minHeight: '100vh' }}>Loading scrobbles...</div>;
 
   return (
     <div style={{ backgroundColor: '#121212', color: '#e0e0e0', fontFamily: 'Segoe UI, Roboto, sans-serif', height: '100vh', overflowY: 'scroll', WebkitOverflowScrolling: 'touch', padding: '10px', boxSizing: 'border-box' }}>
       <div style={{ maxWidth: '1000px', margin: 'auto' }}>
         
+        {/* GRÁFICO */}
         <div style={{ width: '100%', height: '140px', backgroundColor: '#1e1e1e', borderRadius: '8px', padding: '5px', boxSizing: 'border-box', marginBottom: '10px' }}>
           {allData.length > 0 && <Bar data={chartData} options={chartOptions} plugins={[customLabelsPlugin]} />}
         </div>
 
-        {/* BARRA DE FILTROS */}
+        {/* FILTROS */}
         <div style={{ backgroundColor: '#1e1e1e', padding: '10px', borderRadius: '8px', marginBottom: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <input type="text" placeholder="Filter artist..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: '100%', padding: '6px 35px 6px 12px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '4px', color: '#fff', fontSize: '13px', height: '30px', boxSizing: 'border-box' }} />
-            {searchTerm && <span onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '10px', cursor: 'pointer', color: '#888', fontWeight: 'bold', fontSize: '16px' }}>×</span>}
+            
+            {/* BOTÃO LIMPAR FILTROS */}
+            {isFiltered && (
+              <button 
+                onClick={clearFilters}
+                style={{ backgroundColor: '#ba0000', color: '#fff', border: 'none', borderRadius: '4px', padding: '0 10px', height: '30px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' }}
+              >
+                × Limpar
+              </button>
+            )}
           </div>
 
-          {/* CONTROLES DOS FILTROS */}
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            
-            {/* Filtro Rating */}
             <select value={selectedRating} onChange={(e) => setSelectedRating(e.target.value)} style={selectStyle}>
               <option value="ALL">Rating: Todos</option>
               <option value="A">Rating: A</option>
@@ -311,7 +379,6 @@ export default function Recent() {
               <option value="NULL">Sem Rating</option>
             </select>
 
-            {/* Filtro País */}
             <select value={selectedCountry} onChange={(e) => setSelectedCountry(e.target.value)} style={selectStyle}>
               <option value="ALL">País: Todos</option>
               {countryList.map((country, idx) => (
@@ -320,105 +387,133 @@ export default function Recent() {
               <option value="NONE">Sem País</option>
             </select>
 
-            {/* Filtro Favoritas */}
             <select value={selectedFavorite} onChange={(e) => setSelectedFavorite(e.target.value)} style={selectStyle}>
               <option value="ALL">Favoritas: Todas</option>
               <option value="YES">Apenas Favoritas (♥)</option>
               <option value="NO">Não Favoritas</option>
             </select>
-
           </div>
 
-          {/* NAVEGAÇÃO DE DIAS */}
-          <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between', marginTop: '4px' }}>
-            {currentGroups.slice(0, 10).map((g, i) => (
-              <div key={i} onClick={() => { setCurrentPage(i); window.scrollTo(0, 0); }} style={{ background: currentPage === i ? '#ba0000' : '#333', borderColor: currentPage === i ? '#ba0000' : '#444', padding: '4px 0', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', flex: 1, textAlign: 'center', border: '1px solid #444', color: '#fff' }}>
-                {new Date(g[0].date).getDate()}
-              </div>
-            ))}
-          </div>
+          {/* NAVEGAÇÃO DE DIAS (Somente sem filtros) */}
+          {!isFiltered && (
+            <div style={{ display: 'flex', gap: '4px', justifyContent: 'space-between', marginTop: '4px' }}>
+              {currentGroups.slice(0, 10).map((g, i) => (
+                <div key={i} onClick={() => { setCurrentPage(i); window.scrollTo(0, 0); }} style={{ background: currentPage === i ? '#ba0000' : '#333', borderColor: currentPage === i ? '#ba0000' : '#444', padding: '4px 0', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', flex: 1, textAlign: 'center', border: '1px solid #444', color: '#fff' }}>
+                  {new Date(g[0].date).getDate()}
+                </div>
+              ))}
+            </div>
+          )}
 
         </div>
 
-        {/* LISTA DE MÚSICAS */}
+        {/* LISTAGEM */}
         <div style={{ background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>
-          {currentDayData ? (
-            <>
-              <div style={{ background: '#252525', padding: '6px 15px', fontWeight: 'bold', color: '#ba0000', textTransform: 'capitalize', borderBottom: '2px solid #ba0000', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{new Date(currentDayData[0].date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit' })}</span>
-                {currentPage === 0 && getStatusIndicator(currentDayData[0].date)}
-              </div>
+          
+          {!isFiltered && displayItems.length > 0 && (
+            <div style={{ background: '#252525', padding: '6px 15px', fontWeight: 'bold', color: '#ba0000', textTransform: 'capitalize', borderBottom: '2px solid #ba0000', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{new Date(displayItems[0].date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: '2-digit' })}</span>
+              {currentPage === 0 && getStatusIndicator(displayItems[0].date)}
+            </div>
+          )}
 
-              {currentDayData.map((item, idx) => {
-                const artistColor = getArtistColor(item.artist_rating, item.total_albums);
-                const flagElement = getCountryFlag(item.artist_country);
+          {displayItems.length > 0 ? (
+            displayItems.map((item, idx) => {
+              const artistColor = getArtistColor(item.artist_rating, item.total_albums);
+              const flagElement = getCountryFlag(item.artist_country);
+              const grPos = artistGRMap.get((item.artist || '').toLowerCase());
 
-                return (
-                  <div key={idx} onClick={() => openDeezer(item.artist, item.album)} style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #2a2a2a', gap: '12px', cursor: 'pointer' }}>
-                    <div>
-                      <img src={item.album_art || 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'} style={{ width: '55px', height: '55px', borderRadius: '3px', objectFit: 'cover', display: 'block' }} alt="album art" onError={(e) => { e.target.src = 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'; }} />
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                      
-                      {/* Música + Coração Maior */}
-                      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>{item.song}</span>
-                        {item.is_favorite && (
-                          <span style={{ color: '#e91e63', fontSize: '14px', lineHeight: 1 }} title="Música favorita">♥</span>
-                        )}
-                      </div>
-
-                      {/* Artista + Rating + Bandeira do País */}
-                      <div style={{ color: artistColor, fontSize: '12px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>{item.artist}</span>
-
-                        {item.artist_rating && (
-                          <span style={{ backgroundColor: '#2a2a2a', color: artistColor, border: `1px solid ${artistColor}`, padding: '0px 4px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold' }}>
-                            {item.artist_rating}
-                          </span>
-                        )}
-
-                        {item.artist_country && (
-                          <span style={{ color: '#888', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            • {flagElement} {item.artist_country}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Álbum + Contagem de Álbuns */}
-                      <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>{item.album || '—'}</span>
-                        {item.total_albums > 0 && (
-                          <span style={{ color: '#666', fontSize: '10px' }}>
-                            ({item.total_albums} {item.total_albums === 1 ? 'álbum' : 'álbuns'})
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Horário */}
-                      <div style={{ color: '#888', fontSize: '10px', opacity: 0.7 }}>
-                        {new Date(item.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-
-                    </div>
+              return (
+                <div key={idx} onClick={() => openDeezer(item.artist, item.album)} style={{ display: 'flex', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #2a2a2a', gap: '12px', cursor: 'pointer' }}>
+                  
+                  <div>
+                    <img src={item.album_art || 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'} style={{ width: '55px', height: '55px', borderRadius: '3px', objectFit: 'cover', display: 'block' }} alt="album art" onError={(e) => { e.target.src = 'https://lastfm.freetls.fastly.net/i/u/64s/4128a6eb29f94943c9d206c08e625904.png'; }} />
                   </div>
-                );
-              })}
-            </>
+
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    
+                    {/* Linha 1: Música + Coração Maior */}
+                    <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{item.song}</span>
+                      {item.is_favorite && (
+                        <span style={{ color: '#e91e63', fontSize: '14px', lineHeight: 1 }} title="Música favorita">♥</span>
+                      )}
+                    </div>
+
+                    {/* Linha 2: Artista + Total Scrobbles + GR + Score Recência + Rating + País */}
+                    <div style={{ color: artistColor, fontSize: '12px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      
+                      <span>{item.artist}</span>
+
+                      {/* Total Scrobbles do Artista */}
+                      {item.total_scrobbles > 0 && (
+                        <span style={{ fontSize: '10px', color: '#ccc', fontWeight: 'bold' }}>
+                          ({item.total_scrobbles.toLocaleString('pt-BR')})
+                        </span>
+                      )}
+
+                      {/* GR (Pílula de Ranking Geral) */}
+                      {grPos && (
+                        <span style={getGRBadgeStyle(grPos, artistColor)}>
+                          {grPos}
+                        </span>
+                      )}
+
+                      {/* Score de Recência (0 a 99) estilo retângulo */}
+                      {item.artist_recency_score !== undefined && item.artist_recency_score !== null && (
+                        <span style={{ border: '1px solid #6dbe99', color: '#6dbe99', backgroundColor: 'rgba(109,190,153,0.1)', padding: '0px 3px', borderRadius: '2px', fontSize: '9px', fontWeight: 'bold' }}>
+                          |||||| {item.artist_recency_score}
+                        </span>
+                      )}
+
+                      {/* Selo Rating */}
+                      {item.artist_rating && (
+                        <span style={{ backgroundColor: '#2a2a2a', color: artistColor, border: `1px solid ${artistColor}`, padding: '0px 4px', borderRadius: '3px', fontSize: '9px', fontWeight: 'bold' }}>
+                          {item.artist_rating}
+                        </span>
+                      )}
+
+                      {/* País */}
+                      {item.artist_country && (
+                        <span style={{ color: '#888', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          • {flagElement} {item.artist_country}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Linha 3: Álbum + Qtd de Álbuns */}
+                    <div style={{ color: '#888', fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{item.album || '—'}</span>
+                      {item.total_albums > 0 && (
+                        <span style={{ color: '#666', fontSize: '10px' }}>
+                          ({item.total_albums} {item.total_albums === 1 ? 'álbum' : 'álbuns'})
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Linha 4: Data e Hora DD/MM/AA - HH:MM */}
+                    <div style={{ color: '#888', fontSize: '10px', opacity: 0.7 }}>
+                      {formatDateWithTime(item.date)}
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })
           ) : (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>No data found for the applied filters.</div>
+            <div style={{ padding: '20px', textAlign: 'center', color: '#888' }}>Nenhum registro encontrado para os filtros aplicados.</div>
           )}
         </div>
 
+        {/* PAGINAÇÃO */}
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', padding: '15px 10px' }}>
           <button disabled={currentPage === 0} onClick={() => { setCurrentPage(prev => prev - 1); window.scrollTo(0, 0); }} style={{ background: '#333', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: currentPage === 0 ? 0.15 : 1 }}>
             Previous
           </button>
           <span style={{ fontSize: '11px', color: '#888' }}>
-            Day {currentPage + 1} of {currentGroups.length || 1}
+            Página {currentPage + 1} de {totalPages || 1}
           </span>
-          <button disabled={(currentPage + 1) >= currentGroups.length} onClick={() => { setCurrentPage(prev => prev + 1); window.scrollTo(0, 0); }} style={{ background: '#333', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: (currentPage + 1) >= currentGroups.length ? 0.15 : 1 }}>
+          <button disabled={(currentPage + 1) >= totalPages} onClick={() => { setCurrentPage(prev => prev + 1); window.scrollTo(0, 0); }} style={{ background: '#333', border: 'none', color: 'white', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', opacity: (currentPage + 1) >= totalPages ? 0.15 : 1 }}>
             Next
           </button>
         </div>
