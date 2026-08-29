@@ -81,6 +81,17 @@ export default function FloatingMenu() {
       )
     },
     { 
+      to: "/trending", 
+      label: "Trending", 
+      color: "#8cc63f",
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+          <polyline points="17 6 23 6 23 12" />
+        </svg>
+      )
+    },
+    { 
       label: "Charts", 
       color: "#39b54a",
       isParent: true,
@@ -95,9 +106,7 @@ export default function FloatingMenu() {
         { to: "/charts/top10", label: "Top 10" },
         { to: "/charts/scrobbles", label: "Scrobbles" },
         { to: "/charts/hall-of-fame", label: "Hall of Fame" },
-        { to: "/charts/favorites", label: "Favorites" },
-        { to: "/trending", label: "Trending" },
-        { to: "/stats", label: "Stats" }
+        { to: "/charts/favorites", label: "Favorites" }
       ]
     },
     { 
@@ -108,6 +117,17 @@ export default function FloatingMenu() {
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
           <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+        </svg>
+      )
+    },
+    { 
+      to: "/stats", 
+      label: "Stats", 
+      color: "#00a99d",
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+          <path d="M22 12A10 10 0 0 0 12 2v10z" />
         </svg>
       )
     },
@@ -157,7 +177,18 @@ export default function FloatingMenu() {
           <line x1="8" y1="12" x2="16" y2="12" />
         </svg>
       )
-    }
+    },
+    { 
+      to: "/profile", 
+      label: "Profile", 
+      color: "#722e85",
+      icon: (
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      )
+    },
   ];
 
   return (
