@@ -238,7 +238,7 @@ export default function FloatingMenu() {
 const styles = {
   container: { 
     position: 'fixed', 
-    bottom: '20px', 
+    bottom: '80px', // Ajustado de 20px para 80px para dar espaçamento das informações inferiores
     right: '20px', 
     zIndex: 9999, 
     fontFamily: '"Bebas Neue", cursive',
